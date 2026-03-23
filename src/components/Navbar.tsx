@@ -16,13 +16,15 @@ const Navbar = () => {
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-8">
-          <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Programmes</a>
-          <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Hackers</a>
-          <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">MCP Agents</a>
-          <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Documentation</a>
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
-            Connexion
-          </Button>
+          <Link to="/programmes" className="text-sm text-muted-foreground hover:text-primary transition-colors">Programmes</Link>
+          <Link to="/hackers" className="text-sm text-muted-foreground hover:text-primary transition-colors">Hackers</Link>
+          <Link to="/mcp-agents" className="text-sm text-muted-foreground hover:text-primary transition-colors">MCP Agents</Link>
+          <Link to="/documentation" className="text-sm text-muted-foreground hover:text-primary transition-colors">Documentation</Link>
+          <Link to="/connexion">
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
+              Connexion
+            </Button>
+          </Link>
         </div>
 
         {/* Mobile toggle */}
