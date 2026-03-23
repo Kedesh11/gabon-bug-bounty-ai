@@ -36,13 +36,15 @@ const Navbar = () => {
       {/* Mobile menu */}
       {open && (
         <div className="md:hidden glass-card border-t border-border px-4 py-4 space-y-3">
-          <a href="#" className="block text-sm text-muted-foreground hover:text-primary">Programmes</a>
-          <a href="#" className="block text-sm text-muted-foreground hover:text-primary">Hackers</a>
-          <a href="#" className="block text-sm text-muted-foreground hover:text-primary">MCP Agents</a>
-          <a href="#" className="block text-sm text-muted-foreground hover:text-primary">Documentation</a>
-          <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
-            Connexion
-          </Button>
+          <Link to="/programmes" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Programmes</Link>
+          <Link to="/hackers" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Hackers</Link>
+          <Link to="/mcp-agents" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">MCP Agents</Link>
+          <Link to="/documentation" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Documentation</Link>
+          <Link to="/connexion" onClick={() => setOpen(false)}>
+            <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
+              Connexion
+            </Button>
+          </Link>
         </div>
       )}
     </nav>
