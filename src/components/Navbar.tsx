@@ -1,18 +1,33 @@
-import { Shield, Menu } from "lucide-react";
+import { Shield, Menu, LogOut, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth, UserRole } from "@/contexts/AuthContext";
+
+const DASHBOARD_PATHS: Record<UserRole, string> = {
+  admin: "/admin",
+  hacker: "/hacker",
+  entreprise: "/entreprise",
+};
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+    setOpen(false);
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border">
       <div className="container px-4 flex items-center justify-between h-16">
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <Shield className="w-6 h-6 text-primary" />
           <span className="font-black text-lg text-foreground">BugBounty<span className="text-primary">.ga</span></span>
-        </div>
+        </Link>
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-8">
@@ -20,11 +35,24 @@ const Navbar = () => {
           <Link to="/hackers" className="text-sm text-muted-foreground hover:text-primary transition-colors">Hackers</Link>
           <Link to="/mcp-agents" className="text-sm text-muted-foreground hover:text-primary transition-colors">MCP Agents</Link>
           <Link to="/documentation" className="text-sm text-muted-foreground hover:text-primary transition-colors">Documentation</Link>
-          <Link to="/connexion">
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
-              Connexion
-            </Button>
-          </Link>
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-2">
+              <Link to={DASHBOARD_PATHS[user.role]}>
+                <Button size="sm" variant="outline" className="font-mono text-xs">
+                  <LayoutDashboard className="w-3 h-3 mr-1" /> Dashboard
+                </Button>
+              </Link>
+              <Button size="sm" variant="ghost" onClick={handleLogout} className="text-destructive text-xs">
+                <LogOut className="w-3 h-3 mr-1" /> Déconnexion
+              </Button>
+            </div>
+          ) : (
+            <Link to="/connexion">
+              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
+                Connexion
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Mobile toggle */}
@@ -40,11 +68,16 @@ const Navbar = () => {
           <Link to="/hackers" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Hackers</Link>
           <Link to="/mcp-agents" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">MCP Agents</Link>
           <Link to="/documentation" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Documentation</Link>
-          <Link to="/connexion" onClick={() => setOpen(false)}>
-            <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
-              Connexion
-            </Button>
-          </Link>
+          {isAuthenticated && user ? (
+            <>
+              <Link to={DASHBOARD_PATHS[user.role]} onClick={() => setOpen(false)} className="block text-sm text-primary font-semibold">Dashboard</Link>
+              <button onClick={handleLogout} className="block text-sm text-destructive">Déconnexion</button>
+            </>
+          ) : (
+            <Link to="/connexion" onClick={() => setOpen(false)}>
+              <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">Connexion</Button>
+            </Link>
+          )}
         </div>
       )}
     </nav>
