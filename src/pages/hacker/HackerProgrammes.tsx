@@ -36,11 +36,18 @@ export default function HackerProgrammes() {
                 <span className="text-xs text-primary font-mono font-bold">
                   {p.minReward.toLocaleString()} - {p.maxReward.toLocaleString()} FCFA
                 </span>
-                <Link to={`/hacker/rapports?programme=${p.id}`}>
-                  <Button size="sm" variant="outline">
-                    <ExternalLink className="w-3 h-3 mr-1" /> Soumettre un bug
-                  </Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link to={`/programmes/${p.id}`}>
+                    <Button size="sm" variant="outline">
+                      <ExternalLink className="w-3 h-3 mr-1" /> Voir
+                    </Button>
+                  </Link>
+                  <Link to={`/hacker/rapports?programme=${p.id}`}>
+                    <Button size="sm" variant="outline">
+                      <ExternalLink className="w-3 h-3 mr-1" /> Soumettre un bug
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
           ))}

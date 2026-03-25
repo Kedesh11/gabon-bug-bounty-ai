@@ -1,15 +1,112 @@
 import { useState, useCallback } from "react";
 
 // Types
+export interface ProgrammeTarget {
+  name: string;
+  tags?: string[];
+  knownIssues?: string;
+}
+
+export interface ProgrammePayoutBand {
+  priority: string;
+  min: number;
+  max: number;
+}
+
+export interface ProgrammeTargetGroup {
+  title: string;
+  description?: string;
+  scopeRating?: string;
+  inScope: boolean;
+  payoutChart?: ProgrammePayoutBand[];
+  targets?: ProgrammeTarget[];
+}
+
+export interface ProgrammeAnnouncement {
+  id: string;
+  title: string;
+  author: string;
+  createdAt: string;
+  content: string;
+}
+
+export interface ProgrammeActivity {
+  id: string;
+  title: string;
+  subtitle?: string;
+  createdAt: string;
+  priority?: string;
+}
+
+export interface ProgrammeThingsToKnow {
+  testingProblems?: string;
+  engagementRules?: string;
+  coordinatedDisclosure?: string;
+}
+
 export interface Programme {
   id: string;
   name: string;
   entrepriseId: string;
   entrepriseName: string;
   description: string;
+  descriptionLong?: string;
+  overview?: string;
   scope: string[];
+  outOfScope?: string[];
+  methodology?: string;
+  eligibility?: string[];
+  howItWorks?: string[];
+  responsibleDisclosure?: string[];
+  rulesOfEngagement?: string[];
+  hardwareResearchRegistration?: string;
+  focusAreas?: string[];
+  nonQualifyingFindings?: string[];
+  terms?: string[];
+  disclosurePolicy?: string;
+  communicationChannels?: string[];
+  tags?: string[];
+  sector?: string;
+  logoUrl?: string;
+  website?: string;
+  safeHarbor?: "partiel" | "complet" | "aucun";
+  scopeRating?: number;
+  testingPeriod?: "ongoing" | "scheduled" | "closed";
+  startedAt?: string;
+  statusText?: string;
+  lastUpdated?: string;
+  vulnerabilitiesRewarded?: number;
+  validationWithinDays?: number;
+  acceptanceRate?: number;
+  averagePayout?: number;
+  averagePayoutWindow?: string;
+  programType?: "public" | "private" | "vdp";
   minReward: number;
   maxReward: number;
+  rewardCurrency?: "USD" | "EUR" | "XAF";
+  rewardTiers?: {
+    severity: "critique" | "haute" | "moyenne" | "faible";
+    min: number;
+    max: number;
+    note?: string;
+  }[];
+  targetGroups?: ProgrammeTargetGroup[];
+  inScopeTargets?: ProgrammeTarget[];
+  outOfScopeTargets?: ProgrammeTarget[];
+  payoutGuidelines?: string;
+  payoutFactors?: string[];
+  rootAccessProgram?: string;
+  announcements?: ProgrammeAnnouncement[];
+  recentActivity?: ProgrammeActivity[];
+  hallOfFamers?: string[];
+  recentlyJoined?: string[];
+  totalResearchers?: number;
+  additionalInformation?: string;
+  thingsToKnow?: ProgrammeThingsToKnow;
+  triageTimeHours?: number;
+  firstResponseHours?: number;
+  resolutionDays?: number;
+  isNew?: boolean;
   status: "actif" | "pause" | "fermé";
   createdAt: string;
   reportsCount: number;
@@ -63,18 +160,97 @@ export interface EntrepriseProfile {
 const INITIAL_PROGRAMMES: Programme[] = [
   {
     id: "prog-1", name: "API Gouvernementale v2", entrepriseId: "entreprise-1", entrepriseName: "Ministère Numérique",
-    description: "Test de sécurité de l'API REST gouvernementale", scope: ["api.gouv.com", "auth.gouv.com"],
-    minReward: 50000, maxReward: 2000000, status: "actif", createdAt: "2024-06-01", reportsCount: 12
+    description: "Test de sécurité de l'API REST gouvernementale",
+    descriptionLong: "Programme orienté API et authentification. Les chercheurs sont invités à tester la logique métier, les contrôles d'accès et les flux OAuth2.",
+    scope: ["api.gouv.com", "auth.gouv.com", "citizen-api.gouv.com"],
+    outOfScope: ["services internes *.intra.gouv.com", "attaques DoS/DDoS", "social engineering"],
+    methodology: "Tests manuels privilégiés.\nPas de scans destructifs.\nTout PoC doit être reproductible et documenté.",
+    terms: ["Ne pas exfiltrer de données réelles", "Utiliser uniquement des comptes de test", "Respecter la loi locale"],
+    disclosurePolicy: "Divulgation coordonnée après correction confirmée.",
+    communicationChannels: ["security@gouv.com", "Canal support triage"],
+    tags: ["Web", "API", "Auth"],
+    sector: "Gouvernement",
+    website: "https://gouv.com",
+    programType: "public",
+    minReward: 50000,
+    maxReward: 2000000,
+    rewardCurrency: "XAF",
+    rewardTiers: [
+      { severity: "critique", min: 1000000, max: 2000000, note: "Prise de contrôle système / exfiltration massive" },
+      { severity: "haute", min: 400000, max: 900000, note: "Contournement auth, accès privilégié" },
+      { severity: "moyenne", min: 150000, max: 350000, note: "Impact partiel significatif" },
+      { severity: "faible", min: 50000, max: 140000, note: "Impact limité / exposition faible" },
+    ],
+    triageTimeHours: 24,
+    firstResponseHours: 12,
+    resolutionDays: 21,
+    isNew: false,
+    status: "actif",
+    createdAt: "2024-06-01",
+    reportsCount: 12,
   },
   {
     id: "prog-2", name: "Portail Citoyen", entrepriseId: "entreprise-2", entrepriseName: "Gabon Telecom",
-    description: "Sécurité du portail de services citoyens", scope: ["citoyen.com", "*.citoyen.com"],
-    minReward: 100000, maxReward: 5000000, status: "actif", createdAt: "2024-05-15", reportsCount: 8
+    description: "Sécurité du portail de services citoyens",
+    descriptionLong: "Programme couvrant le portail web, les API publiques et la gestion d'identité des usagers.",
+    scope: ["citoyen.com", "*.citoyen.com", "api.citoyen.com"],
+    outOfScope: ["Infrastructure réseau hors applicatif", "Spam", "tests de charge non autorisés"],
+    methodology: "Approche grey-box autorisée sur environnement de production avec prudence.",
+    terms: ["Un seul compte test par chercheur", "Pas d'automatisation agressive", "Aucune modification destructrice"],
+    disclosurePolicy: "Publication possible 90 jours après correction.",
+    communicationChannels: ["sec@gabontelecom.com"],
+    tags: ["Web", "API", "Mobile"],
+    sector: "Télécommunications",
+    website: "https://gabontelecom.com",
+    programType: "public",
+    minReward: 100000,
+    maxReward: 5000000,
+    rewardCurrency: "XAF",
+    rewardTiers: [
+      { severity: "critique", min: 2500000, max: 5000000, note: "Compte admin / RCE / fuite massive" },
+      { severity: "haute", min: 700000, max: 2400000, note: "Escalade privilèges / IDOR critique" },
+      { severity: "moyenne", min: 250000, max: 650000, note: "Altération partielle de données" },
+      { severity: "faible", min: 100000, max: 240000, note: "Faible exposition sans impact direct" },
+    ],
+    triageTimeHours: 36,
+    firstResponseHours: 18,
+    resolutionDays: 30,
+    isNew: false,
+    status: "actif",
+    createdAt: "2024-05-15",
+    reportsCount: 8,
   },
   {
     id: "prog-3", name: "Mobile Banking App", entrepriseId: "entreprise-3", entrepriseName: "BGFI Bank",
-    description: "Tests de l'application mobile bancaire", scope: ["app.bgfi.com"],
-    minReward: 200000, maxReward: 10000000, status: "actif", createdAt: "2024-07-01", reportsCount: 5
+    description: "Tests de l'application mobile bancaire",
+    descriptionLong: "Programme bancaire critique incluant API mobile, sessions utilisateurs, mécanismes MFA et contrôles de transactions.",
+    scope: ["app.bgfi.com", "api.bgfi.com/mobile", "mfa.bgfi.com"],
+    outOfScope: ["ATM physiques", "Phishing clients", "DoS volumétrique"],
+    methodology: "Tests applicatifs manuels avec PoC détaillé obligatoire.",
+    terms: ["Aucun test sur comptes clients réels", "Rapport confidentiel", "Preuves chiffrées recommandées"],
+    disclosurePolicy: "Divulgation restreinte, publication sur autorisation explicite.",
+    communicationChannels: ["security@bgfi.com", "manager de programme dédié"],
+    tags: ["Web", "API", "Finance", "Mobile"],
+    sector: "Finance",
+    website: "https://bgfi.com",
+    logoUrl: "https://dummyimage.com/128x128/0b111f/14f195.png&text=BGFI",
+    programType: "private",
+    minReward: 200000,
+    maxReward: 10000000,
+    rewardCurrency: "XAF",
+    rewardTiers: [
+      { severity: "critique", min: 6000000, max: 10000000, note: "Vol de fonds / contournement MFA" },
+      { severity: "haute", min: 1500000, max: 5500000, note: "Prise de compte / transaction non autorisée" },
+      { severity: "moyenne", min: 500000, max: 1400000, note: "Impact partiel sensible" },
+      { severity: "faible", min: 200000, max: 490000, note: "Surface réduite / faible impact business" },
+    ],
+    triageTimeHours: 18,
+    firstResponseHours: 8,
+    resolutionDays: 14,
+    isNew: true,
+    status: "actif",
+    createdAt: "2024-07-01",
+    reportsCount: 5,
   },
 ];
 
