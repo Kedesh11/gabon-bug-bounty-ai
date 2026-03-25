@@ -1,8 +1,9 @@
-import { Shield, LogOut, Home, FileText, Bug, Users, Building2, BarChart3, Settings, Menu, X } from "lucide-react";
+import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, notificationsEventName, type NotificationItem } from "@/lib/notifications";
 
 const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.ElementType }[]> = {
   admin: [
@@ -17,6 +18,7 @@ const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.Ele
     { label: "Programmes", path: "/hacker/programmes", icon: FileText },
     { label: "Mes rapports", path: "/hacker/rapports", icon: Bug },
     { label: "Profil", path: "/hacker/profil", icon: Users },
+    { label: "Paramètres", path: "/hacker/parametres", icon: Settings },
   ],
   entreprise: [
     { label: "Tableau de bord", path: "/entreprise", icon: BarChart3 },
@@ -37,10 +39,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const userId = user?.id ?? "";
+  const items = user ? NAV_ITEMS[user.role] : [];
+  const unreadCount = useMemo(() => notifications.filter((entry) => !entry.isRead).length, [notifications]);
+
+  const reloadNotifications = useCallback(() => {
+    if (!userId) {
+      setNotifications([]);
+      return;
+    }
+    setNotifications(getNotifications(userId));
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    reloadNotifications();
+
+    const handleCustomUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string }>).detail;
+      if (!detail?.userId || detail.userId === userId) {
+        reloadNotifications();
+      }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === `bb_notifications_${userId}`) {
+        reloadNotifications();
+      }
+    };
+
+    window.addEventListener(notificationsEventName, handleCustomUpdate as EventListener);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(notificationsEventName, handleCustomUpdate as EventListener);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [reloadNotifications, userId]);
+
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [location.pathname]);
 
   if (!user) return null;
-
-  const items = NAV_ITEMS[user.role];
 
   const handleLogout = () => {
     logout();
@@ -52,13 +94,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="p-4 border-b border-border">
         <Link to="/" className="flex items-center gap-2">
           <Shield className="w-6 h-6 text-primary" />
-          <span className="font-black text-foreground">BugBounty<span className="text-primary">.ga</span></span>
+          <span className="font-black text-foreground">BugBounty</span>
         </Link>
       </div>
 
       <div className="p-4 border-b border-border">
-        <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
-        <p className="text-xs text-muted-foreground font-mono">{ROLE_LABELS[user.role]}</p>
+        <div className="flex items-center gap-3">
+          {user.avatar ? (
+            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-border" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-secondary border border-border flex items-center justify-center">
+              <UserCircle2 className="w-6 h-6 text-muted-foreground" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground font-mono truncate">{ROLE_LABELS[user.role]}</p>
+          </div>
+        </div>
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
@@ -134,6 +187,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <h2 className="text-sm font-semibold text-foreground">
             {items.find(i => i.path === location.pathname)?.label || "Dashboard"}
           </h2>
+          <div className="ml-auto relative">
+            <Button variant="ghost" size="icon" className="text-foreground relative" onClick={() => setNotificationsOpen((prev) => !prev)}>
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Button>
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-2 w-[340px] max-w-[85vw] rounded-xl border border-border bg-card shadow-xl p-3 space-y-3 z-50">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-foreground">Notifications</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => {
+                      markAllNotificationsAsRead(user.id);
+                      reloadNotifications();
+                    }}
+                  >
+                    <CheckCheck className="w-3 h-3 mr-1" />
+                    Tout lire
+                  </Button>
+                </div>
+                <div className="max-h-72 overflow-auto space-y-2">
+                  {notifications.length > 0 ? (
+                    notifications.map((entry) => (
+                      <button
+                        key={entry.id}
+                        onClick={() => {
+                          markNotificationAsRead(user.id, entry.id);
+                          reloadNotifications();
+                        }}
+                        className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                          entry.isRead ? "border-border bg-secondary/40" : "border-primary/30 bg-primary/10"
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-foreground">{entry.title}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{entry.message}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono mt-2">
+                          {new Date(entry.createdAt).toLocaleString("fr-FR")}
+                        </p>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-6">Aucune notification</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </header>
         <main className="p-4 md:p-6">{children}</main>
       </div>

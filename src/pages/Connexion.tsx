@@ -1,10 +1,10 @@
 import Navbar from "@/components/Navbar";
-import { Shield, Terminal, ArrowRight, User, Building2, ShieldCheck } from "lucide-react";
+import { Shield, Terminal, ArrowRight, ShieldCheck, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const ROLE_REDIRECTS: Record<UserRole, string> = {
@@ -14,40 +14,39 @@ const ROLE_REDIRECTS: Record<UserRole, string> = {
 };
 
 const Connexion = () => {
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [role, setRole] = useState<"hacker" | "entreprise">("hacker");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roleParam = searchParams.get("role");
+  const requiredRole: UserRole | null =
+    roleParam === "admin" || roleParam === "hacker" || roleParam === "entreprise" ? roleParam : null;
+  const redirectPath = searchParams.get("redirect");
 
   const handleSubmit = () => {
-    if (!email || !password) { toast.error("Remplissez tous les champs"); return; }
-
-    if (mode === "login") {
-      const success = login(email, password);
-      if (success) {
-        // Determine role from demo accounts
-        const roleMap: Record<string, UserRole> = {
-          "admin@bugbounty.ga": "admin",
-          "hacker@bugbounty.ga": "hacker",
-          "entreprise@bugbounty.ga": "entreprise",
-        };
-        const userRole = roleMap[email] || "hacker";
-        toast.success("Connexion réussie !");
-        navigate(ROLE_REDIRECTS[userRole]);
-      }
-    } else {
-      if (password !== confirmPassword) { toast.error("Les mots de passe ne correspondent pas"); return; }
-      if (!name) { toast.error("Le nom est obligatoire"); return; }
-      const success = register(name, email, password, role);
-      if (success) {
-        toast.success("Inscription réussie !");
-        navigate(ROLE_REDIRECTS[role]);
-      }
+    if (!email || !password) {
+      toast.error("Remplissez tous les champs");
+      return;
     }
+
+    const loggedUser = login(email, password);
+    if (!loggedUser) {
+      toast.error("Identifiants invalides");
+      return;
+    }
+
+    if (requiredRole && loggedUser.role !== requiredRole) {
+      toast.error(`Connectez-vous avec un compte ${requiredRole}`);
+      return;
+    }
+
+    toast.success("Connexion réussie");
+    if (redirectPath) {
+      navigate(redirectPath);
+      return;
+    }
+    navigate(ROLE_REDIRECTS[loggedUser.role]);
   };
 
   return (
@@ -60,83 +59,53 @@ const Connexion = () => {
         <div className="relative z-10 w-full max-w-md px-4">
           <div className="text-center mb-8">
             <Shield className="w-10 h-10 text-primary mx-auto mb-3" />
-            <h1 className="text-3xl font-black text-foreground">
-              {mode === "login" ? "Connexion" : "Inscription"}
-            </h1>
+            <h1 className="text-3xl font-black text-foreground">Connexion</h1>
             <p className="text-sm text-muted-foreground mt-1 font-mono">
-              {mode === "login" ? "Accédez à votre espace sécurisé" : "Rejoignez la plateforme BugBounty.ga"}
+              {requiredRole === "entreprise" ? "Connexion entreprise requise" : "Accédez à votre espace sécurisé"}
             </p>
           </div>
 
           <div className="glass-card rounded-xl border-glow p-6 space-y-5">
-            {/* Demo accounts hint */}
-            {mode === "login" && (
-              <div className="bg-secondary rounded-lg p-3 space-y-1.5">
-                <p className="text-xs font-semibold text-foreground flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-primary" /> Comptes démo
-                </p>
-                <button onClick={() => { setEmail("admin@bugbounty.ga"); setPassword("demo"); }}
-                  className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors">
-                  admin@bugbounty.ga → Admin
-                </button>
-                <button onClick={() => { setEmail("hacker@bugbounty.ga"); setPassword("demo"); }}
-                  className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors">
-                  hacker@bugbounty.ga → Hacker
-                </button>
-                <button onClick={() => { setEmail("entreprise@bugbounty.ga"); setPassword("demo"); }}
-                  className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors">
-                  entreprise@bugbounty.ga → Entreprise
-                </button>
-              </div>
-            )}
-
-            {mode === "register" && (
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setRole("hacker")}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                    role === "hacker"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-secondary text-muted-foreground hover:border-primary/30"
-                  }`}
-                >
-                  <User className="w-5 h-5" />
-                  <span className="text-sm font-semibold">Hacker</span>
-                  <span className="text-xs opacity-70">Chercheur de bugs</span>
-                </button>
-                <button
-                  onClick={() => setRole("entreprise")}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                    role === "entreprise"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-secondary text-muted-foreground hover:border-primary/30"
-                  }`}
-                >
-                  <Building2 className="w-5 h-5" />
-                  <span className="text-sm font-semibold">Entreprise</span>
-                  <span className="text-xs opacity-70">Protégez vos systèmes</span>
-                </button>
-              </div>
-            )}
-
-            {mode === "register" && (
-              <div>
-                <label className="text-sm text-muted-foreground font-mono mb-1.5 block">
-                  {role === "hacker" ? "Pseudo" : "Nom de l'organisation"}
-                </label>
-                <Input
-                  value={name} onChange={e => setName(e.target.value)}
-                  placeholder={role === "hacker" ? "CyberPanther_GA" : "Ministère de ..."}
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-            )}
+            <div className="bg-secondary rounded-lg p-3 space-y-1.5">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-primary" /> Comptes démo
+              </p>
+              <button
+                onClick={() => {
+                  setEmail("admin@bugbounty.com");
+                  setPassword("demo");
+                }}
+                className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
+              >
+                admin@bugbounty.com → Admin
+              </button>
+              <button
+                onClick={() => {
+                  setEmail("hacker@bugbounty.com");
+                  setPassword("demo");
+                }}
+                className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
+              >
+                hacker@bugbounty.com → Hacker
+              </button>
+              <button
+                onClick={() => {
+                  setEmail("entreprise@bugbounty.com");
+                  setPassword("demo");
+                }}
+                className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
+              >
+                entreprise@bugbounty.com → Entreprise
+              </button>
+            </div>
 
             <div>
               <label className="text-sm text-muted-foreground font-mono mb-1.5 block">Email</label>
               <Input
-                type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="vous@exemple.ga"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="vous@exemple.com"
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
@@ -144,27 +113,25 @@ const Connexion = () => {
             <div>
               <label className="text-sm text-muted-foreground font-mono mb-1.5 block">Mot de passe</label>
               <Input
-                type="password" value={password} onChange={e => setPassword(e.target.value)}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••"
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
-            {mode === "register" && (
-              <div>
-                <label className="text-sm text-muted-foreground font-mono mb-1.5 block">Confirmer le mot de passe</label>
-                <Input
-                  type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••••"
-                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-            )}
-
             <Button onClick={handleSubmit} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold cyber-glow">
-              {mode === "login" ? "Se connecter" : "Créer mon compte"}
+              Se connecter
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
+
+            <Link to="/mot-de-passe-oublie" className="block text-center text-xs text-primary hover:underline font-mono">
+              <span className="inline-flex items-center gap-1">
+                <KeyRound className="w-3 h-3" />
+                Mot de passe oublié ?
+              </span>
+            </Link>
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono justify-center">
               <Terminal className="w-3 h-3" />
@@ -173,21 +140,13 @@ const Connexion = () => {
           </div>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            {mode === "login" ? (
-              <>
-                Pas encore de compte ?{" "}
-                <button onClick={() => setMode("register")} className="text-primary hover:underline font-semibold">
-                  S'inscrire
-                </button>
-              </>
-            ) : (
-              <>
-                Déjà inscrit ?{" "}
-                <button onClick={() => setMode("login")} className="text-primary hover:underline font-semibold">
-                  Se connecter
-                </button>
-              </>
-            )}
+            Pas encore de compte ?{" "}
+            <Link
+              to={requiredRole === "entreprise" ? `/inscription?role=entreprise${redirectPath ? `&redirect=${encodeURIComponent(redirectPath)}` : ""}` : "/inscription"}
+              className="text-primary hover:underline font-semibold"
+            >
+              Créer un compte
+            </Link>
           </p>
         </div>
       </section>

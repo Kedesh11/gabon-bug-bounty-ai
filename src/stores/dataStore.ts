@@ -31,6 +31,8 @@ export interface Report {
   updatedAt: string;
   vulnerability: string;
   proof: string;
+  pdfFileName?: string;
+  analysisStatus?: "en_attente" | "en_cours" | "terminee";
 }
 
 export interface HackerProfile {
@@ -61,17 +63,17 @@ export interface EntrepriseProfile {
 const INITIAL_PROGRAMMES: Programme[] = [
   {
     id: "prog-1", name: "API Gouvernementale v2", entrepriseId: "entreprise-1", entrepriseName: "Ministère Numérique",
-    description: "Test de sécurité de l'API REST gouvernementale", scope: ["api.gouv.ga", "auth.gouv.ga"],
+    description: "Test de sécurité de l'API REST gouvernementale", scope: ["api.gouv.com", "auth.gouv.com"],
     minReward: 50000, maxReward: 2000000, status: "actif", createdAt: "2024-06-01", reportsCount: 12
   },
   {
     id: "prog-2", name: "Portail Citoyen", entrepriseId: "entreprise-2", entrepriseName: "Gabon Telecom",
-    description: "Sécurité du portail de services citoyens", scope: ["citoyen.ga", "*.citoyen.ga"],
+    description: "Sécurité du portail de services citoyens", scope: ["citoyen.com", "*.citoyen.com"],
     minReward: 100000, maxReward: 5000000, status: "actif", createdAt: "2024-05-15", reportsCount: 8
   },
   {
     id: "prog-3", name: "Mobile Banking App", entrepriseId: "entreprise-3", entrepriseName: "BGFI Bank",
-    description: "Tests de l'application mobile bancaire", scope: ["app.bgfi.ga"],
+    description: "Tests de l'application mobile bancaire", scope: ["app.bgfi.com"],
     minReward: 200000, maxReward: 10000000, status: "actif", createdAt: "2024-07-01", reportsCount: 5
   },
 ];
@@ -108,16 +110,16 @@ const INITIAL_REPORTS: Report[] = [
 ];
 
 const INITIAL_HACKERS: HackerProfile[] = [
-  { id: "hacker-1", name: "CyberPanther", email: "hacker@bugbounty.ga", reputation: 2450, bugsFound: 34, totalRewards: 4500000, rank: 1, specialties: ["XSS", "IDOR", "API"], joinedAt: "2024-03-15", status: "actif" },
+  { id: "hacker-1", name: "CyberPanther", email: "hacker@bugbounty.com", reputation: 2450, bugsFound: 34, totalRewards: 4500000, rank: 1, specialties: ["XSS", "IDOR", "API"], joinedAt: "2024-03-15", status: "actif" },
   { id: "hacker-2", name: "Gh0stNet", email: "ghost@mail.com", reputation: 1890, bugsFound: 21, totalRewards: 3200000, rank: 2, specialties: ["SQLi", "RCE"], joinedAt: "2024-04-01", status: "actif" },
   { id: "hacker-3", name: "ZeroDayGA", email: "zeroday@mail.com", reputation: 1650, bugsFound: 18, totalRewards: 2800000, rank: 3, specialties: ["CSRF", "Auth Bypass"], joinedAt: "2024-04-10", status: "actif" },
   { id: "hacker-4", name: "ShadowByte", email: "shadow@mail.com", reputation: 980, bugsFound: 9, totalRewards: 1200000, rank: 4, specialties: ["SSRF"], joinedAt: "2024-05-20", status: "suspendu" },
 ];
 
 const INITIAL_ENTREPRISES: EntrepriseProfile[] = [
-  { id: "entreprise-1", name: "Ministère Numérique", email: "entreprise@bugbounty.ga", sector: "Gouvernement", programmesCount: 3, totalPaid: 4500000, joinedAt: "2024-02-10", status: "actif" },
-  { id: "entreprise-2", name: "Gabon Telecom", email: "sec@gabontelecom.ga", sector: "Télécommunications", programmesCount: 2, totalPaid: 3200000, joinedAt: "2024-03-01", status: "actif" },
-  { id: "entreprise-3", name: "BGFI Bank", email: "security@bgfi.ga", sector: "Finance", programmesCount: 1, totalPaid: 8000000, joinedAt: "2024-04-15", status: "actif" },
+  { id: "entreprise-1", name: "Ministère Numérique", email: "entreprise@bugbounty.com", sector: "Gouvernement", programmesCount: 3, totalPaid: 4500000, joinedAt: "2024-02-10", status: "actif" },
+  { id: "entreprise-2", name: "Gabon Telecom", email: "sec@gabontelecom.com", sector: "Télécommunications", programmesCount: 2, totalPaid: 3200000, joinedAt: "2024-03-01", status: "actif" },
+  { id: "entreprise-3", name: "BGFI Bank", email: "security@bgfi.com", sector: "Finance", programmesCount: 1, totalPaid: 8000000, joinedAt: "2024-04-15", status: "actif" },
 ];
 
 function loadData<T>(key: string, initial: T): T {

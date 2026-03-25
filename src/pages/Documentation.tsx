@@ -15,7 +15,7 @@ const sections = [
       },
       {
         subtitle: "Objectifs de la plateforme",
-        text: "La plateforme BugBounty.ga est un système collaboratif de cybersécurité permettant à des organisations de faire tester leurs systèmes par des hackers éthiques, avec l'appui d'un moteur intelligent basé sur des agents décisionnels (MCP)."
+        text: "La plateforme BugBounty est un système collaboratif de cybersécurité permettant à des organisations de faire tester leurs systèmes par des hackers éthiques, avec l'appui d'un moteur intelligent basé sur des agents décisionnels (MCP)."
       },
     ],
   },
@@ -98,7 +98,7 @@ const Documentation = () => {
               <span className="text-gradient-cyber">Documentation</span>
             </h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Tout ce que vous devez savoir pour utiliser la plateforme BugBounty.ga
+              Tout ce que vous devez savoir pour utiliser la plateforme BugBounty
             </p>
           </div>
 
