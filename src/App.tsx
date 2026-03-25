@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 import Index from "./pages/Index";
 import Programmes from "./pages/Programmes";
+import ProgrammeDetail from "./pages/ProgrammeDetail";
 import Hackers from "./pages/Hackers";
 import MCPAgents from "./pages/MCPAgents";
 import Documentation from "./pages/Documentation";
@@ -53,6 +54,7 @@ const App = () => (
               {/* Public */}
               <Route path="/" element={<Index />} />
               <Route path="/programmes" element={<Programmes />} />
+              <Route path="/programmes/:id" element={<ProgrammeDetail />} />
               <Route path="/hackers" element={<Hackers />} />
               <Route path="/mcp-agents" element={<MCPAgents />} />
               <Route path="/documentation" element={<Documentation />} />

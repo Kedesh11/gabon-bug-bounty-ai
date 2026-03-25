@@ -6,74 +6,42 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useEffect, useMemo, useState } from "react";
-
-const programmes = [
-  {
-    name: "Ministère de l'Économie Numérique",
-    scope: "*.economie-numerique.gouv.com",
-    rewards: "500 000 – 5 000 000 FCFA",
-    severity: "Critique",
-    hunters: 34,
-    reports: 12,
-    status: "Actif",
-    tags: ["Web", "API", "Mobile"],
-  },
-  {
-    name: "Banque Centrale (BEAC)",
-    scope: "*.beac.int",
-    rewards: "1 000 000 – 10 000 000 FCFA",
-    severity: "Critique",
-    hunters: 56,
-    reports: 28,
-    status: "Actif",
-    tags: ["Web", "Infrastructure"],
-  },
-  {
-    name: "Gabon Telecom",
-    scope: "*.gabontelecom.com",
-    rewards: "250 000 – 3 000 000 FCFA",
-    severity: "Haute",
-    hunters: 21,
-    reports: 7,
-    status: "Actif",
-    tags: ["Web", "API", "IoT"],
-  },
-  {
-    name: "CNAMGS",
-    scope: "*.cnamgs.com",
-    rewards: "300 000 – 4 000 000 FCFA",
-    severity: "Haute",
-    hunters: 18,
-    reports: 5,
-    status: "Actif",
-    tags: ["Web", "Base de données"],
-  },
-  {
-    name: "Port d'Owendo",
-    scope: "*.portowendo.com",
-    rewards: "200 000 – 2 000 000 FCFA",
-    severity: "Moyenne",
-    hunters: 9,
-    reports: 3,
-    status: "Nouveau",
-    tags: ["Web", "SCADA"],
-  },
-  {
-    name: "Université Omar Bongo",
-    scope: "*.uob.com",
-    rewards: "100 000 – 1 500 000 FCFA",
-    severity: "Moyenne",
-    hunters: 15,
-    reports: 8,
-    status: "Actif",
-    tags: ["Web", "API"],
-  },
-];
+import { Link } from "react-router-dom";
+import { useData } from "@/contexts/DataContext";
+import { Programme } from "@/stores/dataStore";
 
 const FILTERS = ["Tous", "Actif", "Nouveau", "Critique", "Web", "API"] as const;
 type ViewMode = "cards" | "tableau";
 
+const severityLabel = (programme: Programme) => {
+  if (programme.rewardTiers?.some((tier) => tier.severity === "critique")) return "Critique";
+  if (programme.maxReward >= 2500000) return "Critique";
+  if (programme.maxReward >= 900000) return "Haute";
+  if (programme.maxReward >= 250000) return "Moyenne";
+  return "Faible";
+};
+
+const inferTags = (programme: Programme) => {
+  if (programme.tags && programme.tags.length > 0) return programme.tags;
+
+  const tags = new Set<string>();
+  const joinedScope = programme.scope.join(" ").toLowerCase();
+  if (joinedScope.includes("api")) tags.add("API");
+  if (joinedScope.includes("app") || joinedScope.includes("web")) tags.add("Web");
+  if (joinedScope.includes("mobile")) tags.add("Mobile");
+  if (tags.size === 0) tags.add("Web");
+  return Array.from(tags);
+};
+
+const statusLabel = (programme: Programme) => {
+  if (programme.isNew) return "Nouveau";
+  if (programme.status === "actif") return "Actif";
+  if (programme.status === "pause") return "Pause";
+  return "Fermé";
+};
+
 const Programmes = () => {
+  const { programmes } = useData();
   const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>("Tous");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,19 +59,38 @@ const Programmes = () => {
     return () => window.removeEventListener("resize", updateCardsPerPage);
   }, []);
 
-  const filteredProgrammes = useMemo(() => {
-    if (activeFilter === "Tous") return programmes;
+  const normalizedProgrammes = useMemo(() => {
+    return programmes.map((programme) => ({
+      id: programme.id,
+      name: programme.name,
+      scope: programme.scope.join(", "),
+      rewards: `${programme.minReward.toLocaleString()} – ${programme.maxReward.toLocaleString()} ${programme.rewardCurrency || "FCFA"}`,
+      severity: severityLabel(programme),
+      hunters: Math.max(6, programme.reportsCount * 3),
+      reports: programme.reportsCount,
+      status: statusLabel(programme),
+      tags: inferTags(programme),
+      rawStatus: programme.status,
+      isNew: !!programme.isNew,
+    }));
+  }, [programmes]);
 
-    return programmes.filter((programme) => {
-      if (activeFilter === "Actif" || activeFilter === "Nouveau") {
-        return programme.status === activeFilter;
+  const filteredProgrammes = useMemo(() => {
+    if (activeFilter === "Tous") return normalizedProgrammes;
+
+    return normalizedProgrammes.filter((programme) => {
+      if (activeFilter === "Actif") {
+        return programme.rawStatus === "actif";
+      }
+      if (activeFilter === "Nouveau") {
+        return programme.isNew;
       }
       if (activeFilter === "Critique") {
         return programme.severity === "Critique";
       }
       return programme.tags.includes(activeFilter);
     });
-  }, [activeFilter]);
+  }, [activeFilter, normalizedProgrammes]);
 
   const pageSize = viewMode === "cards" ? cardsPerPage : 5;
   const totalPages = Math.max(1, Math.ceil(filteredProgrammes.length / pageSize));
@@ -230,9 +217,11 @@ const Programmes = () => {
                         </div>
                       </CardContent>
                       <CardFooter>
-                        <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
-                          <ExternalLink className="w-3 h-3 mr-1" />
-                          Voir le programme
+                        <Button asChild size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
+                          <Link to={`/programmes/${prog.id}`}>
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            Voir le programme
+                          </Link>
                         </Button>
                       </CardFooter>
                     </Card>
@@ -249,6 +238,7 @@ const Programmes = () => {
                         <TableHead>Sévérité</TableHead>
                         <TableHead>Statut</TableHead>
                         <TableHead>Tags</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -271,6 +261,14 @@ const Programmes = () => {
                                 </span>
                               ))}
                             </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button asChild size="sm" variant="outline">
+                              <Link to={`/programmes/${prog.id}`}>
+                                <ExternalLink className="w-3 h-3 mr-1" />
+                                Voir
+                              </Link>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
