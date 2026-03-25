@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Bug Bounty Gabon
 
-TODO: Document your project here
+Projet frontend de la plateforme Bug Bounty Gabon.

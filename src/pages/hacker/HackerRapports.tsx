@@ -90,6 +90,8 @@ export default function HackerRapports() {
               <p className="text-sm text-foreground">{detail.description}</p>
               <p className="text-xs text-muted-foreground font-mono">Vulnérabilité: {detail.vulnerability}</p>
               <p className="text-xs text-muted-foreground font-mono">Preuve: {detail.proof}</p>
+              {detail.pdfFileName && <p className="text-xs text-muted-foreground font-mono">PDF: {detail.pdfFileName}</p>}
+              {detail.analysisStatus && <p className="text-xs text-muted-foreground font-mono">Analyse IA: {detail.analysisStatus}</p>}
             </div>
             {detail.reward > 0 && <p className="text-sm font-mono text-primary font-bold">Récompense: {detail.reward.toLocaleString()} FCFA</p>}
           </div>

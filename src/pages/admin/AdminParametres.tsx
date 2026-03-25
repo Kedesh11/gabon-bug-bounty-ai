@@ -7,8 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminParametres() {
   const { user } = useAuth();
-  const [platformName, setPlatformName] = useState("BugBounty.ga");
-  const [contactEmail, setContactEmail] = useState("admin@bugbounty.ga");
+  const [platformName, setPlatformName] = useState("BugBounty");
+  const [contactEmail, setContactEmail] = useState("admin@bugbounty.com");
 
   return (
     <DashboardLayout>

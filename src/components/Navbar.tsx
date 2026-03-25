@@ -26,12 +26,13 @@ const Navbar = () => {
       <div className="container px-4 flex items-center justify-between h-16">
         <Link to="/" className="flex items-center gap-2">
           <Shield className="w-6 h-6 text-primary" />
-          <span className="font-black text-lg text-foreground">BugBounty<span className="text-primary">.ga</span></span>
+          <span className="font-black text-lg text-foreground">Bug Bounty</span>
         </Link>
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-8">
           <Link to="/programmes" className="text-sm text-muted-foreground hover:text-primary transition-colors">Programmes</Link>
+          <Link to="/soumettre-rapport" className="text-sm text-muted-foreground hover:text-primary transition-colors">Soumettre Rapport</Link>
           <Link to="/hackers" className="text-sm text-muted-foreground hover:text-primary transition-colors">Hackers</Link>
           <Link to="/mcp-agents" className="text-sm text-muted-foreground hover:text-primary transition-colors">MCP Agents</Link>
           <Link to="/documentation" className="text-sm text-muted-foreground hover:text-primary transition-colors">Documentation</Link>
@@ -65,6 +66,7 @@ const Navbar = () => {
       {open && (
         <div className="md:hidden glass-card border-t border-border px-4 py-4 space-y-3">
           <Link to="/programmes" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Programmes</Link>
+          <Link to="/soumettre-rapport" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Soumettre Rapport</Link>
           <Link to="/hackers" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Hackers</Link>
           <Link to="/mcp-agents" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">MCP Agents</Link>
           <Link to="/documentation" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Documentation</Link>

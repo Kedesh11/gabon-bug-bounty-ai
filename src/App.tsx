@@ -12,7 +12,14 @@ import Programmes from "./pages/Programmes";
 import Hackers from "./pages/Hackers";
 import MCPAgents from "./pages/MCPAgents";
 import Documentation from "./pages/Documentation";
+import MentionsLegales from "./pages/MentionsLegales";
+import Contact from "./pages/Contact";
 import Connexion from "./pages/Connexion";
+import Inscription from "./pages/Inscription";
+import MotDePasseOublie from "./pages/MotDePasseOublie";
+import ReinitialiserMotDePasse from "./pages/ReinitialiserMotDePasse";
+import SoumettreRapport from "./pages/SoumettreRapport";
+import SoumettreProgramme from "./pages/SoumettreProgramme";
 import NotFound from "./pages/NotFound";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -25,6 +32,7 @@ import HackerDashboard from "./pages/hacker/HackerDashboard";
 import HackerProgrammes from "./pages/hacker/HackerProgrammes";
 import HackerRapports from "./pages/hacker/HackerRapports";
 import HackerProfil from "./pages/hacker/HackerProfil";
+import HackerParametres from "./pages/hacker/HackerParametres";
 
 import EntrepriseDashboard from "./pages/entreprise/EntrepriseDashboard";
 import EntrepriseProgrammes from "./pages/entreprise/EntrepriseProgrammes";
@@ -48,7 +56,14 @@ const App = () => (
               <Route path="/hackers" element={<Hackers />} />
               <Route path="/mcp-agents" element={<MCPAgents />} />
               <Route path="/documentation" element={<Documentation />} />
+              <Route path="/mentions-legales" element={<MentionsLegales />} />
+              <Route path="/contact" element={<Contact />} />
               <Route path="/connexion" element={<Connexion />} />
+              <Route path="/inscription" element={<Inscription />} />
+              <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
+              <Route path="/reinitialiser-mot-de-passe" element={<ReinitialiserMotDePasse />} />
+              <Route path="/soumettre-programme" element={<SoumettreProgramme />} />
+              <Route path="/soumettre-rapport" element={<ProtectedRoute roles={["hacker"]}><SoumettreRapport /></ProtectedRoute>} />
 
               {/* Admin */}
               <Route path="/admin" element={<ProtectedRoute roles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
@@ -62,6 +77,7 @@ const App = () => (
               <Route path="/hacker/programmes" element={<ProtectedRoute roles={["hacker"]}><HackerProgrammes /></ProtectedRoute>} />
               <Route path="/hacker/rapports" element={<ProtectedRoute roles={["hacker"]}><HackerRapports /></ProtectedRoute>} />
               <Route path="/hacker/profil" element={<ProtectedRoute roles={["hacker"]}><HackerProfil /></ProtectedRoute>} />
+              <Route path="/hacker/parametres" element={<ProtectedRoute roles={["hacker"]}><HackerParametres /></ProtectedRoute>} />
 
               {/* Entreprise */}
               <Route path="/entreprise" element={<ProtectedRoute roles={["entreprise"]}><EntrepriseDashboard /></ProtectedRoute>} />

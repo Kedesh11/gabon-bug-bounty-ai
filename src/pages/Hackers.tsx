@@ -3,16 +3,16 @@ import FooterSection from "@/components/FooterSection";
 import { Trophy, Bug, Star, TrendingUp, Medal } from "lucide-react";
 
 const hackers = [
-  { rank: 1, name: "CyberPanther_GA", reputation: 4850, bugs: 67, critical: 12, country: "🇬🇦", badge: "Élite" },
-  { rank: 2, name: "NightOwl_Hack", reputation: 4200, bugs: 54, critical: 9, country: "🇬🇦", badge: "Élite" },
-  { rank: 3, name: "ZeroDay_LBV", reputation: 3780, bugs: 41, critical: 8, country: "🇬🇦", badge: "Expert" },
-  { rank: 4, name: "GhostNet_241", reputation: 3100, bugs: 38, critical: 6, country: "🇬🇦", badge: "Expert" },
-  { rank: 5, name: "BinaryStorm", reputation: 2900, bugs: 35, critical: 5, country: "🇨🇲", badge: "Expert" },
-  { rank: 6, name: "HexHunter_GA", reputation: 2650, bugs: 29, critical: 4, country: "🇬🇦", badge: "Avancé" },
-  { rank: 7, name: "ByteBreaker", reputation: 2400, bugs: 26, critical: 4, country: "🇸🇳", badge: "Avancé" },
-  { rank: 8, name: "SecuRaptor", reputation: 2100, bugs: 22, critical: 3, country: "🇬🇦", badge: "Avancé" },
-  { rank: 9, name: "PacketStorm_LBV", reputation: 1850, bugs: 19, critical: 2, country: "🇬🇦", badge: "Intermédiaire" },
-  { rank: 10, name: "ShadowByte_GA", reputation: 1600, bugs: 15, critical: 2, country: "🇬🇦", badge: "Intermédiaire" },
+  { rank: 1, name: "CyberPanther_GA", reputation: 4850, bugs: 67, critical: 12, badge: "Élite" },
+  { rank: 2, name: "NightOwl_Hack", reputation: 4200, bugs: 54, critical: 9, badge: "Élite" },
+  { rank: 3, name: "ZeroDay_LBV", reputation: 3780, bugs: 41, critical: 8, badge: "Expert" },
+  { rank: 4, name: "GhostNet_241", reputation: 3100, bugs: 38, critical: 6, badge: "Expert" },
+  { rank: 5, name: "BinaryStorm", reputation: 2900, bugs: 35, critical: 5, badge: "Expert" },
+  { rank: 6, name: "HexHunter_GA", reputation: 2650, bugs: 29, critical: 4, badge: "Avancé" },
+  { rank: 7, name: "ByteBreaker", reputation: 2400, bugs: 26, critical: 4, badge: "Avancé" },
+  { rank: 8, name: "SecuRaptor", reputation: 2100, bugs: 22, critical: 3, badge: "Avancé" },
+  { rank: 9, name: "PacketStorm_LBV", reputation: 1850, bugs: 19, critical: 2, badge: "Intermédiaire" },
+  { rank: 10, name: "ShadowByte_GA", reputation: 1600, bugs: 15, critical: 2, badge: "Intermédiaire" },
 ];
 
 const getRankColor = (rank: number) => {
@@ -86,7 +86,6 @@ const Hackers = () => {
                   </span>
                 </div>
                 <div className="col-span-4 flex items-center gap-2">
-                  <span className="text-lg">{hacker.country}</span>
                   <span className="font-semibold text-foreground">{hacker.name}</span>
                 </div>
                 <div className="col-span-2">
