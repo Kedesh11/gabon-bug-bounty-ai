@@ -1,7 +1,8 @@
-import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2 } from "lucide-react";
+import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth, UserRole } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
+import { UserRole } from "@/types/auth";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, notificationsEventName, type NotificationItem } from "@/lib/notifications";
 
@@ -26,12 +27,30 @@ const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.Ele
     { label: "Rapports reçus", path: "/entreprise/rapports", icon: Bug },
     { label: "Paramètres", path: "/entreprise/parametres", icon: Settings },
   ],
+  triage: [
+    { label: "Dashboard Triage", path: "/admin/triage", icon: BarChart3 },
+    { label: "Rapports", path: "/admin/rapports", icon: Bug },
+    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
+  ],
+  finance: [
+    { label: "Dashboard Finance", path: "/admin/finance", icon: BarChart3 },
+    { label: "Rapports Financiers", path: "/admin/finance", icon: DollarSign },
+    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
+  ],
+  support: [
+    { label: "Dashboard Support", path: "/admin/support", icon: BarChart3 },
+    { label: "Utilisateurs", path: "/admin/utilisateurs", icon: Users },
+    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
+  ],
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrateur",
   hacker: "Hacker Éthique",
   entreprise: "Entreprise",
+  triage: "Triage Lead",
+  finance: "Finance Manager",
+  support: "Support Technique",
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

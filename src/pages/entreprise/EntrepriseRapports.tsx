@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, CheckCircle, XCircle, DollarSign } from "lucide-react";

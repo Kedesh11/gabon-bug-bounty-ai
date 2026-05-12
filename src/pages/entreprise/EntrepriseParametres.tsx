@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useData } from "@/contexts/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

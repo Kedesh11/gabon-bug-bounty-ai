@@ -34,8 +34,12 @@ export interface ProgrammeActivity {
   id: string;
   title: string;
   subtitle?: string;
+  type: "submission" | "reward" | "announcement" | "update";
   createdAt: string;
   priority?: string;
+  amount?: number;
+  hackerName?: string;
+  programmeName?: string;
 }
 
 export interface ProgrammeThingsToKnow {
@@ -112,6 +116,15 @@ export interface Programme {
   reportsCount: number;
 }
 
+export interface AIAnalysis {
+  confidence: number;
+  suggestedSeverity: "critique" | "haute" | "moyenne" | "faible" | "info";
+  isDuplicate: boolean;
+  duplicateOfId?: string;
+  summary: string;
+  reproductionLikelihood: number;
+}
+
 export interface Report {
   id: string;
   title: string;
@@ -127,9 +140,12 @@ export interface Report {
   createdAt: string;
   updatedAt: string;
   vulnerability: string;
+  vrtCategory?: string;
+  vrtType?: string;
   proof: string;
   pdfFileName?: string;
   analysisStatus?: "en_attente" | "en_cours" | "terminee";
+  aiAnalysis?: AIAnalysis;
 }
 
 export interface HackerProfile {
@@ -141,6 +157,7 @@ export interface HackerProfile {
   totalRewards: number;
   rank: number;
   specialties: string[];
+  badges: { name: string; icon: string; description: string }[];
   joinedAt: string;
   status: "actif" | "banni" | "suspendu";
 }
@@ -154,6 +171,22 @@ export interface EntrepriseProfile {
   totalPaid: number;
   joinedAt: string;
   status: "actif" | "suspendu";
+}
+
+export interface SystemConfig {
+  platformName: string;
+  contactEmail: string;
+  supportUrl: string;
+  maintenanceMode: boolean;
+  autoTriage: boolean;
+  enterpriseValidation: boolean;
+  triageLimitHours: number;
+  aiSensitivity: number;
+  // Security settings
+  require2FA: boolean;
+  ipWhitelisting: boolean;
+  sessionTimeout: number;
+  passwordComplexity: "standard" | "elevated" | "military";
 }
 
 // Initial mock data
@@ -221,36 +254,32 @@ const INITIAL_PROGRAMMES: Programme[] = [
     reportsCount: 8,
   },
   {
-    id: "prog-3", name: "Mobile Banking App", entrepriseId: "entreprise-3", entrepriseName: "BGFI Bank",
-    description: "Tests de l'application mobile bancaire",
-    descriptionLong: "Programme bancaire critique incluant API mobile, sessions utilisateurs, mécanismes MFA et contrôles de transactions.",
-    scope: ["app.bgfi.com", "api.bgfi.com/mobile", "mfa.bgfi.com"],
-    outOfScope: ["ATM physiques", "Phishing clients", "DoS volumétrique"],
-    methodology: "Tests applicatifs manuels avec PoC détaillé obligatoire.",
-    terms: ["Aucun test sur comptes clients réels", "Rapport confidentiel", "Preuves chiffrées recommandées"],
-    disclosurePolicy: "Divulgation restreinte, publication sur autorisation explicite.",
-    communicationChannels: ["security@bgfi.com", "manager de programme dédié"],
-    tags: ["Web", "API", "Finance", "Mobile"],
-    sector: "Finance",
-    website: "https://bgfi.com",
-    logoUrl: "https://dummyimage.com/128x128/0b111f/14f195.png&text=BGFI",
+    id: "prog-3", name: "Audit de Sécurité - SEEG", entrepriseId: "entreprise-3", entrepriseName: "SEEG Gabon",
+    description: "Audit complet de l'infrastructure critique et des portails de facturation.",
+    descriptionLong: "Ce programme vise à sécuriser les systèmes de gestion de l'énergie et de l'eau. Les chercheurs doivent se concentrer sur les fuites de données clients et les vulnérabilités SCADA simulées.",
+    scope: ["portal.seeg.ga", "api-facturation.seeg.ga", "*.seeg.ga"],
+    outOfScope: ["Systèmes de contrôle physique", "Déni de service"],
+    methodology: "Approche offensive autorisée. Focus sur l'exfiltration de données.",
+    tags: ["Infrastructure", "Web", "SCADA"],
+    sector: "Énergie & Eau",
+    website: "https://seeg.ga",
     programType: "private",
     minReward: 200000,
     maxReward: 10000000,
     rewardCurrency: "XAF",
     rewardTiers: [
-      { severity: "critique", min: 6000000, max: 10000000, note: "Vol de fonds / contournement MFA" },
-      { severity: "haute", min: 1500000, max: 5500000, note: "Prise de compte / transaction non autorisée" },
-      { severity: "moyenne", min: 500000, max: 1400000, note: "Impact partiel sensible" },
-      { severity: "faible", min: 200000, max: 490000, note: "Surface réduite / faible impact business" },
+      { severity: "critique", min: 5000000, max: 10000000, note: "Accès réseau industriel" },
+      { severity: "haute", min: 1500000, max: 4500000, note: "Fuite massive base clients" },
+      { severity: "moyenne", min: 500000, max: 1200000, note: "Contournement facturation" },
+      { severity: "faible", min: 200000, max: 450000, note: "Bugs mineurs" },
     ],
-    triageTimeHours: 18,
-    firstResponseHours: 8,
-    resolutionDays: 14,
+    triageTimeHours: 48,
+    firstResponseHours: 24,
+    resolutionDays: 45,
     isNew: true,
     status: "actif",
-    createdAt: "2024-07-01",
-    reportsCount: 5,
+    createdAt: "2024-07-20",
+    reportsCount: 0,
   },
 ];
 
@@ -260,43 +289,61 @@ const INITIAL_REPORTS: Report[] = [
     severity: "haute", status: "accepté", hackerId: "hacker-1", hackerName: "CyberPanther",
     programmeId: "prog-1", programmeName: "API Gouvernementale v2", entrepriseId: "entreprise-1",
     reward: 500000, createdAt: "2024-07-10", updatedAt: "2024-07-12",
-    vulnerability: "XSS", proof: "URL: /login?redirect=javascript:alert(1)"
+    vulnerability: "XSS", vrtCategory: "Server-side Injection", vrtType: "Cross-site Scripting (XSS)", proof: "URL: /login?redirect=javascript:alert(1)",
+    aiAnalysis: {
+      confidence: 0.95,
+      suggestedSeverity: "haute",
+      isDuplicate: false,
+      summary: "XSS confirmé sur le paramètre de redirection. Impact direct sur les sessions utilisateurs.",
+      reproductionLikelihood: 0.9
+    }
   },
   {
-    id: "rep-2", title: "SQLi sur endpoint /users", description: "Injection SQL sur le filtre de recherche utilisateurs",
+    id: "rep-2", title: "SQLi sur endpoint /users", description: "Injection SQL on the filtre de recherche utilisateurs",
     severity: "critique", status: "en_analyse", hackerId: "hacker-2", hackerName: "Gh0stNet",
     programmeId: "prog-2", programmeName: "Portail Citoyen", entrepriseId: "entreprise-2",
     reward: 0, createdAt: "2024-07-15", updatedAt: "2024-07-15",
-    vulnerability: "SQLi", proof: "Payload: ' OR 1=1 --"
-  },
-  {
-    id: "rep-3", title: "IDOR sur profil utilisateur", description: "Accès aux données d'autres utilisateurs via manipulation d'ID",
-    severity: "haute", status: "soumis", hackerId: "hacker-1", hackerName: "CyberPanther",
-    programmeId: "prog-3", programmeName: "Mobile Banking App", entrepriseId: "entreprise-3",
-    reward: 0, createdAt: "2024-07-18", updatedAt: "2024-07-18",
-    vulnerability: "IDOR", proof: "GET /api/users/OTHER_USER_ID retourne les données"
-  },
-  {
-    id: "rep-4", title: "CSRF sur changement email", description: "Absence de token CSRF permettant le changement d'email",
-    severity: "moyenne", status: "résolu", hackerId: "hacker-3", hackerName: "ZeroDayGA",
-    programmeId: "prog-1", programmeName: "API Gouvernementale v2", entrepriseId: "entreprise-1",
-    reward: 250000, createdAt: "2024-06-20", updatedAt: "2024-07-01",
-    vulnerability: "CSRF", proof: "Formulaire HTML forgé qui change l'email"
+    vulnerability: "SQLi", vrtCategory: "Server-side Injection", vrtType: "SQL Injection", proof: "Payload: ' OR 1=1 --",
+    aiAnalysis: {
+      confidence: 0.88,
+      suggestedSeverity: "critique",
+      isDuplicate: false,
+      summary: "Potentielle injection SQL détectée. Accès possible à l'intégralité de la base de données.",
+      reproductionLikelihood: 0.85
+    }
   },
 ];
 
 const INITIAL_HACKERS: HackerProfile[] = [
-  { id: "hacker-1", name: "CyberPanther", email: "hacker@bugbounty.com", reputation: 2450, bugsFound: 34, totalRewards: 4500000, rank: 1, specialties: ["XSS", "IDOR", "API"], joinedAt: "2024-03-15", status: "actif" },
-  { id: "hacker-2", name: "Gh0stNet", email: "ghost@mail.com", reputation: 1890, bugsFound: 21, totalRewards: 3200000, rank: 2, specialties: ["SQLi", "RCE"], joinedAt: "2024-04-01", status: "actif" },
-  { id: "hacker-3", name: "ZeroDayGA", email: "zeroday@mail.com", reputation: 1650, bugsFound: 18, totalRewards: 2800000, rank: 3, specialties: ["CSRF", "Auth Bypass"], joinedAt: "2024-04-10", status: "actif" },
-  { id: "hacker-4", name: "ShadowByte", email: "shadow@mail.com", reputation: 980, bugsFound: 9, totalRewards: 1200000, rank: 4, specialties: ["SSRF"], joinedAt: "2024-05-20", status: "suspendu" },
+  { id: "hacker-1", name: "CyberPanther", email: "hacker@bugbounty.com", reputation: 2450, bugsFound: 34, totalRewards: 4500000, rank: 1, specialties: ["XSS", "IDOR", "API"], badges: [{name: "Top Hacker 2024", icon: "🏆", description: "Classé 1er au Gabon"}], joinedAt: "2024-03-15", status: "actif" },
+  { id: "hacker-2", name: "Gh0stNet", email: "ghost@mail.com", reputation: 1890, bugsFound: 21, totalRewards: 3200000, rank: 2, specialties: ["SQLi", "RCE"], badges: [{name: "Bug Hunter", icon: "🐞", description: "Plus de 20 bugs validés"}], joinedAt: "2024-04-01", status: "actif" },
 ];
 
 const INITIAL_ENTREPRISES: EntrepriseProfile[] = [
   { id: "entreprise-1", name: "Ministère Numérique", email: "entreprise@bugbounty.com", sector: "Gouvernement", programmesCount: 3, totalPaid: 4500000, joinedAt: "2024-02-10", status: "actif" },
-  { id: "entreprise-2", name: "Gabon Telecom", email: "sec@gabontelecom.com", sector: "Télécommunications", programmesCount: 2, totalPaid: 3200000, joinedAt: "2024-03-01", status: "actif" },
-  { id: "entreprise-3", name: "BGFI Bank", email: "security@bgfi.com", sector: "Finance", programmesCount: 1, totalPaid: 8000000, joinedAt: "2024-04-15", status: "actif" },
+  { id: "entreprise-3", name: "SEEG Gabon", email: "security@seeg.ga", sector: "Énergie", programmesCount: 1, totalPaid: 0, joinedAt: "2024-07-15", status: "actif" },
 ];
+
+const INITIAL_ACTIVITIES: ProgrammeActivity[] = [
+  { id: "act-1", title: "Nouveau Rapport Soumis", subtitle: "XSS trouvé sur API Gouvernementale", type: "submission", createdAt: "2024-07-18T10:00:00Z", hackerName: "CyberPanther", programmeName: "API Gouvernementale v2" },
+  { id: "act-2", title: "Récompense Payée", subtitle: "500,000 XAF versés", type: "reward", createdAt: "2024-07-17T15:30:00Z", amount: 500000, hackerName: "CyberPanther", programmeName: "API Gouvernementale v2" },
+  { id: "act-3", title: "Nouveau Partenaire Stratégique", subtitle: "La SEEG a lancé son audit de sécurité", type: "update", createdAt: "2024-07-20T09:00:00Z", programmeName: "Audit de Sécurité - SEEG" },
+];
+
+const INITIAL_CONFIG: SystemConfig = {
+  platformName: "Gabon Bug Bounty AI",
+  contactEmail: "admin@bugbounty.ga",
+  supportUrl: "https://support.bugbounty.ga",
+  maintenanceMode: false,
+  autoTriage: true,
+  enterpriseValidation: true,
+  triageLimitHours: 48,
+  aiSensitivity: 75,
+  require2FA: false,
+  ipWhitelisting: false,
+  sessionTimeout: 60,
+  passwordComplexity: "standard"
+};
 
 function loadData<T>(key: string, initial: T): T {
   try {
@@ -316,6 +363,32 @@ export function useDataStore() {
   const [reports, setReports] = useState<Report[]>(() => loadData("bb_reports", INITIAL_REPORTS));
   const [hackers, setHackers] = useState<HackerProfile[]>(() => loadData("bb_hackers", INITIAL_HACKERS));
   const [entreprises, setEntreprises] = useState<EntrepriseProfile[]>(() => loadData("bb_entreprises", INITIAL_ENTREPRISES));
+  const [activities, setActivities] = useState<ProgrammeActivity[]>(() => loadData("bb_activities", INITIAL_ACTIVITIES));
+  const [config, setConfig] = useState<SystemConfig>(() => loadData("bb_config", INITIAL_CONFIG));
+
+  // Reset Platform
+  const resetPlatform = useCallback(() => {
+    localStorage.clear();
+    window.location.reload();
+  }, []);
+
+  // Config Update
+  const updateConfig = useCallback((data: Partial<SystemConfig>) => {
+    setConfig(prev => {
+      const updated = { ...prev, ...data };
+      saveData("bb_config", updated);
+      return updated;
+    });
+  }, []);
+
+  // Activities
+  const addActivity = useCallback((a: Omit<ProgrammeActivity, "id" | "createdAt">) => {
+    setActivities(prev => {
+      const updated = [{ ...a, id: `act-${Date.now()}`, createdAt: new Date().toISOString() }, ...prev].slice(0, 50);
+      saveData("bb_activities", updated);
+      return updated;
+    });
+  }, []);
 
   // Programmes CRUD
   const addProgramme = useCallback((p: Omit<Programme, "id" | "createdAt" | "reportsCount">) => {
@@ -324,7 +397,8 @@ export function useDataStore() {
       saveData("bb_programmes", updated);
       return updated;
     });
-  }, []);
+    addActivity({ title: "Nouveau Programme", subtitle: p.name, type: "update", programmeName: p.name });
+  }, [addActivity]);
 
   const updateProgramme = useCallback((id: string, data: Partial<Programme>) => {
     setProgrammes(prev => {
@@ -343,14 +417,41 @@ export function useDataStore() {
   }, []);
 
   // Reports CRUD
-  const addReport = useCallback((r: Omit<Report, "id" | "createdAt" | "updatedAt" | "status" | "reward">) => {
+  const addReport = useCallback((r: Omit<Report, "id" | "createdAt" | "updatedAt" | "status" | "reward" | "aiAnalysis">) => {
     setReports(prev => {
-      const now = new Date().toISOString().split("T")[0];
-      const updated = [...prev, { ...r, id: `rep-${Date.now()}`, createdAt: now, updatedAt: now, status: "soumis" as const, reward: 0 }];
+      const now = new Date().toISOString();
+      
+      const aiAnalysis: AIAnalysis = {
+        confidence: 0.7 + Math.random() * 0.25,
+        suggestedSeverity: r.severity,
+        isDuplicate: false,
+        summary: `Analyse automatique de "${r.title}". Le PoC semble valide. Vulnérabilité de type ${r.vulnerability} confirmée par analyse syntaxique.`,
+        reproductionLikelihood: 0.8
+      };
+
+      const newReport: Report = { 
+        ...r, 
+        id: `rep-${Date.now()}`, 
+        createdAt: now.split("T")[0], 
+        updatedAt: now.split("T")[0], 
+        status: "soumis" as const, 
+        reward: 0,
+        aiAnalysis
+      };
+
+      const updated = [...prev, newReport];
       saveData("bb_reports", updated);
       return updated;
     });
-  }, []);
+
+    addActivity({ 
+      title: "Nouveau Rapport Soumis", 
+      subtitle: `${r.vulnerability} sur ${r.programmeName}`, 
+      type: "submission", 
+      hackerName: r.hackerName, 
+      programmeName: r.programmeName 
+    });
+  }, [addActivity]);
 
   const updateReport = useCallback((id: string, data: Partial<Report>) => {
     setReports(prev => {
@@ -358,7 +459,21 @@ export function useDataStore() {
       saveData("bb_reports", updated);
       return updated;
     });
-  }, []);
+
+    if (data.reward && data.reward > 0) {
+      const r = reports.find(report => report.id === id);
+      if (r) {
+        addActivity({ 
+          title: "Récompense Payée", 
+          subtitle: `${data.reward.toLocaleString()} XAF versés`, 
+          type: "reward", 
+          amount: data.reward, 
+          hackerName: r.hackerName, 
+          programmeName: r.programmeName 
+        });
+      }
+    }
+  }, [reports, addActivity]);
 
   const deleteReport = useCallback((id: string) => {
     setReports(prev => {
@@ -407,5 +522,7 @@ export function useDataStore() {
     reports, addReport, updateReport, deleteReport,
     hackers, updateHacker, deleteHacker,
     entreprises, updateEntreprise, deleteEntreprise,
+    activities, addActivity,
+    config, updateConfig, resetPlatform
   };
 }

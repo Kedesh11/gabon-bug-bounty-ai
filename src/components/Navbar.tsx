@@ -2,12 +2,16 @@ import { Shield, Menu, LogOut, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth, UserRole } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
+import { UserRole } from "@/types/auth";
 
 const DASHBOARD_PATHS: Record<UserRole, string> = {
   admin: "/admin",
   hacker: "/hacker",
   entreprise: "/entreprise",
+  triage: "/admin/triage",
+  finance: "/admin/finance",
+  support: "/admin/support",
 };
 
 const Navbar = () => {
