@@ -1,157 +1,245 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
+import { useNavigate } from "react-router-dom";
 import { 
   MessageSquare, 
   Users, 
   LifeBuoy, 
   AlertCircle, 
-  CheckCircle, 
   Clock, 
-  ShieldQuestion, 
-  UserCheck,
   Search,
   ChevronRight,
-  Filter,
+  Mail,
+  ShieldQuestion,
+  CheckCircle,
   BarChart2,
-  Mail
+  ShieldAlert,
+  Building2,
+  Ban,
+  Eye,
+  ShieldCheck
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useState, useMemo } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 export default function SupportDashboard() {
-  const { hackers, entreprises } = useData();
+  const { hackers, updateHacker, entreprises, updateEntreprise } = useData();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<"tickets" | "moderation" | "users">("tickets");
+  
+  // Mock Tickets for display
+  const tickets = [
+    { id: "TK-402", user: "Hacker_X", subject: "Appel sur rapport de vulnérabilité #902", category: "Litige Prime", status: "ouvert", priority: "critique", time: "12m" },
+    { id: "TK-403", user: "SEEG Gabon", subject: "Instabilité de l'endpoint d'authentification", category: "Technique", status: "en_cours", priority: "haute", time: "45m" },
+    { id: "TK-404", user: "Hacker_Y", subject: "Délai de versement Mobile Money Moov", category: "Finance", status: "résolu", priority: "moyenne", time: "2h" },
+    { id: "TK-405", user: "BGFIBank", subject: "Mise à jour du périmètre de sécurité", category: "Programme", status: "ouvert", priority: "basse", time: "3h" },
+  ];
+
+  const [userSearch, setUserSearch] = useState("");
+  const [kycFilter, setKycFilter] = useState(false);
+
+  const filteredHackers = useMemo(() => hackers.filter(h => h.name.toLowerCase().includes(userSearch.toLowerCase()) || h.email.toLowerCase().includes(userSearch.toLowerCase())), [hackers, userSearch]);
+  const filteredEntreprises = useMemo(() => entreprises.filter(e => e.name.toLowerCase().includes(userSearch.toLowerCase()) || e.email.toLowerCase().includes(userSearch.toLowerCase())), [entreprises, userSearch]);
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="space-y-8 w-full pb-12">
+        {/* Header Section */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-2">
               <LifeBuoy className="w-8 h-8 text-blue-500" /> Support Desk
             </h1>
-            <p className="text-muted-foreground">Gestion de la relation utilisateur, médiation et assistance technique.</p>
+            <p className="text-muted-foreground font-medium">Centre d'opérations : Tickets, Utilisateurs et Modération.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-[10px] font-black text-muted-foreground uppercase">Satisfaction</p>
-              <p className="text-xl font-black text-blue-500">4.8/5</p>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-green-500/10 border border-green-500/20">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Système Opérationnel</span>
             </div>
-            <Button className="bg-blue-600 text-white hover:bg-blue-700 font-bold gap-2">
+            <div className="h-10 w-[1px] bg-border hidden md:block" />
+            <Button className="h-12 px-6 bg-blue-600 text-white hover:bg-blue-700 font-black rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95 gap-2">
               <MessageSquare className="w-4 h-4" /> NOUVEAU TICKET
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={<Mail className="w-5 h-5 text-blue-500" />} label="Tickets Ouverts" value="24" subValue="8 urgents" />
-          <StatCard icon={<ShieldQuestion className="w-5 h-5 text-orange-500" />} label="Litiges (Appels)" value="7" subValue="En cours de revue" />
-          <StatCard icon={<UserCheck className="w-5 h-5 text-green-500" />} label="Vérifications KYC" value="12" subValue="En attente" />
-          <StatCard icon={<BarChart2 className="w-5 h-5 text-primary" />} label="Temps Réponse" value="45m" subValue="Moyenne platforme" />
-        </div>
+        {/* Tabs System */}
+        <Tabs defaultValue="tickets" value={activeTab} onValueChange={(v) => setActiveTab(v as "tickets" | "moderation" | "users")} className="space-y-8">
+          <TabsList className="bg-secondary/30 p-1 rounded-2xl border border-border h-14 w-full justify-start gap-2 overflow-x-auto">
+            <TabsTrigger value="tickets" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white shrink-0">
+              <MessageSquare className="w-4 h-4 mr-2" /> File de Tickets
+            </TabsTrigger>
+            <TabsTrigger value="users" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white shrink-0">
+              <Users className="w-4 h-4 mr-2" /> Utilisateurs & KYC
+            </TabsTrigger>
+            <TabsTrigger value="moderation" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white shrink-0">
+              <ShieldAlert className="w-4 h-4 mr-2" /> Modération
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 space-y-4">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Rechercher un ticket, un utilisateur..." className="pl-10 bg-secondary/30 border-border" />
+          {/* Tickets Tab */}
+          <TabsContent value="tickets" className="animate-in fade-in slide-in-from-bottom-4 duration-300 outline-none">
+             <div className="space-y-6">
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-1 group w-full">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
+                  <Input 
+                    placeholder="Rechercher un ticket..." 
+                    className="pl-12 h-14 bg-secondary/30 border-border rounded-[20px] font-bold" 
+                  />
+                </div>
               </div>
-              <Button variant="outline" size="icon"><Filter className="w-4 h-4" /></Button>
+
+              <Card className="glass-card rounded-[32px] border-border overflow-hidden shadow-2xl">
+                <div className="p-6 border-b border-border bg-secondary/30 flex justify-between items-center">
+                   <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Clock className="w-4 h-4" /> File Prioritaire</h3>
+                   <Badge className="bg-blue-500/10 text-blue-500 border-none font-black">{tickets.length} TICKETS</Badge>
+                </div>
+                <div className="divide-y divide-border">
+                  {tickets.map((tk) => (
+                    <div 
+                      key={tk.id} 
+                      className="p-6 flex items-center justify-between hover:bg-secondary/40 transition-all group cursor-pointer border-l-4 border-l-transparent hover:border-l-blue-500"
+                      onClick={() => navigate(`/admin/support/ticket/${tk.id}`)}
+                    >
+                      <div className="flex items-center gap-5 min-w-0">
+                        <div className={`h-12 w-12 rounded-[18px] flex items-center justify-center shrink-0 shadow-lg ${
+                          tk.priority === "critique" ? "bg-destructive/10 text-destructive" : "bg-blue-500/10 text-blue-500"
+                        }`}>
+                          <AlertCircle className="w-6 h-6" />
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-sm font-black truncate group-hover:text-blue-500 transition-colors">{tk.subject}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{tk.id} • {tk.user}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Badge className="text-[9px] font-black uppercase h-6 px-3 rounded-full bg-secondary text-foreground">{tk.status}</Badge>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-500 transition-all" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
             </div>
+          </TabsContent>
 
-            <div className="glass-card rounded-2xl border border-border overflow-hidden">
-              <div className="p-4 border-b border-border bg-secondary/30 flex justify-between items-center">
-                <h3 className="text-sm font-bold flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" /> Tickets Récents
-                </h3>
+          {/* Users Tab */}
+          <TabsContent value="users" className="animate-in fade-in slide-in-from-bottom-4 duration-300 outline-none">
+            <div className="space-y-8">
+               <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-1 group w-full">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
+                  <Input 
+                    placeholder="Chercher un chercheur ou une entreprise..." 
+                    className="pl-12 h-14 bg-secondary/30 border-border rounded-[20px] font-bold"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                  />
+                </div>
+                <Button variant="outline" className={`rounded-xl h-14 border-border font-black text-[10px] uppercase ${kycFilter ? "bg-orange-500 text-white" : ""}`} onClick={() => setKycFilter(!kycFilter)}>
+                   <ShieldCheck className="w-4 h-4 mr-2" /> KYC EN ATTENTE
+                </Button>
               </div>
-              <div className="divide-y divide-border">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {filteredHackers.map(h => (
+                    <Card key={h.id} className="glass-card p-6 rounded-[32px] border-border hover:border-blue-500/30 transition-all group cursor-pointer" onClick={() => navigate(`/admin/utilisateurs/${h.id}`)}>
+                       <div className="flex items-center justify-between mb-6">
+                          <div className="h-14 w-14 rounded-2xl bg-blue-500/10 flex items-center justify-center font-black text-xl text-blue-500 border border-blue-500/20">
+                            {h.name[0]}
+                          </div>
+                          <Badge className="bg-green-500/10 text-green-500 text-[8px] font-black uppercase">{h.status}</Badge>
+                       </div>
+                       <div className="mb-6">
+                          <h3 className="font-black text-foreground group-hover:text-blue-500 transition-colors">{h.name}</h3>
+                          <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">CHERCHEUR</p>
+                       </div>
+                       <div className="flex gap-2">
+                          <Button className="flex-1 rounded-xl h-11 bg-secondary text-foreground group-hover:bg-blue-600 group-hover:text-white font-black text-[10px] uppercase transition-all">
+                            <Eye className="w-4 h-4 mr-2" /> VOIR PROFIL
+                          </Button>
+                          <Button variant="outline" className="h-11 w-11 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => { event.stopPropagation(); updateHacker(h.id, { status: "suspendu" }); toast.error("Utilisateur suspendu"); }}>
+                            <Ban className="w-4 h-4" />
+                          </Button>
+                       </div>
+                    </Card>
+                 ))}
+                 {filteredEntreprises.map(e => (
+                    <Card key={e.id} className="glass-card p-6 rounded-[32px] border-border hover:border-blue-500/30 transition-all group cursor-pointer" onClick={() => navigate(`/admin/utilisateurs/${e.id}`)}>
+                       <div className="flex items-center justify-between mb-6">
+                          <div className="h-14 w-14 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+                            <Building2 className="w-6 h-6" />
+                          </div>
+                          <Badge className="bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase">{e.status}</Badge>
+                       </div>
+                       <div className="mb-6">
+                          <h3 className="font-black text-foreground group-hover:text-blue-500 transition-colors">{e.name}</h3>
+                          <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">ENTREPRISE</p>
+                       </div>
+                       <div className="flex gap-2">
+                          <Button className="flex-1 rounded-xl h-11 bg-secondary text-foreground group-hover:bg-blue-600 group-hover:text-white font-black text-[10px] uppercase transition-all">
+                            <Eye className="w-4 h-4 mr-2" /> AUDIT CLIENT
+                          </Button>
+                          <Button variant="outline" className="h-11 w-11 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => { event.stopPropagation(); updateEntreprise(e.id, { status: "suspendu" }); toast.error("Entreprise suspendue"); }}>
+                            <Ban className="w-4 h-4" />
+                          </Button>
+                       </div>
+                    </Card>
+                 ))}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Moderation Tab */}
+          <TabsContent value="moderation" className="animate-in fade-in slide-in-from-bottom-4 duration-300 outline-none">
+            <Card className="glass-card p-8 rounded-[32px] border-border shadow-2xl">
+              <h3 className="text-xl font-black mb-6 flex items-center gap-3"><Users className="w-6 h-6 text-blue-500" /> Vigilance</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[
-                  { id: "TK-402", user: "Hacker_X", subject: "Appel sur rapport #902", category: "Litige", status: "ouvert", priority: "haute" },
-                  { id: "TK-403", user: "SEEG Gabon", subject: "Problème d'accès API", category: "Technique", status: "en_cours", priority: "moyenne" },
-                  { id: "TK-404", user: "Hacker_Y", subject: "Question sur le versement XAF", category: "Finance", status: "fermé", priority: "faible" },
-                ].map((tk) => (
-                  <div key={tk.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors group">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        tk.priority === "haute" ? "bg-destructive/10 text-destructive" : "bg-blue-500/10 text-blue-500"
-                      }`}>
-                        <AlertCircle className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{tk.subject}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-black">{tk.id} • {tk.user} • {tk.category}</p>
-                      </div>
+                  { user: "Hacker_Shadow", reason: "Brute force détecté", risk: "Critique" },
+                  { user: "Cyber_G", reason: "Multi-comptes suspectés", risk: "Haut" },
+                ].map((report, i) => (
+                  <div key={i} className="p-6 rounded-3xl bg-secondary/30 border border-border space-y-4">
+                    <div className="flex justify-between items-center">
+                       <p className="text-sm font-black">{report.user}</p>
+                       <Badge className="bg-destructive text-white text-[8px] font-black">{report.risk}</Badge>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className={`text-[9px] font-black uppercase ${
-                        tk.status === "ouvert" ? "text-destructive border-destructive/20 bg-destructive/5" :
-                        tk.status === "en_cours" ? "text-blue-500 border-blue-500/20 bg-blue-500/5" :
-                        "text-green-500 border-green-500/20 bg-green-500/5"
-                      }`}>{tk.status}</Badge>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full border border-border group-hover:border-primary transition-all">
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <p className="text-xs text-muted-foreground font-medium">{report.reason}</p>
+                    <Button variant="outline" className="w-full rounded-xl text-[10px] font-black uppercase border-border">ENQUÊTER</Button>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
-          <div className="space-y-6">
-            <Card className="glass-card p-6 border-border space-y-6">
-              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" /> Modération Utilisateurs
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 border border-border">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">H</div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold truncate">Hacker_Shadow</p>
-                      <p className="text-[10px] text-muted-foreground">Signalé pour spam</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="h-7 text-[10px] font-bold">REVUE</Button>
-                </div>
-                <Button variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest">Voir tous les signalements</Button>
+        {/* Support Tools Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+           <Card className="glass-card p-8 rounded-[32px] border-border space-y-6 shadow-2xl bg-gradient-to-br from-blue-600/10 to-transparent">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500 flex items-center gap-2"><ShieldQuestion className="w-4 h-4" /> Base de Connaissances</h3>
+              <p className="text-[11px] text-muted-foreground font-medium italic">Accédez aux protocoles de résolution et aux guides de médiation officiels.</p>
+              <Button className="w-full h-12 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-600/20 uppercase text-[10px]" onClick={() => navigate("/admin/support/kb")}>CONSULTER LA KB</Button>
+            </Card>
+
+            <Card className="glass-card p-8 rounded-[32px] border-border space-y-6 shadow-2xl">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500 flex items-center gap-2"><BarChart2 className="w-4 h-4" /> Performance Support</h3>
+              <div className="flex justify-between items-end h-24 gap-1">
+                 {[40, 70, 45, 90, 65, 80, 55].map((h, i) => <div key={i} style={{ height: `${h}%` }} className="flex-1 bg-blue-500/20 rounded-t-sm" />)}
+              </div>
+              <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase">
+                 <span>Résolution</span>
+                 <span className="text-blue-500">92%</span>
               </div>
             </Card>
-
-            <Card className="glass-card p-6 border-border space-y-4">
-              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                <ShieldQuestion className="w-4 h-4 text-accent" /> Base de Connaissances
-              </h3>
-              <p className="text-xs text-muted-foreground leading-relaxed italic">
-                "Mettez à jour la FAQ sur les nouvelles taxes sur les versements XAF avant vendredi."
-              </p>
-              <Button className="w-full text-[10px] font-black uppercase tracking-widest gap-2">
-                <CheckCircle className="w-4 h-4" /> MODIFIER LA DOCUMENTATION
-              </Button>
-            </Card>
-          </div>
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-function StatCard({ icon, label, value, subValue }: { icon: React.ReactNode, label: string, value: string, subValue: string }) {
-  return (
-    <Card className="glass-card p-5 border-border flex flex-col gap-3 group hover:border-primary/30 transition-all">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center group-hover:scale-110 transition-transform">
-          {icon}
-        </div>
-        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{label}</p>
-      </div>
-      <div>
-        <p className="text-3xl font-black text-foreground tracking-tighter">{value}</p>
-        <p className="text-[10px] text-muted-foreground font-bold">{subValue}</p>
-      </div>
-    </Card>
   );
 }
