@@ -16,7 +16,7 @@ export default function EntrepriseParametres() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6 w-full">
         <h1 className="text-2xl font-black text-foreground">Paramètres</h1>
 
         <div className="glass-card rounded-xl p-5 border-glow space-y-4">
@@ -36,7 +36,15 @@ export default function EntrepriseParametres() {
             </div>
           </div>
           <Button size="sm" onClick={() => {
-            if (profile) { updateEntreprise(profile.id, { name, sector }); }
+            if (!name.trim()) {
+              toast.error("Le nom de l'organisation est requis");
+              return;
+            }
+            if (name.trim().length < 2) {
+              toast.error("Le nom est trop court");
+              return;
+            }
+            if (profile) { updateEntreprise(profile.id, { name: name.trim(), sector: sector.trim() }); }
             toast.success("Paramètres sauvegardés");
           }}>Sauvegarder</Button>
         </div>

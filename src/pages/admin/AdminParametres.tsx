@@ -121,8 +121,17 @@ export default function AdminParametres() {
   const [apiKey, setApiKey] = useState("");
 
   const handleAddMember = () => {
-    if (!newMemberName || !newMemberEmail) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!newMemberName.trim() || !newMemberEmail.trim()) {
       toast.error("Veuillez remplir tous les champs");
+      return;
+    }
+    if (newMemberName.trim().length < 2) {
+      toast.error("Le nom est trop court");
+      return;
+    }
+    if (!emailRegex.test(newMemberEmail.trim())) {
+      toast.error("Format d'email invalide");
       return;
     }
     toast.success(`${newMemberName} a été ajouté à l'équipe en tant que ${newMemberRole}`);
@@ -132,11 +141,24 @@ export default function AdminParametres() {
   };
 
   const handleSaveGeneral = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!generalSettings.platformName.trim()) {
+      toast.error("Le nom de la plateforme est requis");
+      return;
+    }
+    if (!emailRegex.test(generalSettings.contactEmail.trim())) {
+      toast.error("Format d'email de contact invalide");
+      return;
+    }
     updateConfig(generalSettings);
     toast.success("Paramètres généraux sauvegardés");
   };
 
   const handleSaveSecurity = () => {
+    if (securitySettings.sessionTimeout < 5 || securitySettings.sessionTimeout > 1440) {
+      toast.error("Le délai de session doit être compris entre 5 et 1440 minutes");
+      return;
+    }
     updateConfig(securitySettings);
     toast.success("Politiques de sécurité mises à jour");
   };
@@ -184,7 +206,7 @@ export default function AdminParametres() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 w-full">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
             <Settings className="w-6 h-6 text-primary" />
@@ -212,7 +234,7 @@ export default function AdminParametres() {
           </TabsList>
 
           <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <div className="glass-card rounded-2xl border border-border p-8 space-y-6">
                 <h3 className="text-lg font-black tracking-tight">Identité de la Plateforme</h3>
                 <div className="space-y-4">
@@ -292,7 +314,7 @@ export default function AdminParametres() {
                 <h3 className="text-xl font-black tracking-tight">Politiques de Sécurité Globale</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
                 <div className="space-y-6">
                   <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/20 border border-border">
                     <div className="space-y-0.5">
@@ -393,7 +415,7 @@ export default function AdminParametres() {
           </TabsContent>
 
           <TabsContent value="integrations" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {integrations.map((integration) => (
                 <IntegrationCard 
                   key={integration.id}

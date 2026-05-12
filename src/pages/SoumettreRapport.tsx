@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { 
   FileText, 
   Send, 
@@ -24,24 +24,25 @@ import {
   X,
   Code2,
   Hammer,
-  Activity
+  Activity,
+  Search
 } from "lucide-react";
 import { toast } from "sonner";
 import { Report } from "@/stores/dataStore";
 import { Badge } from "@/components/ui/badge";
 
 const VRT_CATEGORIES = [
-  "Server-side Injection (SQLi, NoSQL, OS Command)",
-  "Broken Authentication & Session Management",
-  "Sensitive Data Exposure",
-  "XML External Entities (XXE)",
-  "Broken Access Control (IDOR, BOLA)",
-  "Security Misconfiguration",
+  "Injection côté serveur (SQLi, NoSQL, Commande OS)",
+  "Rupture d'authentification et gestion de session",
+  "Exposition de données sensibles",
+  "Entités externes XML (XXE)",
+  "Contrôle d'accès défaillant (IDOR, BOLA)",
+  "Mauvaise configuration de sécurité",
   "Cross-Site Scripting (XSS)",
-  "Insecure Deserialization",
-  "Business Logic Vulnerabilities",
-  "Information Disclosure",
-  "Other"
+  "Désérialisation non sécurisée",
+  "Vulnérabilités de logique métier",
+  "Divulgation d'informations",
+  "Autre"
 ];
 
 const SEVERITY_LEVELS: Array<{ value: Report["severity"]; label: string; color: string; description: string }> = [
@@ -75,11 +76,27 @@ const SoumettreRapport = () => {
     remediation: "",
   });
 
+  const [vrtSearch, setVrtSearch] = useState(form.vrtCategory);
+  const [showVrtSuggestions, setShowVrtSuggestions] = useState(false);
+  const vrtRef = useRef<HTMLDivElement>(null);
+
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [acceptAnalysis, setAcceptAnalysis] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Validation state
+  const validations = useMemo(() => {
+    return {
+      programmeId: form.programmeId !== "",
+      impactedAsset: /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/.test(form.impactedAsset.trim()) || form.impactedAsset.includes("://") || form.impactedAsset.split(".").length >= 2,
+      vulnerability: form.vulnerability.length >= 3,
+      title: form.title.length >= 10 && form.title.length <= 150,
+      description: form.description.length >= 50,
+      steps: form.steps.length >= 30,
+    };
+  }, [form]);
 
   useEffect(() => {
     if (programmeIdFromQuery) {
@@ -87,8 +104,23 @@ const SoumettreRapport = () => {
     }
   }, [programmeIdFromQuery]);
 
+  // Click outside to close VRT suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (vrtRef.current && !vrtRef.current.contains(event.target as Node)) {
+        setShowVrtSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const activeProgrammes = programmes.filter((programme) => programme.status === "actif");
   const selectedProgramme = programmes.find(p => p.id === form.programmeId);
+
+  const filteredVrt = VRT_CATEGORIES.filter(c => 
+    c.toLowerCase().includes(vrtSearch.toLowerCase())
+  );
 
   const handleScreenshotChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -114,13 +146,15 @@ const SoumettreRapport = () => {
   };
 
   const nextStep = () => {
-    if (step === 1 && (!form.programmeId || !form.vulnerability || !form.impactedAsset)) {
-      toast.error("Veuillez remplir les informations de contexte");
-      return;
+    if (step === 1) {
+      if (!validations.programmeId) { toast.error("Veuillez sélectionner un programme"); return; }
+      if (!validations.impactedAsset) { toast.error("Veuillez saisir un actif valide (ex: api.gabon.ga)"); return; }
+      if (!validations.vulnerability) { toast.error("Le type de vulnérabilité est trop court"); return; }
     }
-    if (step === 2 && (!form.title || !form.description || !form.steps)) {
-      toast.error("Les détails techniques et étapes sont obligatoires");
-      return;
+    if (step === 2) {
+      if (!validations.title) { toast.error("Le titre doit faire entre 10 et 150 caractères"); return; }
+      if (!validations.description) { toast.error("La description est trop courte (min 50 caractères)"); return; }
+      if (!validations.steps) { toast.error("Les étapes de reproduction doivent être détaillées (min 30 caractères)"); return; }
     }
     setStep(prev => prev + 1);
     window.scrollTo(0, 0);
@@ -129,31 +163,40 @@ const SoumettreRapport = () => {
   const prevStep = () => setStep(prev => prev - 1);
 
   const handleSubmit = () => {
-    if (!pdfFile || !acceptAnalysis) {
-      toast.error("Veuillez joindre le PDF et accepter les conditions");
+    if (!pdfFile) {
+      toast.error("Veuillez joindre le rapport PDF d'excellence");
+      return;
+    }
+    if (!acceptAnalysis) {
+      toast.error("Veuillez accepter l'analyse IA Smart-Triage™");
       return;
     }
 
     setSubmitting(true);
     addReport({
-      title: form.title,
-      description: `${form.description}\n\nREMEDIATION:\n${form.remediation || "Non spécifiée"}\n\nHTTP LOGS:\n${form.httpLogs || "Aucun log fourni"}`,
+      title: form.title.trim(),
+      description: `${form.description.trim()}\n\nREMEDIATION:\n${form.remediation.trim() || "Non spécifiée"}\n\nHTTP LOGS:\n${form.httpLogs.trim() || "Aucun log fourni"}`,
       severity: form.severity,
       hackerId: user?.id || "",
       hackerName: user?.name || "",
       programmeId: selectedProgramme!.id,
       programmeName: selectedProgramme!.name,
       entrepriseId: selectedProgramme!.entrepriseId,
-      vulnerability: form.vulnerability,
-      vrtCategory: form.vrtCategory,
-      vrtType: form.vulnerability,
-      proof: `Actif: ${form.impactedAsset}\nÉtapes:\n${form.steps}\n\nCaptures d'écran: ${screenshots.length} fichiers`,
+      vulnerability: form.vulnerability.trim(),
+      vrtCategory: vrtSearch.trim(),
+      vrtType: form.vulnerability.trim(),
+      proof: `Actif: ${form.impactedAsset.trim()}\nÉtapes:\n${form.steps.trim()}\n\nCaptures d'écran: ${screenshots.length} fichiers`,
       pdfFileName: pdfFile.name,
       analysisStatus: "en_attente",
     });
 
     toast.success("Rapport d'excellence envoyé ! Redirection vers vos rapports.");
     setTimeout(() => navigate("/hacker/rapports"), 2000);
+  };
+
+  const InputError = ({ show, message }: { show: boolean, message: string }) => {
+    if (!show) return null;
+    return <p className="text-[9px] font-bold text-destructive animate-in fade-in slide-in-from-top-1 mt-1">{message}</p>;
   };
 
   return (
@@ -164,7 +207,7 @@ const SoumettreRapport = () => {
         <div className="container px-4 relative z-10 max-w-6xl">
           
           <div className="text-center mb-12 space-y-4">
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter">Report <span className="text-primary">Standard Excellence</span></h1>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter">Rapport <span className="text-primary">Standard d'Excellence</span></h1>
             <p className="text-muted-foreground font-medium max-w-2xl mx-auto">
               Chaque détail compte. Un rapport bien rédigé est un rapport validé plus rapidement.
             </p>
@@ -253,19 +296,49 @@ const SoumettreRapport = () => {
                           placeholder="Ex: api.gabon.ga, app.see-g.com..." 
                           value={form.impactedAsset}
                           onChange={e => setForm(prev => ({ ...prev, impactedAsset: e.target.value }))}
-                          className="h-12 bg-secondary/50 border-border font-mono text-xs"
+                          className={`h-12 bg-secondary/50 border-border font-mono text-xs ${form.impactedAsset && !validations.impactedAsset ? "border-destructive/50 ring-destructive/10" : ""}`}
                         />
+                        <InputError show={form.impactedAsset !== "" && !validations.impactedAsset} message="Format d'actif invalide (ex: api.gabon.ga)" />
                       </div>
 
-                      <div className="space-y-3">
+                      <div className="space-y-3 relative" ref={vrtRef}>
                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Catégorie VRT (Taxonomie) *</label>
-                        <select 
-                          className="w-full h-12 bg-secondary/50 border border-border rounded-xl px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20"
-                          value={form.vrtCategory}
-                          onChange={e => setForm(prev => ({ ...prev, vrtCategory: e.target.value }))}
-                        >
-                          {VRT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="Rechercher une catégorie (XSS, SQLi...)" 
+                            value={vrtSearch}
+                            onChange={(e) => {
+                              setVrtSearch(e.target.value);
+                              setShowVrtSuggestions(true);
+                            }}
+                            onFocus={() => setShowVrtSuggestions(true)}
+                            className="h-12 bg-secondary/50 border-border pl-10 font-bold"
+                          />
+                        </div>
+                        
+                        {showVrtSuggestions && (
+                          <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-xl shadow-2xl max-h-[250px] overflow-y-auto glass-card">
+                            {filteredVrt.length > 0 ? (
+                              filteredVrt.map((c, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    setVrtSearch(c);
+                                    setShowVrtSuggestions(false);
+                                  }}
+                                  className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-primary/10 transition-colors border-b border-border last:border-0"
+                                >
+                                  {c}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-xs text-muted-foreground">
+                                Aucune catégorie correspondante
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="space-y-3">
@@ -274,7 +347,7 @@ const SoumettreRapport = () => {
                           placeholder="Ex: Stored Cross-Site Scripting, CWE-79" 
                           value={form.vulnerability}
                           onChange={e => setForm(prev => ({ ...prev, vulnerability: e.target.value }))}
-                          className="h-12 bg-secondary/50"
+                          className="h-12 bg-secondary/50 font-bold"
                         />
                       </div>
 
@@ -316,8 +389,9 @@ const SoumettreRapport = () => {
                           placeholder="Ex: Account Takeover via Password Reset Token Leakage" 
                           value={form.title}
                           onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))}
-                          className="h-14 text-xl font-black bg-secondary/50 border-border"
+                          className={`h-14 text-xl font-black bg-secondary/50 border-border ${form.title && !validations.title ? "border-destructive/50" : ""}`}
                         />
+                        <InputError show={form.title !== "" && !validations.title} message="Le titre doit faire entre 10 et 150 caractères" />
                       </div>
 
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -492,7 +566,7 @@ const SoumettreRapport = () => {
                       disabled={submitting} 
                       className="h-12 px-12 bg-primary text-primary-foreground font-black rounded-2xl shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all"
                     >
-                      <Send className="w-4 h-4 mr-2" /> {submitting ? "SUBMITTING..." : "SOUMETTRE LE RAPPORT"}
+                      <Send className="w-4 h-4 mr-2" /> {submitting ? "ENVOI EN COURS..." : "SOUMETTRE LE RAPPORT"}
                     </Button>
                   )}
                 </div>

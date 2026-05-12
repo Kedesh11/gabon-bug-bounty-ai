@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 import Index from "./pages/Index";
 import Programmes from "./pages/Programmes";
+import ProgrammeDetails from "./pages/ProgrammeDetails";
 import SoumettreRapport from "./pages/SoumettreRapport";
 import SoumettreProgramme from "./pages/SoumettreProgramme";
 import Connexion from "./pages/Connexion";
@@ -29,6 +30,7 @@ import SupportDashboard from "./pages/admin/SupportDashboard";
 
 // Hacker
 import HackerDashboard from "./pages/hacker/HackerDashboard";
+import HackerProgrammes from "./pages/hacker/HackerProgrammes";
 import HackerRapports from "./pages/hacker/HackerRapports";
 import HackerParametres from "./pages/hacker/HackerParametres";
 import HackerProfil from "./pages/hacker/HackerProfil";
@@ -53,6 +55,7 @@ const App = () => (
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/programmes" element={<Programmes />} />
+              <Route path="/programmes/:id" element={<ProgrammeDetails />} />
               <Route path="/soumettre-rapport" element={<SoumettreRapport />} />
               <Route path="/soumettre-programme" element={<SoumettreProgramme />} />
               <Route path="/connexion" element={<Connexion />} />
@@ -73,7 +76,7 @@ const App = () => (
 
               {/* Hacker Routes */}
               <Route path="/hacker" element={<ProtectedRoute roles={["hacker"]}><HackerDashboard /></ProtectedRoute>} />
-              <Route path="/hacker/programmes" element={<ProtectedRoute roles={["hacker"]}><HackerDashboard /></ProtectedRoute>} />
+              <Route path="/hacker/programmes" element={<ProtectedRoute roles={["hacker"]}><HackerProgrammes /></ProtectedRoute>} />
               <Route path="/hacker/rapports" element={<ProtectedRoute roles={["hacker"]}><HackerRapports /></ProtectedRoute>} />
               <Route path="/hacker/parametres" element={<ProtectedRoute roles={["hacker"]}><HackerParametres /></ProtectedRoute>} />
               <Route path="/hacker/profil" element={<ProtectedRoute roles={["hacker"]}><HackerProfil /></ProtectedRoute>} />

@@ -96,7 +96,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              Master Control <span className="text-primary font-mono text-xs px-2 py-0.5 bg-primary/10 border border-primary/20 rounded uppercase tracking-widest animate-pulse">System Live</span>
+              Contrôle Maître <span className="text-primary font-mono text-xs px-2 py-0.5 bg-primary/10 border border-primary/20 rounded uppercase tracking-widest animate-pulse">Système Actif</span>
             </h1>
             <p className="text-muted-foreground font-medium italic">Vue d'ensemble granulaire de l'écosystème {config.platformName}.</p>
           </div>
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
             </Dialog>
 
             <Button onClick={handleExportData} className="h-11 bg-primary text-primary-foreground font-bold gap-2 shadow-lg shadow-primary/20">
-              <Database className="w-4 h-4" /> EXPORT DATA
+              <Database className="w-4 h-4" /> EXPORTER LES DONNÉES
             </Button>
           </div>
         </div>
@@ -381,7 +381,7 @@ function SystemStatus({ label, status }: { label: string, status: "online" | "wa
       <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
       <div className="flex items-center gap-1.5">
         <div className={`h-1.5 w-1.5 rounded-full ${status === "online" ? "bg-green-500 animate-pulse" : "bg-destructive"}`} />
-        <span className="text-[9px] font-black uppercase">{status}</span>
+        <span className="text-[9px] font-black uppercase">{status === "online" ? "En Ligne" : "Hors Ligne"}</span>
       </div>
     </div>
   );
