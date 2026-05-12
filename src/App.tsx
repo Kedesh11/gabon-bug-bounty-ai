@@ -27,6 +27,10 @@ import AdminRapports from "./pages/admin/AdminRapports";
 import TriageDashboard from "./pages/admin/TriageDashboard";
 import FinanceDashboard from "./pages/admin/FinanceDashboard";
 import SupportDashboard from "./pages/admin/SupportDashboard";
+import AdminLogs from "./pages/admin/AdminLogs";
+import AdminUserDetail from "./pages/admin/AdminUserDetail";
+import AdminTicketDetail from "./pages/admin/AdminTicketDetail";
+import AdminKnowledgeBase from "./pages/admin/AdminKnowledgeBase";
 
 // Hacker
 import HackerDashboard from "./pages/hacker/HackerDashboard";
@@ -73,6 +77,10 @@ const App = () => (
               <Route path="/admin/triage" element={<ProtectedRoute roles={["admin", "triage"]}><TriageDashboard /></ProtectedRoute>} />
               <Route path="/admin/finance" element={<ProtectedRoute roles={["admin", "finance"]}><FinanceDashboard /></ProtectedRoute>} />
               <Route path="/admin/support" element={<ProtectedRoute roles={["admin", "support"]}><SupportDashboard /></ProtectedRoute>} />
+              <Route path="/admin/logs" element={<ProtectedRoute roles={["admin", "support"]}><AdminLogs /></ProtectedRoute>} />
+              <Route path="/admin/utilisateurs/:id" element={<ProtectedRoute roles={["admin", "support"]}><AdminUserDetail /></ProtectedRoute>} />
+              <Route path="/admin/support/ticket/:id" element={<ProtectedRoute roles={["admin", "support"]}><AdminTicketDetail /></ProtectedRoute>} />
+              <Route path="/admin/support/kb" element={<ProtectedRoute roles={["admin", "support"]}><AdminKnowledgeBase /></ProtectedRoute>} />
 
               {/* Hacker Routes */}
               <Route path="/hacker" element={<ProtectedRoute roles={["hacker"]}><HackerDashboard /></ProtectedRoute>} />

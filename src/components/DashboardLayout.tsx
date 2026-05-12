@@ -1,4 +1,4 @@
-import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, DollarSign } from "lucide-react";
+import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, DollarSign, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
@@ -12,6 +12,7 @@ const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.Ele
     { label: "Utilisateurs", path: "/admin/utilisateurs", icon: Users },
     { label: "Programmes", path: "/admin/programmes", icon: FileText },
     { label: "Rapports", path: "/admin/rapports", icon: Bug },
+    { label: "Logs Système", path: "/admin/logs", icon: Terminal },
     { label: "Paramètres", path: "/admin/parametres", icon: Settings },
   ],
   hacker: [
@@ -40,6 +41,7 @@ const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.Ele
   support: [
     { label: "Dashboard Support", path: "/admin/support", icon: BarChart3 },
     { label: "Utilisateurs", path: "/admin/utilisateurs", icon: Users },
+    { label: "Logs Plateforme", path: "/admin/logs", icon: Terminal },
     { label: "Paramètres", path: "/admin/parametres", icon: Settings },
   ],
 };

@@ -222,6 +222,17 @@ export interface SystemConfig {
   passwordComplexity: "standard" | "elevated" | "military";
 }
 
+export interface PlatformLog {
+  id: string;
+  timestamp: string;
+  type: "security" | "performance" | "user_action" | "system";
+  level: "info" | "warning" | "error" | "critical";
+  message: string;
+  source: string;
+  userId?: string;
+  metadata?: Record<string, unknown>;
+}
+
 // Initial mock data
 const INITIAL_PROGRAMMES: Programme[] = [
   {
@@ -378,6 +389,14 @@ const INITIAL_CONFIG: SystemConfig = {
   passwordComplexity: "standard"
 };
 
+const INITIAL_LOGS: PlatformLog[] = [
+  { id: "log-1", timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), type: "security", level: "critical", message: "Tentative de Brute Force détectée sur l'admin", source: "AuthService", metadata: { ip: "192.168.1.45", attempts: 15 } },
+  { id: "log-2", timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), type: "performance", level: "warning", message: "Temps de réponse élevé sur /api/reports", source: "API Gateway", metadata: { duration: "1.2s", threshold: "0.5s" } },
+  { id: "log-3", timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), type: "user_action", level: "info", message: "Hacker_X a mis à jour ses coordonnées bancaires", source: "AccountService", userId: "hacker-1" },
+  { id: "log-4", timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(), type: "system", level: "info", message: "Mise à jour automatique du certificat SSL terminée", source: "Infrastructure" },
+  { id: "log-5", timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(), type: "security", level: "warning", message: "Accès depuis une nouvelle IP pour SEEG Gabon", source: "AuthService", metadata: { ip: "41.204.1.2", location: "Libreville, GA" } },
+];
+
 function loadData<T>(key: string, initial: T): T {
   try {
     const saved = localStorage.getItem(key);
@@ -398,6 +417,7 @@ export function useDataStore() {
   const [entreprises, setEntreprises] = useState<EntrepriseProfile[]>(() => loadData("bb_entreprises", INITIAL_ENTREPRISES));
   const [activities, setActivities] = useState<ProgrammeActivity[]>(() => loadData("bb_activities", INITIAL_ACTIVITIES));
   const [config, setConfig] = useState<SystemConfig>(() => loadData("bb_config", INITIAL_CONFIG));
+  const [logs, setLogs] = useState<PlatformLog[]>(() => loadData("bb_logs", INITIAL_LOGS));
 
   // Reset Platform
   const resetPlatform = useCallback(() => {
@@ -419,6 +439,15 @@ export function useDataStore() {
     setActivities(prev => {
       const updated = [{ ...a, id: `act-${Date.now()}`, createdAt: new Date().toISOString() }, ...prev].slice(0, 50);
       saveData("bb_activities", updated);
+      return updated;
+    });
+  }, []);
+
+  // Logs
+  const addLog = useCallback((l: Omit<PlatformLog, "id" | "timestamp">) => {
+    setLogs(prev => {
+      const updated = [{ ...l, id: `log-${Date.now()}`, timestamp: new Date().toISOString() }, ...prev].slice(0, 200);
+      saveData("bb_logs", updated);
       return updated;
     });
   }, []);
@@ -564,6 +593,7 @@ export function useDataStore() {
     hackers, updateHacker, updateHackerConfig, deleteHacker,
     entreprises, updateEntreprise, deleteEntreprise,
     activities, addActivity,
+    logs, addLog,
     config, updateConfig, resetPlatform
   };
 }
