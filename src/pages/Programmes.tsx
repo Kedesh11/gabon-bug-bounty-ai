@@ -45,7 +45,12 @@ const Programmes = () => {
   const filteredProgrammes = useMemo(() => {
     return programmes.filter((p) => {
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.entrepriseName.toLowerCase().includes(search.toLowerCase());
-      const matchesFilter = activeFilter === "Tous" || p.tags?.includes(activeFilter) || p.programType?.toUpperCase() === activeFilter.toUpperCase();
+      const filterLower = activeFilter.toLowerCase();
+      const matchesFilter = activeFilter === "Tous" || 
+                           p.tags?.some(t => t.toLowerCase() === filterLower) || 
+                           (filterLower === "private" && p.programType === "private") ||
+                           (filterLower === "vdp" && p.programType === "vdp") ||
+                           (filterLower === "public" && p.programType === "public");
       return matchesSearch && matchesFilter;
     });
   }, [programmes, search, activeFilter]);

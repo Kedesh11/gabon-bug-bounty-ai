@@ -46,10 +46,10 @@ const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.Ele
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrateur",
-  hacker: "Hacker Éthique",
-  entreprise: "Entreprise",
-  triage: "Triage Lead",
-  finance: "Finance Manager",
+  hacker: "Chercheur Élite",
+  entreprise: "Partenaire Entreprise",
+  triage: "Responsable Triage",
+  finance: "Gestionnaire Finance",
   support: "Support Technique",
 };
 
@@ -204,7 +204,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Menu className="w-5 h-5" />
           </Button>
           <h2 className="text-sm font-semibold text-foreground">
-            {items.find(i => i.path === location.pathname)?.label || "Dashboard"}
+            {items.find(i => i.path === location.pathname)?.label || "Tableau de bord"}
           </h2>
           <div className="ml-auto relative">
             <Button variant="ghost" size="icon" className="text-foreground relative" onClick={() => setNotificationsOpen((prev) => !prev)}>

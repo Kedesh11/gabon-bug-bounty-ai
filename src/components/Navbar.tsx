@@ -38,13 +38,13 @@ const Navbar = () => {
           <Link to="/programmes" className="text-sm text-muted-foreground hover:text-primary transition-colors">Programmes</Link>
           <Link to="/soumettre-rapport" className="text-sm text-muted-foreground hover:text-primary transition-colors">Soumettre Rapport</Link>
           <Link to="/hackers" className="text-sm text-muted-foreground hover:text-primary transition-colors">Hackers</Link>
-          <Link to="/mcp-agents" className="text-sm text-muted-foreground hover:text-primary transition-colors">MCP Agents</Link>
+          <Link to="/mcp-agents" className="text-sm text-muted-foreground hover:text-primary transition-colors">Agents MCP</Link>
           <Link to="/documentation" className="text-sm text-muted-foreground hover:text-primary transition-colors">Documentation</Link>
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">
               <Link to={DASHBOARD_PATHS[user.role]}>
                 <Button size="sm" variant="outline" className="font-mono text-xs">
-                  <LayoutDashboard className="w-3 h-3 mr-1" /> Dashboard
+                  <LayoutDashboard className="w-3 h-3 mr-1" /> Tableau de bord
                 </Button>
               </Link>
               <Button size="sm" variant="ghost" onClick={handleLogout} className="text-destructive text-xs">
@@ -76,7 +76,7 @@ const Navbar = () => {
           <Link to="/documentation" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Documentation</Link>
           {isAuthenticated && user ? (
             <>
-              <Link to={DASHBOARD_PATHS[user.role]} onClick={() => setOpen(false)} className="block text-sm text-primary font-semibold">Dashboard</Link>
+              <Link to={DASHBOARD_PATHS[user.role]} onClick={() => setOpen(false)} className="block text-sm text-primary font-semibold">Tableau de bord</Link>
               <button onClick={handleLogout} className="block text-sm text-destructive">Déconnexion</button>
             </>
           ) : (

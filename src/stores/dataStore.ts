@@ -160,6 +160,39 @@ export interface HackerProfile {
   badges: { name: string; icon: string; description: string }[];
   joinedAt: string;
   status: "actif" | "banni" | "suspendu";
+  config?: HackerPaymentConfig;
+}
+
+export type PaymentMethod = "mobile_money" | "bank_transfer" | "bank_card" | "paypal" | "crypto";
+export type MobileMoneyProvider = "airtel" | "mtn" | "moov" | "orange";
+export type CryptoType = "btc" | "eth" | "usdt";
+export type PreferredCurrency = "USD" | "EUR" | "XAF";
+export type CardBrand = "visa" | "mastercard" | "amex" | "other";
+
+export interface HackerPaymentConfig {
+  gainsEnabled: boolean;
+  paymentMethods: PaymentMethod[];
+  mobileMoneyProvider: MobileMoneyProvider;
+  phoneNumber: string;
+  accountName: string;
+  bankName: string;
+  accountHolderName: string;
+  accountNumber: string;
+  iban: string;
+  swiftCode: string;
+  bankCountry: string;
+  cardBrand: CardBrand;
+  cardHolderName: string;
+  cardNumber: string;
+  cardExpiry: string;
+  cardCvv: string;
+  cardBillingCountry: string;
+  paypalEmail: string;
+  cryptoType: CryptoType;
+  walletAddress: string;
+  preferredCurrency: PreferredCurrency;
+  autoWithdrawal: boolean;
+  minimumPayoutThreshold: string;
 }
 
 export interface EntrepriseProfile {
@@ -326,7 +359,7 @@ const INITIAL_ENTREPRISES: EntrepriseProfile[] = [
 
 const INITIAL_ACTIVITIES: ProgrammeActivity[] = [
   { id: "act-1", title: "Nouveau Rapport Soumis", subtitle: "XSS trouvé sur API Gouvernementale", type: "submission", createdAt: "2024-07-18T10:00:00Z", hackerName: "CyberPanther", programmeName: "API Gouvernementale v2" },
-  { id: "act-2", title: "Récompense Payée", subtitle: "500,000 XAF versés", type: "reward", createdAt: "2024-07-17T15:30:00Z", amount: 500000, hackerName: "CyberPanther", programmeName: "API Gouvernementale v2" },
+  { id: "act-2", title: "Récompense Payée", subtitle: "500 000 XAF versés", type: "reward", createdAt: "2024-07-17T15:30:00Z", amount: 500000, hackerName: "CyberPanther", programmeName: "API Gouvernementale v2" },
   { id: "act-3", title: "Nouveau Partenaire Stratégique", subtitle: "La SEEG a lancé son audit de sécurité", type: "update", createdAt: "2024-07-20T09:00:00Z", programmeName: "Audit de Sécurité - SEEG" },
 ];
 
@@ -492,6 +525,14 @@ export function useDataStore() {
     });
   }, []);
 
+  const updateHackerConfig = useCallback((id: string, config: HackerPaymentConfig) => {
+    setHackers(prev => {
+      const updated = prev.map(h => h.id === id ? { ...h, config } : h);
+      saveData("bb_hackers", updated);
+      return updated;
+    });
+  }, []);
+
   const deleteHacker = useCallback((id: string) => {
     setHackers(prev => {
       const updated = prev.filter(h => h.id !== id);
@@ -520,7 +561,7 @@ export function useDataStore() {
   return {
     programmes, addProgramme, updateProgramme, deleteProgramme,
     reports, addReport, updateReport, deleteReport,
-    hackers, updateHacker, deleteHacker,
+    hackers, updateHacker, updateHackerConfig, deleteHacker,
     entreprises, updateEntreprise, deleteEntreprise,
     activities, addActivity,
     config, updateConfig, resetPlatform
