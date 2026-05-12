@@ -1,327 +1,273 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
-import { Shield, ExternalLink, DollarSign, Users, AlertTriangle, Globe, LayoutGrid, Table2 } from "lucide-react";
+import { 
+  Shield, 
+  ExternalLink, 
+  DollarSign, 
+  Users, 
+  AlertTriangle, 
+  Globe, 
+  LayoutGrid, 
+  Table2, 
+  Search, 
+  Filter, 
+  ChevronRight, 
+  Zap, 
+  Building2, 
+  List,
+  ArrowUpRight
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
 import { Programme } from "@/stores/dataStore";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const FILTERS = ["Tous", "Actif", "Nouveau", "Critique", "Web", "API"] as const;
-type ViewMode = "cards" | "tableau";
+const FILTERS = ["Tous", "Web", "API", "Mobile", "Infrastructure", "Private", "VDP"] as const;
 
-const severityLabel = (programme: Programme) => {
-  if (programme.rewardTiers?.some((tier) => tier.severity === "critique")) return "Critique";
-  if (programme.maxReward >= 2500000) return "Critique";
-  if (programme.maxReward >= 900000) return "Haute";
-  if (programme.maxReward >= 250000) return "Moyenne";
-  return "Faible";
-};
-
-const inferTags = (programme: Programme) => {
-  if (programme.tags && programme.tags.length > 0) return programme.tags;
-
-  const tags = new Set<string>();
-  const joinedScope = programme.scope.join(" ").toLowerCase();
-  if (joinedScope.includes("api")) tags.add("API");
-  if (joinedScope.includes("app") || joinedScope.includes("web")) tags.add("Web");
-  if (joinedScope.includes("mobile")) tags.add("Mobile");
-  if (tags.size === 0) tags.add("Web");
-  return Array.from(tags);
-};
-
-const statusLabel = (programme: Programme) => {
-  if (programme.isNew) return "Nouveau";
-  if (programme.status === "actif") return "Actif";
-  if (programme.status === "pause") return "Pause";
-  return "Fermé";
+const severityColor = (maxReward: number) => {
+  if (maxReward >= 5000000) return "text-destructive border-destructive/20 bg-destructive/10";
+  if (maxReward >= 1000000) return "text-orange-500 border-orange-500/20 bg-orange-500/10";
+  return "text-blue-500 border-blue-500/20 bg-blue-500/10";
 };
 
 const Programmes = () => {
   const { programmes } = useData();
-  const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>("Tous");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [cardsPerPage, setCardsPerPage] = useState(12);
-
-  useEffect(() => {
-    const updateCardsPerPage = () => {
-      const width = window.innerWidth;
-      const columns = width >= 1280 ? 3 : width >= 768 ? 2 : 1;
-      setCardsPerPage(columns * 4);
-    };
-
-    updateCardsPerPage();
-    window.addEventListener("resize", updateCardsPerPage);
-    return () => window.removeEventListener("resize", updateCardsPerPage);
-  }, []);
-
-  const normalizedProgrammes = useMemo(() => {
-    return programmes.map((programme) => ({
-      id: programme.id,
-      name: programme.name,
-      scope: programme.scope.join(", "),
-      rewards: `${programme.minReward.toLocaleString()} – ${programme.maxReward.toLocaleString()} ${programme.rewardCurrency || "FCFA"}`,
-      severity: severityLabel(programme),
-      hunters: Math.max(6, programme.reportsCount * 3),
-      reports: programme.reportsCount,
-      status: statusLabel(programme),
-      tags: inferTags(programme),
-      rawStatus: programme.status,
-      isNew: !!programme.isNew,
-    }));
-  }, [programmes]);
+  const navigate = useNavigate();
+  const [activeFilter, setActiveFilter] = useState<string>("Tous");
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"card" | "list" | "table">("card");
 
   const filteredProgrammes = useMemo(() => {
-    if (activeFilter === "Tous") return normalizedProgrammes;
-
-    return normalizedProgrammes.filter((programme) => {
-      if (activeFilter === "Actif") {
-        return programme.rawStatus === "actif";
-      }
-      if (activeFilter === "Nouveau") {
-        return programme.isNew;
-      }
-      if (activeFilter === "Critique") {
-        return programme.severity === "Critique";
-      }
-      return programme.tags.includes(activeFilter);
+    return programmes.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.entrepriseName.toLowerCase().includes(search.toLowerCase());
+      const matchesFilter = activeFilter === "Tous" || p.tags?.includes(activeFilter) || p.programType?.toUpperCase() === activeFilter.toUpperCase();
+      return matchesSearch && matchesFilter;
     });
-  }, [activeFilter, normalizedProgrammes]);
-
-  const pageSize = viewMode === "cards" ? cardsPerPage : 5;
-  const totalPages = Math.max(1, Math.ceil(filteredProgrammes.length / pageSize));
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeFilter, viewMode, cardsPerPage]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  const paginatedProgrammes = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredProgrammes.slice(start, start + pageSize);
-  }, [currentPage, filteredProgrammes, pageSize]);
-
-  const fromIndex = filteredProgrammes.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const toIndex = Math.min(currentPage * pageSize, filteredProgrammes.length);
+  }, [programmes, search, activeFilter]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <section className="pt-24 pb-16 relative">
-        <div className="absolute inset-0 grid-pattern opacity-50" />
+      
+      {/* Search & Filter Header */}
+      <section className="pt-32 pb-12 bg-secondary/20 border-b border-border relative overflow-hidden">
+        <div className="absolute inset-0 grid-pattern opacity-10" />
         <div className="container px-4 relative z-10">
-          <div className="text-center mb-12">
-            <span className="font-mono text-primary text-sm tracking-widest uppercase">Explorer</span>
-            <h1 className="text-4xl md:text-6xl font-black mt-3 mb-4">
-              <span className="text-foreground">Programmes </span>
-              <span className="text-gradient-cyber">Bug Bounty</span>
-            </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Découvrez les organisations qui ont ouvert leurs systèmes aux hackers éthiques.
-              Choisissez un programme et commencez à chasser.
-            </p>
-          </div>
-
-          <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between mb-8">
-            <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-              {FILTERS.map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter((previous) => (previous === filter ? "Tous" : filter))}
-                  className={`px-4 py-2 rounded-full text-sm font-mono transition-all ${
-                    activeFilter === filter
-                      ? "bg-primary/15 border border-primary text-primary cyber-glow"
-                      : "glass-card border-glow text-muted-foreground hover:text-primary hover:border-primary/40"
-                  }`}
+          <div className="max-w-4xl mx-auto space-y-8">
+            <div className="text-center space-y-4">
+              <h1 className="text-4xl md:text-6xl font-black tracking-tighter">Exploration des <span className="text-primary text-gradient-cyber">Cibles</span></h1>
+              <p className="text-muted-foreground font-medium text-lg">Analysez les périmètres et sécurisez le cyber-espace gabonais.</p>
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1 group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input 
+                  placeholder="Rechercher une entreprise, un actif..." 
+                  className="pl-12 h-14 bg-background border-border text-lg shadow-2xl focus:ring-primary/20 rounded-2xl"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2 p-1 bg-secondary/50 rounded-2xl border border-border">
+                <button 
+                  className={`p-3 rounded-xl transition-all ${viewMode === "card" ? "bg-background text-primary shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setViewMode("card")}
+                  title="Vue Grille"
                 >
-                  {filter}
+                  <LayoutGrid className="w-5 h-5" />
                 </button>
+                <button 
+                  className={`p-3 rounded-xl transition-all ${viewMode === "list" ? "bg-background text-primary shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setViewMode("list")}
+                  title="Vue Liste"
+                >
+                  <List className="w-5 h-5" />
+                </button>
+                <button 
+                  className={`p-3 rounded-xl transition-all ${viewMode === "table" ? "bg-background text-primary shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setViewMode("table")}
+                  title="Vue Tableau"
+                >
+                  <Table2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 justify-center">
+              {FILTERS.map((f) => (
+                <Badge 
+                  key={f} 
+                  variant={activeFilter === f ? "default" : "outline"}
+                  className={`px-5 py-2 cursor-pointer transition-all rounded-full font-bold ${activeFilter === f ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "bg-background/50 hover:border-primary/50"}`}
+                  onClick={() => setActiveFilter(f)}
+                >
+                  {f}
+                </Badge>
               ))}
             </div>
-
-            <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={() => setViewMode("cards")}
-                className={`px-3 py-2 rounded-lg text-xs font-mono border transition-all inline-flex items-center gap-2 ${
-                  viewMode === "cards"
-                    ? "border-primary text-primary bg-primary/10"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <LayoutGrid className="w-3 h-3" />
-                Cards
-              </button>
-              <button
-                onClick={() => setViewMode("tableau")}
-                className={`px-3 py-2 rounded-lg text-xs font-mono border transition-all inline-flex items-center gap-2 ${
-                  viewMode === "tableau"
-                    ? "border-primary text-primary bg-primary/10"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Table2 className="w-3 h-3" />
-                Tableau
-              </button>
-            </div>
           </div>
+        </div>
+      </section>
 
-          {filteredProgrammes.length > 0 ? (
-            <>
-              {viewMode === "cards" ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {paginatedProgrammes.map((prog, i) => (
-                    <Card key={`${prog.name}-${i}`} className="glass-card border-glow hover:cyber-glow transition-all duration-300">
-                      <CardHeader className="pb-4">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Shield className="w-5 h-5 text-primary" />
-                          <Badge variant="outline" className={`font-mono text-xs ${prog.status === "Nouveau" ? "border-accent text-accent" : "border-primary text-primary"}`}>
-                            {prog.status}
+      {/* Program List Section */}
+      <section className="py-16 min-h-[600px]">
+        <div className="container px-4">
+          
+          {/* Card View (Grid) */}
+          {viewMode === "card" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+              {filteredProgrammes.map((p) => (
+                <Link key={p.id} to={`/programmes/${p.id}`} className="group">
+                  <Card className="h-full glass-card border-border hover:border-primary/50 transition-all duration-300 overflow-hidden flex flex-col hover:shadow-[0_0_30px_rgba(var(--primary),0.1)]">
+                    <div className="p-6 bg-secondary/20 border-b border-border flex justify-between items-start">
+                      <div className="h-14 w-14 rounded-2xl bg-background border border-border flex items-center justify-center overflow-hidden p-2 group-hover:scale-110 transition-transform">
+                        {p.logoUrl ? <img src={p.logoUrl} className="object-contain" /> : <Shield className="w-6 h-6 text-primary/40" />}
+                      </div>
+                      <Badge variant="outline" className={`font-black ${severityColor(p.maxReward)}`}>
+                        {p.maxReward.toLocaleString()} XAF
+                      </Badge>
+                    </div>
+                    <div className="p-6 flex-1 space-y-4">
+                      <div>
+                        <h3 className="text-xl font-black group-hover:text-primary transition-colors">{p.name}</h3>
+                        <p className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 mt-1 uppercase tracking-widest">
+                          <Building2 className="w-3 h-3" /> {p.entrepriseName}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        {p.tags?.slice(0, 2).map(t => <Badge key={t} variant="secondary" className="text-[10px] uppercase font-bold">{t}</Badge>)}
+                        {p.isNew && <Badge className="bg-accent text-accent-foreground text-[10px]">NOUVEAU</Badge>}
+                      </div>
+                    </div>
+                    <div className="p-6 border-t border-border bg-secondary/10 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5" /> {p.reportsCount || 0} Hackers
+                      </div>
+                      <div className="flex items-center gap-1.5 text-primary">
+                        Détails <ArrowUpRight className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* List View (Horizontal) */}
+          {viewMode === "list" && (
+            <div className="grid grid-cols-1 gap-6 max-w-5xl mx-auto">
+              {filteredProgrammes.map((p) => (
+                <Link key={p.id} to={`/programmes/${p.id}`} className="group">
+                  <Card className="glass-card border-border hover:border-primary/40 transition-all duration-300 overflow-hidden shadow-sm hover:shadow-xl">
+                    <div className="flex flex-col md:flex-row">
+                      <div className="w-full md:w-48 bg-secondary/30 flex items-center justify-center p-8 border-b md:border-b-0 md:border-r border-border group-hover:bg-primary/5 transition-colors shrink-0">
+                        {p.logoUrl ? <img src={p.logoUrl} className="w-20 h-20 object-contain" /> : <Shield className="w-10 h-10 text-primary/40" />}
+                      </div>
+                      <div className="flex-1 p-6 md:p-8 space-y-6">
+                        <div className="flex justify-between items-start gap-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-2xl font-black text-foreground group-hover:text-primary transition-colors">{p.name}</h3>
+                              {p.isNew && <Badge className="bg-accent text-accent-foreground text-[10px]">NOUVEAU</Badge>}
+                            </div>
+                            <p className="text-sm font-bold text-muted-foreground mt-1 tracking-widest uppercase">{p.entrepriseName}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Prime Max</p>
+                            <p className="text-2xl font-black text-foreground">{p.maxReward.toLocaleString()} <span className="text-sm font-normal">XAF</span></p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-6">
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-yellow-500" />
+                            <span className="text-xs font-bold">{p.triageTimeHours || 24}h Triage</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-blue-500" />
+                            <span className="text-xs font-bold">{p.reportsCount || 0} Hackers</span>
+                          </div>
+                          <Badge variant="outline" className={`font-bold ${severityColor(p.maxReward)}`}>
+                            {p.maxReward >= 5000000 ? "CRITIQUE" : "HAUTE"}
                           </Badge>
                         </div>
-                        <CardTitle className="text-xl leading-tight">{prog.name}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground font-mono">
-                          <Globe className="w-4 h-4 text-primary" />
-                          <span className="truncate">{prog.scope}</span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2 text-sm">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <DollarSign className="w-4 h-4 text-primary" />
-                            <span>{prog.rewards}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <AlertTriangle className="w-4 h-4 text-destructive" />
-                            <span>Sévérité max: {prog.severity}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Users className="w-4 h-4 text-accent" />
-                            <span>{prog.hunters} hackers inscrits</span>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {prog.tags.map((tag) => (
-                            <span key={tag} className="text-xs font-mono bg-secondary text-secondary-foreground px-2 py-1 rounded">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </CardContent>
-                      <CardFooter>
-                        <Button asChild size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono text-xs">
-                          <Link to={`/programmes/${prog.id}`}>
-                            <ExternalLink className="w-3 h-3 mr-1" />
-                            Voir le programme
-                          </Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="glass-card border-glow rounded-xl p-2 md:p-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Programme</TableHead>
-                        <TableHead>Scope</TableHead>
-                        <TableHead>Récompenses</TableHead>
-                        <TableHead>Sévérité</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead>Tags</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedProgrammes.map((prog, i) => (
-                        <TableRow key={`${prog.name}-${i}`}>
-                          <TableCell className="font-semibold text-foreground">{prog.name}</TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">{prog.scope}</TableCell>
-                          <TableCell>{prog.rewards}</TableCell>
-                          <TableCell>{prog.severity}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={`font-mono text-xs ${prog.status === "Nouveau" ? "border-accent text-accent" : "border-primary text-primary"}`}>
-                              {prog.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {prog.tags.map((tag) => (
-                                <span key={tag} className="text-xs font-mono bg-secondary text-secondary-foreground px-2 py-0.5 rounded">
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button asChild size="sm" variant="outline">
-                              <Link to={`/programmes/${prog.id}`}>
-                                <ExternalLink className="w-3 h-3 mr-1" />
-                                Voir
-                              </Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
 
-              <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <p className="text-sm text-muted-foreground font-mono">
-                  Affichage {fromIndex}-{toIndex} sur {filteredProgrammes.length}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((previous) => Math.max(1, previous - 1))}
-                  >
-                    Précédent
-                  </Button>
-                  {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                    <Button
-                      key={page}
-                      size="sm"
-                      variant={currentPage === page ? "default" : "outline"}
-                      className={currentPage === page ? "bg-primary text-primary-foreground" : ""}
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
+          {/* Table View */}
+          {viewMode === "table" && (
+            <div className="max-w-7xl mx-auto glass-card rounded-2xl border border-border overflow-hidden">
+              <Table>
+                <TableHeader className="bg-secondary/50">
+                  <TableRow className="hover:bg-transparent border-border">
+                    <TableHead className="w-[300px] font-black uppercase text-[10px] tracking-widest">Programme</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Type</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Sévérité</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest">Prime Max</TableHead>
+                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProgrammes.map((p) => (
+                    <TableRow key={p.id} className="hover:bg-primary/5 border-border group cursor-pointer" onClick={() => navigate(`/programmes/${p.id}`)}>
+                      <TableCell className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded bg-background border border-border flex items-center justify-center overflow-hidden p-1">
+                            {p.logoUrl ? <img src={p.logoUrl} className="object-contain" /> : <Shield className="w-4 h-4 text-primary/30" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold group-hover:text-primary transition-colors">{p.name}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-black">{p.entrepriseName}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1.5">
+                          {p.tags?.map(t => <Badge key={t} variant="secondary" className="text-[9px] font-bold uppercase">{t}</Badge>)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[9px] font-black ${severityColor(p.maxReward)}`}>
+                          {p.maxReward >= 5000000 ? "CRITIQUE" : "HAUTE"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-black text-sm">
+                        {p.maxReward.toLocaleString()} XAF
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to={`/programmes/${p.id}`}><ChevronRight className="w-4 h-4" /></Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage((previous) => Math.min(totalPages, previous + 1))}
-                  >
-                    Suivant
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="glass-card border-glow rounded-xl p-10 text-center">
-              <p className="text-muted-foreground">Aucun programme ne correspond aux filtres sélectionnés.</p>
-              <Button variant="outline" size="sm" className="mt-4" onClick={() => setActiveFilter("Tous")}>
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {filteredProgrammes.length === 0 && (
+            <div className="text-center py-24 glass-card border-dashed">
+              <Search className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-xl font-bold text-muted-foreground">Aucun programme ne correspond à votre recherche</p>
+              <Button variant="link" onClick={() => { setSearch(""); setActiveFilter("Tous"); }}>
                 Réinitialiser les filtres
               </Button>
             </div>
           )}
         </div>
       </section>
+
       <FooterSection />
     </div>
   );

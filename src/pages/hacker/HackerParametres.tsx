@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Wallet, Landmark, Smartphone, Save, ArrowDownToLine, CreditCard, BellRing, UserCircle2, ImagePlus, Send } from "lucide-react";
 
 import DashboardLayout from "@/components/DashboardLayout";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useData } from "@/contexts/DataContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

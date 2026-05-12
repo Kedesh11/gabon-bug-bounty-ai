@@ -1,9 +1,21 @@
 import Navbar from "@/components/Navbar";
-import { Shield, Terminal, ArrowRight, ShieldCheck, KeyRound } from "lucide-react";
+import { 
+  Shield, 
+  Terminal, 
+  ArrowRight, 
+  ShieldCheck, 
+  Building2, 
+  ShieldAlert, 
+  Zap, 
+  Calculator, 
+  LifeBuoy, 
+  Search 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { useAuth, UserRole } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
+import { UserRole } from "@/types/auth";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -11,6 +23,9 @@ const ROLE_REDIRECTS: Record<UserRole, string> = {
   admin: "/admin",
   hacker: "/hacker",
   entreprise: "/entreprise",
+  triage: "/admin/triage",
+  finance: "/admin/finance",
+  support: "/admin/support",
 };
 
 const Connexion = () => {
@@ -21,27 +36,29 @@ const Connexion = () => {
   const [searchParams] = useSearchParams();
   const roleParam = searchParams.get("role");
   const requiredRole: UserRole | null =
-    roleParam === "admin" || roleParam === "hacker" || roleParam === "entreprise" ? roleParam : null;
+    roleParam === "admin" || roleParam === "hacker" || roleParam === "entreprise" || 
+    roleParam === "triage" || roleParam === "finance" || roleParam === "support" ? roleParam as UserRole : null;
   const redirectPath = searchParams.get("redirect");
 
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!email || !password) {
-      toast.error("Remplissez tous les champs");
+      toast.error("Veuillez remplir tous les champs");
       return;
     }
 
     const loggedUser = login(email, password);
     if (!loggedUser) {
-      toast.error("Identifiants invalides");
+      toast.error("Identifiants invalides ou compte inexistant");
       return;
     }
 
     if (requiredRole && loggedUser.role !== requiredRole) {
-      toast.error(`Connectez-vous avec un compte ${requiredRole}`);
+      toast.error(`Accès refusé. Veuillez vous connecter avec un compte ${requiredRole}.`);
       return;
     }
 
-    toast.success("Connexion réussie");
+    toast.success(`Bienvenue, ${loggedUser.name} !`);
     if (redirectPath) {
       navigate(redirectPath);
       return;
@@ -49,109 +66,112 @@ const Connexion = () => {
     navigate(ROLE_REDIRECTS[loggedUser.role]);
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <section className="pt-24 pb-16 min-h-screen flex items-center justify-center relative">
-        <div className="absolute inset-0 grid-pattern opacity-30" />
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
+  const quickLogin = (userEmail: string) => {
+    setEmail(userEmail);
+    setPassword("demo");
+    setTimeout(() => {
+      const loggedUser = login(userEmail, "demo");
+      if (loggedUser) {
+        toast.success(`Connexion démo : ${loggedUser.name}`);
+        navigate(redirectPath || ROLE_REDIRECTS[loggedUser.role]);
+      }
+    }, 300);
+  };
 
-        <div className="relative z-10 w-full max-w-md px-4">
-          <div className="text-center mb-8">
-            <Shield className="w-10 h-10 text-primary mx-auto mb-3" />
-            <h1 className="text-3xl font-black text-foreground">Connexion</h1>
-            <p className="text-sm text-muted-foreground mt-1 font-mono">
-              {requiredRole === "entreprise" ? "Connexion entreprise requise" : "Accédez à votre espace sécurisé"}
+  return (
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
+      <Navbar />
+      <section className="pt-24 pb-16 min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 grid-pattern opacity-20" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px] animate-pulse" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-accent/10 rounded-full blur-[100px] animate-pulse delay-700" />
+
+        <div className="relative z-10 w-full max-w-2xl px-4">
+          <div className="text-center mb-8 space-y-2">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary border border-border shadow-2xl mb-4 group hover:border-primary/50 transition-all">
+              <Shield className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight">Accès Sécurisé</h1>
+            <p className="text-muted-foreground font-medium max-w-sm mx-auto">
+              {requiredRole ? `Veuillez vous connecter à votre compte ${requiredRole} pour continuer.` : "Gérez vos vulnérabilités et vos programmes avec l'IA."}
             </p>
           </div>
 
-          <div className="glass-card rounded-xl border-glow p-6 space-y-5">
-            <div className="bg-secondary rounded-lg p-3 space-y-1.5">
-              <p className="text-xs font-semibold text-foreground flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-primary" /> Comptes démo
-              </p>
-              <button
-                onClick={() => {
-                  setEmail("admin@bugbounty.com");
-                  setPassword("demo");
-                }}
-                className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
-              >
-                admin@bugbounty.com → Admin
-              </button>
-              <button
-                onClick={() => {
-                  setEmail("hacker@bugbounty.com");
-                  setPassword("demo");
-                }}
-                className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
-              >
-                hacker@bugbounty.com → Hacker
-              </button>
-              <button
-                onClick={() => {
-                  setEmail("entreprise@bugbounty.com");
-                  setPassword("demo");
-                }}
-                className="block text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
-              >
-                entreprise@bugbounty.com → Entreprise
-              </button>
+          <div className="glass-card rounded-2xl border-glow p-8 shadow-2xl space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Adresse Email</label>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="nom@exemple.ga"
+                    className="h-12 bg-secondary/50 border-border focus:ring-primary/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center ml-1">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Mot de passe</label>
+                    <Link to="/mot-de-passe-oublie" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter">Oublié ?</Link>
+                  </div>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="h-12 bg-secondary/50 border-border focus:ring-primary/20"
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full h-12 bg-primary text-primary-foreground font-black text-lg hover:bg-primary/90 transition-all active:scale-[0.98]">
+                SE CONNECTER <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+              <div className="relative flex justify-center text-[10px] uppercase font-black"><span className="bg-background px-4 text-muted-foreground tracking-widest">Accès Rapide (Mode Démo)</span></div>
             </div>
 
-            <div>
-              <label className="text-sm text-muted-foreground font-mono mb-1.5 block">Email</label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="vous@exemple.com"
-                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm text-muted-foreground font-mono mb-1.5 block">Mot de passe</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••"
-                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-
-            <Button onClick={handleSubmit} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold cyber-glow">
-              Se connecter
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-
-            <Link to="/mot-de-passe-oublie" className="block text-center text-xs text-primary hover:underline font-mono">
-              <span className="inline-flex items-center gap-1">
-                <KeyRound className="w-3 h-3" />
-                Mot de passe oublié ?
-              </span>
-            </Link>
-
-            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono justify-center">
-              <Terminal className="w-3 h-3" />
-              <span>Connexion sécurisée · Chiffrement E2E</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <QuickLoginBtn icon={<ShieldAlert className="w-4 h-4 text-primary" />} label="Admin" sub="Principal" onClick={() => quickLogin("admin@bugbounty.com")} />
+              <QuickLoginBtn icon={<Terminal className="w-4 h-4 text-accent" />} label="Hacker" sub="CyberPanther" onClick={() => quickLogin("hacker@bugbounty.com")} />
+              <QuickLoginBtn icon={<Building2 className="w-4 h-4 text-blue-500" />} label="Entreprise" sub="Ministère" onClick={() => quickLogin("entreprise@bugbounty.com")} />
+              <QuickLoginBtn icon={<Search className="w-4 h-4 text-orange-500" />} label="Triage" sub="Sarah" onClick={() => quickLogin("triage@bugbounty.com")} />
+              <QuickLoginBtn icon={<Calculator className="w-4 h-4 text-green-500" />} label="Finance" sub="Marc" onClick={() => quickLogin("finance@bugbounty.com")} />
+              <QuickLoginBtn icon={<LifeBuoy className="w-4 h-4 text-blue-400" />} label="Support" sub="Paul" onClick={() => quickLogin("support@bugbounty.com")} />
             </div>
           </div>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Pas encore de compte ?{" "}
-            <Link
-              to={requiredRole === "entreprise" ? `/inscription?role=entreprise${redirectPath ? `&redirect=${encodeURIComponent(redirectPath)}` : ""}` : "/inscription"}
-              className="text-primary hover:underline font-semibold"
-            >
-              Créer un compte
-            </Link>
-          </p>
+          <div className="mt-8 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Pas encore de compte ?{" "}
+              <Link to="/inscription" className="text-primary font-black hover:underline underline-offset-4">CRÉER UN COMPTE</Link>
+            </p>
+            <div className="flex items-center justify-center gap-6 opacity-40">
+              <ShieldCheck className="w-5 h-5" />
+              <span className="h-4 w-px bg-border" />
+              <p className="text-[10px] font-bold uppercase tracking-tighter">Infrastructure sécurisée par AI-Shield™</p>
+            </div>
+          </div>
         </div>
       </section>
     </div>
   );
 };
+
+function QuickLoginBtn({ icon, label, sub, onClick }: { icon: React.ReactNode, label: string, sub: string, onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group text-left">
+      <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black text-foreground truncate">{label}</p>
+        <p className="text-[9px] text-muted-foreground truncate font-mono">{sub}</p>
+      </div>
+    </button>
+  );
+}
 
 export default Connexion;

@@ -1,26 +1,6 @@
-import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from "react";
-
-export type UserRole = "hacker" | "entreprise" | "admin";
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  avatar?: string;
-  createdAt: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => User | null;
-  register: (name: string, email: string, password: string, role: UserRole) => User | null;
-  updateProfile: (data: Partial<Pick<User, "name" | "email" | "avatar">>) => User | null;
-  logout: () => void;
-  isAuthenticated: boolean;
-}
-
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+import { useState, ReactNode, useCallback, useMemo } from "react";
+import { User, UserRole } from "@/types/auth";
+import { AuthContext } from "./AuthContextObject";
 
 const REGISTERED_USERS_KEY = "bugbounty_registered_users";
 const ENTERPRISE_REGISTERED_KEY = "bugbounty_has_registered_enterprise";
@@ -29,6 +9,10 @@ const DEMO_USERS: User[] = [
   { id: "admin-1", email: "admin@bugbounty.com", name: "Admin Principal", role: "admin", createdAt: "2024-01-01" },
   { id: "hacker-1", email: "hacker@bugbounty.com", name: "CyberPanther", role: "hacker", createdAt: "2024-03-15" },
   { id: "entreprise-1", email: "entreprise@bugbounty.com", name: "Ministère Numérique", role: "entreprise", createdAt: "2024-02-10" },
+  { id: "entreprise-3", email: "security@seeg.ga", name: "SEEG Gabon", role: "entreprise", createdAt: "2024-07-15" },
+  { id: "triage-1", email: "triage@bugbounty.com", name: "Sarah (Triage)", role: "triage", createdAt: "2024-05-01" },
+  { id: "finance-1", email: "finance@bugbounty.com", name: "Marc (Finance)", role: "finance", createdAt: "2024-05-01" },
+  { id: "support-1", email: "support@bugbounty.com", name: "Paul (Support)", role: "support", createdAt: "2024-05-01" },
 ];
 
 function loadRegisteredUsers(): User[] {
@@ -156,5 +140,3 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     </AuthContext.Provider>
   );
 };
-
-export const useAuth = () => useContext(AuthContext);
