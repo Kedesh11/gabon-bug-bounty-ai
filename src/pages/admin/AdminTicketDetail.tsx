@@ -1,23 +1,17 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ChevronLeft, 
-  MessageSquare, 
-  Clock, 
-  AlertCircle, 
-  Flag, 
-  MoreVertical, 
-  Send, 
-  Paperclip, 
-  Smile, 
-  CheckCircle, 
-  Trash2, 
-  User, 
+import {
+  ChevronLeft,
+  MessageSquare,
+  Flag,
+  Send,
+  Paperclip,
+  Smile,
+  CheckCircle,
+  Trash2,
+  User,
   ShieldQuestion,
-  FileText,
   LifeBuoy,
-  X as CloseIcon,
-  Check as CheckIcon,
   ChevronRight
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

@@ -3,15 +3,14 @@ import { useData } from "@/contexts/DataContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Trash2, 
-  Ban, 
-  CheckCircle, 
-  Search, 
-  ShieldCheck, 
-  FileText, 
-  User, 
-  Building2, 
+import {
+  Trash2,
+  Ban,
+  Search,
+  ShieldCheck,
+  FileText,
+  User,
+  Building2,
   Eye,
   Check,
   X

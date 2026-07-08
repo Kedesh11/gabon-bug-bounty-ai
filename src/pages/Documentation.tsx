@@ -1,6 +1,6 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
-import { Book, Code, Shield, FileText, Terminal, ChevronRight, ExternalLink } from "lucide-react";
+import { Book, Code, Shield, FileText, Terminal, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 const sections = [

@@ -11,7 +11,7 @@ const FooterSection = () => {
             <span className="font-black text-lg text-foreground">BugBounty</span>
           </div>
           <p className="text-sm text-muted-foreground text-center">
-            © 2026 Plateforme Nationale de Bug Bounty — République Gabonaise
+            © {new Date().getFullYear()} Plateforme Nationale de Bug Bounty — République Gabonaise
           </p>
           <div className="flex gap-6">
             <Link to="/mentions-legales" className="text-sm text-muted-foreground hover:text-primary transition-colors">Mentions légales</Link>

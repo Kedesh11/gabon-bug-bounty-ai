@@ -1,16 +1,14 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
-import { 
-  Shield, 
-  Search, 
-  LayoutGrid, 
-  List, 
-  Table2, 
-  Building2, 
-  ArrowUpRight, 
+import {
+  Shield,
+  Search,
+  LayoutGrid,
+  List,
+  Table2,
+  Building2,
+  ArrowUpRight,
   Users,
-  Zap,
-  Filter,
   ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

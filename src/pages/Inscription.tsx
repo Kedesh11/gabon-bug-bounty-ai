@@ -1,5 +1,5 @@
 import Navbar from "@/components/Navbar";
-import { User, Building2, ArrowRight, Shield, ShieldCheck, Terminal, UserCircle2 } from "lucide-react";
+import { Building2, ArrowRight, Shield, ShieldCheck, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";

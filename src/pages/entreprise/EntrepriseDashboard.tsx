@@ -1,17 +1,14 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/useAuth";
-import { 
-  Bug, 
-  FileText, 
-  DollarSign, 
-  AlertTriangle, 
-  ShieldCheck, 
-  Activity, 
-  BarChart3, 
-  Clock3, 
-  Users, 
-  ChevronRight, 
+import {
+  Bug,
+  FileText,
+  DollarSign,
+  AlertTriangle,
+  ShieldCheck,
+  BarChart3,
+  Users,
   Zap,
   LayoutDashboard,
   Timer,

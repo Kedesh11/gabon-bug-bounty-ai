@@ -1,15 +1,14 @@
 import Navbar from "@/components/Navbar";
-import { 
-  Shield, 
-  Terminal, 
-  ArrowRight, 
-  ShieldCheck, 
-  Building2, 
-  ShieldAlert, 
-  Zap, 
-  Calculator, 
-  LifeBuoy, 
-  Search 
+import {
+  Shield,
+  Terminal,
+  ArrowRight,
+  ShieldCheck,
+  Building2,
+  ShieldAlert,
+  Calculator,
+  LifeBuoy,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

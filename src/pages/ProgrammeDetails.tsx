@@ -2,18 +2,13 @@ import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
-import { 
-  Shield, 
-  ExternalLink, 
-  DollarSign, 
-  Users, 
-  AlertTriangle, 
-  Globe, 
+import {
+  Shield,
+  DollarSign,
+  AlertTriangle,
+  Globe,
   ChevronLeft,
-  Zap,
   Building2,
-  Clock,
-  CheckCircle2,
   Lock,
   Flag,
   Info,

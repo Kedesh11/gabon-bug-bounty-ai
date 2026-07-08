@@ -1,22 +1,16 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/useAuth";
-import { 
-  Bug, 
-  Trophy, 
-  DollarSign, 
-  TrendingUp, 
-  Award, 
-  ShieldCheck, 
-  Zap, 
-  Target, 
-  Activity, 
-  BarChart3, 
+import {
+  Bug,
+  DollarSign,
+  ShieldCheck,
+  Zap,
+  Target,
+  Activity,
+  BarChart3,
   Star,
   Search,
-  ArrowRight,
-  User,
-  Medal,
   Flame,
   ChevronRight,
   History,

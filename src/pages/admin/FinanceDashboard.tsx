@@ -1,17 +1,13 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
-import { 
-  DollarSign, 
-  CreditCard, 
-  TrendingUp, 
-  History, 
-  Wallet, 
-  PieChart, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  Search,
+import {
+  DollarSign,
+  CreditCard,
+  History,
+  Wallet,
+  PieChart,
+  ArrowUpRight,
   Download,
-  Calendar,
   ShieldCheck
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

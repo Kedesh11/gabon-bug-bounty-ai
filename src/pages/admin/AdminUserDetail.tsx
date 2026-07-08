@@ -1,27 +1,23 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
-import { 
-  User, 
-  Mail, 
-  ShieldCheck, 
-  ShieldAlert, 
-  History, 
-  DollarSign, 
-  FileText, 
-  Ban, 
-  Trash2, 
+import {
+  Mail,
+  ShieldCheck,
+  ShieldAlert,
+  History,
+  DollarSign,
+  FileText,
+  Ban,
+  Trash2,
   ChevronLeft,
   Calendar,
   Globe,
   Award,
   Zap,
   Info,
-  ExternalLink,
   MessageSquare,
-  Lock,
-  Building2,
-  Check
+  Lock
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

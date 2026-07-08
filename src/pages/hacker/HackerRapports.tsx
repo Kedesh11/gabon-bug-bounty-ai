@@ -3,18 +3,14 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Plus, 
-  X, 
-  Save, 
-  Eye, 
-  Trash2, 
-  Search, 
-  Filter, 
-  Bug, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
+import {
+  Plus,
+  X,
+  Trash2,
+  Search,
+  Bug,
+  Clock,
+  CheckCircle2,
   ChevronRight,
   ShieldAlert,
   FileText,
@@ -49,7 +45,7 @@ const STATUS_CONFIG: Record<string, { label: string, color: string, icon: Lucide
 
 export default function HackerRapports() {
   const { user } = useAuth();
-  const { reports, addReport, deleteReport, programmes } = useData();
+  const { reports, deleteReport } = useData();
   const [detail, setDetail] = useState<Report | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("Tous");

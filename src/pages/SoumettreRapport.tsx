@@ -7,19 +7,16 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { 
-  FileText, 
-  Send, 
-  ShieldAlert, 
-  CheckCircle2, 
-  ChevronRight, 
-  ChevronLeft, 
-  Target, 
-  Zap, 
+import {
+  FileText,
+  Send,
+  Shield,
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+  Target,
+  Zap,
   ShieldCheck,
-  AlertCircle,
-  UploadCloud,
-  FileSearch,
   Image as ImageIcon,
   X,
   Code2,
@@ -29,7 +26,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Report } from "@/stores/dataStore";
-import { Badge } from "@/components/ui/badge";
 
 const VRT_CATEGORIES = [
   "Injection côté serveur (SQLi, NoSQL, Commande OS)",
@@ -582,6 +578,3 @@ const SoumettreRapport = () => {
 };
 
 export default SoumettreRapport;
-
-// Add missing imports
-import { Shield, Zap as ZapIcon } from "lucide-react";

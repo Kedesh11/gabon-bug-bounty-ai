@@ -1,19 +1,14 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
-import { 
-  Shield, 
-  ExternalLink, 
-  DollarSign, 
-  Users, 
-  AlertTriangle, 
-  Globe, 
-  LayoutGrid, 
-  Table2, 
-  Search, 
-  Filter, 
-  ChevronRight, 
-  Zap, 
-  Building2, 
+import {
+  Shield,
+  Users,
+  LayoutGrid,
+  Table2,
+  Search,
+  ChevronRight,
+  Zap,
+  Building2,
   List,
   ArrowUpRight
 } from "lucide-react";
@@ -21,10 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
-import { Programme } from "@/stores/dataStore";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const FILTERS = ["Tous", "Web", "API", "Mobile", "Infrastructure", "Private", "VDP"] as const;

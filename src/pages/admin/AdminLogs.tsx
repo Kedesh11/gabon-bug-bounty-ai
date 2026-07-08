@@ -1,26 +1,18 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
-import { 
-  Terminal, 
-  Search, 
-  Download, 
-  Filter, 
-  ShieldAlert, 
-  Activity, 
-  Cpu, 
+import {
+  Search,
+  Download,
+  ShieldAlert,
+  Activity,
   User,
   Clock,
-  ChevronRight,
   ShieldCheck,
-  BarChart3,
   Database,
   Lock,
   Globe,
-  AlertTriangle,
   Zap,
-  Info,
   Copy,
-  ExternalLink,
   RefreshCw,
   Eye,
   History
@@ -31,12 +23,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog";
 import { PlatformLog } from "@/stores/dataStore";
 import { toast } from "sonner";
@@ -49,9 +40,9 @@ export default function AdminLogs() {
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
-      const matchesSearch = log.message.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      const matchesSearch = log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            log.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (log.metadata?.ip && log.metadata.ip.includes(searchTerm));
+                           (typeof log.metadata?.ip === "string" && log.metadata.ip.includes(searchTerm));
       const matchesType = filterType === "Tous" || log.type === filterType.toLowerCase();
       return matchesSearch && matchesType;
     });
@@ -329,7 +320,7 @@ export default function AdminLogs() {
 }
 
 function SiemWidget({ icon, label, value, color, trend }: { icon: React.ReactNode, label: string, value: string, color: string, trend: string }) {
-  const colorMap: any = {
+  const colorMap: Record<string, string> = {
     destructive: "bg-destructive/10 text-destructive border-destructive/20 shadow-destructive/5",
     blue: "bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-blue-500/5",
     green: "bg-green-500/10 text-green-500 border-green-500/20 shadow-green-500/5",

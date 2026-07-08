@@ -1,15 +1,11 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
-import { 
-  Bug, 
-  Search, 
-  ShieldAlert, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  Activity, 
+import {
+  Bug,
+  Search,
+  Clock,
+  Activity,
   Zap,
-  Code2,
   ChevronRight,
   Terminal,
   Brain

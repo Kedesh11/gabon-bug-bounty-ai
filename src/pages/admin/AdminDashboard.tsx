@@ -1,22 +1,16 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useData } from "@/contexts/DataContext";
-import { 
-  Bug, 
-  FileText, 
-  Users, 
-  Building2, 
-  TrendingUp, 
-  AlertTriangle, 
-  DollarSign, 
-  ShieldCheck, 
-  Activity, 
-  Zap, 
+import {
+  Bug,
+  Users,
+  TrendingUp,
+  AlertTriangle,
+  DollarSign,
+  ShieldCheck,
+  Activity,
+  Zap,
   Settings,
   Database,
-  Search,
-  ArrowUpRight,
-  PieChart as PieChartIcon,
-  MessageSquare,
   ShieldAlert,
   ChevronRight,
   Save,
@@ -28,7 +22,6 @@ import { CrowdStream } from "@/components/CrowdStream";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
 import { 
