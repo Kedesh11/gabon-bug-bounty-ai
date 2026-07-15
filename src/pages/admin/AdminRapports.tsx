@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, CheckCircle, XCircle, Eye, Search, DollarSign, BrainCircuit, ShieldAlert, AlertTriangle, Info } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Report } from "@/types/domain";
 
@@ -26,13 +27,32 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminRapports() {
-  const { data: reports = [] } = useReports();
+  const { data: reports = [], isLoading: reportsLoading } = useReports();
   const updateReport = useUpdateReport();
   const deleteReport = useDeleteReport();
   const [search, setSearch] = useState("");
   const [detail, setDetail] = useState<Report | null>(null);
   const [rewardInput, setRewardInput] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Deep-link support: the "File de Triage Global" widget on the dashboard links here
+  // with ?id=<reportId> so opening a report from there jumps straight to its detail.
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (!id || reportsLoading) return;
+    const target = reports.find(r => r.id === id);
+    if (target) {
+      setDetail(target);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("id");
+      return next;
+    }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reports, reportsLoading]);
 
   const filtered = reports
     .filter(r => filterStatus === "all" || r.status === filterStatus)
