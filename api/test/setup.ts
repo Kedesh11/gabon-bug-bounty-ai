@@ -39,6 +39,7 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
       admin: {
         createUser: vi.fn(),
         signOut: vi.fn(),
+        listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
       },
       signInWithPassword: vi.fn(),
     },
@@ -49,6 +50,7 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
 // exported so individual tests can configure return values / assert calls.
 export const stripeMocks = {
   checkoutSessionsCreate: vi.fn(),
+  checkoutSessionsList: vi.fn().mockResolvedValue({ data: [] }),
   accountsCreate: vi.fn(),
   accountsRetrieve: vi.fn(),
   accountLinksCreate: vi.fn(),
@@ -58,7 +60,7 @@ export const stripeMocks = {
 
 vi.mock("../src/services/payments/stripe/client.js", () => ({
   stripe: {
-    checkout: { sessions: { create: stripeMocks.checkoutSessionsCreate } },
+    checkout: { sessions: { create: stripeMocks.checkoutSessionsCreate, list: stripeMocks.checkoutSessionsList } },
     v2: {
       core: {
         accounts: { create: stripeMocks.accountsCreate, retrieve: stripeMocks.accountsRetrieve },
