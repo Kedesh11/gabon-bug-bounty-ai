@@ -1,4 +1,7 @@
-import { MOCK_ACTIVITIES } from "@/lib/mockFeed";
+import { useMemo } from "react";
+import { useReports } from "@/hooks/api/reports";
+import { useProgrammes } from "@/hooks/api/programmes";
+import { buildActivityFeed } from "@/lib/activityFeed";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, ShieldAlert, Trophy, Megaphone, Clock } from "lucide-react";
@@ -6,7 +9,9 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export const CrowdStream = () => {
-  const activities = MOCK_ACTIVITIES;
+  const { data: reports = [] } = useReports();
+  const { data: programmes = [] } = useProgrammes();
+  const activities = useMemo(() => buildActivityFeed(reports, programmes), [reports, programmes]);
 
   const getIcon = (type: string) => {
     switch (type) {

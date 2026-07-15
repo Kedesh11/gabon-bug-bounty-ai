@@ -1,16 +1,10 @@
-// Static decorative content for the CrowdStream widget and the admin SIEM-style logs page.
-// There is no backend endpoint for a platform-wide activity feed or security log stream
-// (api/prisma/schema.prisma has Activity/PlatformLog models, but nothing populates or
-// exposes them outside a single programme's own activity) — explicitly out of scope for
-// this pass, not an oversight. Kept as static illustrative content rather than pretending
-// it's live.
-import { ProgrammeActivity, PlatformLog } from "@/types/domain";
-
-export const MOCK_ACTIVITIES: ProgrammeActivity[] = [
-  { id: "act-1", title: "Nouveau Rapport Soumis", subtitle: "XSS trouvé sur API Gouvernementale", type: "submission", createdAt: "2024-07-18T10:00:00Z", hackerName: "CyberPanther", programmeName: "API Gouvernementale v2" },
-  { id: "act-2", title: "Récompense Payée", subtitle: "500 000 XAF versés", type: "reward", createdAt: "2024-07-17T15:30:00Z", amount: 500000, hackerName: "CyberPanther", programmeName: "API Gouvernementale v2" },
-  { id: "act-3", title: "Nouveau Partenaire Stratégique", subtitle: "La SEEG a lancé son audit de sécurité", type: "update", createdAt: "2024-07-20T09:00:00Z", programmeName: "Audit de Sécurité - SEEG" },
-];
+// Static decorative content for the admin SIEM-style logs page. There is no backend
+// endpoint for a security log stream (api/prisma/schema.prisma has a PlatformLog model,
+// but nothing populates or exposes it) — explicitly out of scope for this pass, not an
+// oversight. Kept as static illustrative content rather than pretending it's live.
+// (CrowdStream used to live here too — it's now derived from real data, see
+// src/lib/activityFeed.ts.)
+import { PlatformLog } from "@/types/domain";
 
 export const MOCK_LOGS: PlatformLog[] = [
   { id: "log-1", timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), type: "security", level: "critical", message: "Tentative de Brute Force détectée sur l'admin", source: "AuthService", metadata: { ip: "192.168.1.45", attempts: 15 } },

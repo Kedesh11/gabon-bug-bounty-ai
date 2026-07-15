@@ -4,6 +4,7 @@ import { useProgrammes } from "@/hooks/api/programmes";
 import { useHackers } from "@/hooks/api/hackers";
 import { useEntreprises } from "@/hooks/api/entreprises";
 import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
+import { useSystemStatus, type ServiceStatus } from "@/hooks/api/systemStatus";
 import { apiErrorMessage } from "@/lib/apiClient";
 import {
   Bug,
@@ -49,6 +50,7 @@ export default function AdminDashboard() {
   const { data: entreprises = [] } = useEntreprises();
   const { data: config = DEFAULT_SYSTEM_CONFIG } = useConfig();
   const updateConfig = useUpdateConfig();
+  const { data: systemStatus } = useSystemStatus();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   // Local temporary state for the form
@@ -65,6 +67,14 @@ export default function AdminDashboard() {
   const critiques = reports.filter(r => r.severity === "critique").length;
   const enAttente = reports.filter(r => r.status === "soumis" || r.status === "en_analyse").length;
   const resolutionRate = reports.length ? Math.round((reports.filter(r => r.status === "résolu" || r.status === "accepté").length / reports.length) * 100) : 0;
+
+  const serviceChecks: ServiceStatus[] = systemStatus
+    ? [systemStatus.database, systemStatus.auth, systemStatus.payments]
+    : [];
+  const availabilityPercent = systemStatus
+    ? Math.round((serviceChecks.filter(s => s === "online").length / serviceChecks.length) * 100)
+    : null;
+  const formattedUptime = systemStatus ? formatUptime(systemStatus.uptimeSeconds) : null;
 
   const handleExportData = () => {
     const data = {
@@ -420,19 +430,28 @@ export default function AdminDashboard() {
                 <div className="relative h-24 w-24 flex items-center justify-center">
                   <svg className="h-full w-full -rotate-90">
                     <circle cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-secondary" />
-                    <circle cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="6" fill="transparent" strokeDasharray="276" strokeDashoffset={276 * 0.01} strokeLinecap="round" className="text-primary" />
+                    <circle
+                      cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="6" fill="transparent"
+                      strokeDasharray="276"
+                      strokeDashoffset={276 * (1 - (availabilityPercent ?? 0) / 100)}
+                      strokeLinecap="round"
+                      className="text-primary transition-all duration-500"
+                    />
                   </svg>
                   <div className="absolute flex flex-col items-center">
-                    <span className="text-xl font-black">99.9</span>
-                    <span className="text-[8px] font-bold uppercase text-primary">Uptime</span>
+                    <span className="text-xl font-black">{availabilityPercent !== null ? `${availabilityPercent}%` : "…"}</span>
+                    <span className="text-[8px] font-bold uppercase text-primary">Disponible</span>
                   </div>
                 </div>
               </div>
               <div className="space-y-3">
-                <SystemStatus label="Auth Service" status="online" />
-                <SystemStatus label="AI Triage Engine" status="online" />
-                <SystemStatus label="Payment Gateway" status="online" />
+                <SystemStatus label="Base de données" status={systemStatus?.database} />
+                <SystemStatus label="Auth Service" status={systemStatus?.auth} />
+                <SystemStatus label="Passerelle de Paiement" status={systemStatus?.payments} />
               </div>
+              {formattedUptime && (
+                <p className="text-center text-[9px] text-muted-foreground font-mono">API active depuis {formattedUptime}</p>
+              )}
             </div>
 
             <CrowdStream />
@@ -467,14 +486,25 @@ function StatCard({ icon, label, value, subValue, color }: { icon: React.ReactNo
   );
 }
 
-function SystemStatus({ label, status }: { label: string, status: "online" | "warning" | "offline" }) {
+function SystemStatus({ label, status }: { label: string, status?: ServiceStatus }) {
+  const color = status === "online" ? "bg-green-500 animate-pulse" : status === "offline" ? "bg-destructive" : "bg-muted-foreground/40 animate-pulse";
+  const text = status === "online" ? "En Ligne" : status === "offline" ? "Hors Ligne" : "Vérification…";
   return (
     <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/30 border border-border">
       <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
       <div className="flex items-center gap-1.5">
-        <div className={`h-1.5 w-1.5 rounded-full ${status === "online" ? "bg-green-500 animate-pulse" : "bg-destructive"}`} />
-        <span className="text-[9px] font-black uppercase">{status === "online" ? "En Ligne" : "Hors Ligne"}</span>
+        <div className={`h-1.5 w-1.5 rounded-full ${color}`} />
+        <span className="text-[9px] font-black uppercase">{text}</span>
       </div>
     </div>
   );
+}
+
+function formatUptime(totalSeconds: number): string {
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (days > 0) return `${days}j ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}min`;
+  return `${minutes}min`;
 }
