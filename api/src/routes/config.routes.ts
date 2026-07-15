@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { PasswordComplexity } from "@prisma/client";
+import { PasswordComplexity, Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/requireRole.js";
 
@@ -30,6 +31,9 @@ const updateConfigSchema = z.object({
   contactEmail: z.string().email().optional(),
   supportUrl: z.string().optional(),
   maintenanceMode: z.boolean().optional(),
+  // Only meaningful when maintenanceMode is being turned on; the end timestamp is
+  // always computed server-side from this so a client can't set an arbitrary date.
+  maintenanceDurationHours: z.number().min(1).max(24).optional(),
   autoTriage: z.boolean().optional(),
   enterpriseValidation: z.boolean().optional(),
   triageLimitHours: z.number().int().nonnegative().optional(),
@@ -38,6 +42,7 @@ const updateConfigSchema = z.object({
   ipWhitelisting: z.boolean().optional(),
   sessionTimeout: z.number().int().min(5).max(1440).optional(),
   passwordComplexity: z.nativeEnum(PasswordComplexity).optional(),
+  globalNotificationsEnabled: z.boolean().optional(),
 });
 
 configRouter.patch(
@@ -45,8 +50,19 @@ configRouter.patch(
   requireRole("admin"),
   asyncHandler(async (req, res) => {
     await getOrCreateConfig();
-    const body = updateConfigSchema.parse(req.body);
-    const config = await prisma.systemConfig.update({ where: { id: 1 }, data: body });
+    const { maintenanceDurationHours, ...body } = updateConfigSchema.parse(req.body);
+    const data: Prisma.SystemConfigUpdateInput = { ...body };
+
+    if (body.maintenanceMode === true) {
+      if (!maintenanceDurationHours) {
+        throw new HttpError(400, "Durée de maintenance requise (1 à 24 heures)");
+      }
+      data.maintenanceUntil = new Date(Date.now() + maintenanceDurationHours * 60 * 60 * 1000);
+    } else if (body.maintenanceMode === false) {
+      data.maintenanceUntil = null;
+    }
+
+    const config = await prisma.systemConfig.update({ where: { id: 1 }, data });
     res.json({ config });
   }),
 );

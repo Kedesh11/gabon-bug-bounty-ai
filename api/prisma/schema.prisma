@@ -463,6 +463,7 @@ model SystemConfig {
   contactEmail          String             @default("admin@bugbounty.ga")
   supportUrl            String             @default("https://support.bugbounty.ga")
   maintenanceMode       Boolean            @default(false)
+  maintenanceUntil      DateTime?
   autoTriage            Boolean            @default(true)
   enterpriseValidation  Boolean            @default(true)
   triageLimitHours      Int                @default(48)
@@ -471,6 +472,7 @@ model SystemConfig {
   ipWhitelisting        Boolean            @default(false)
   sessionTimeout        Int                @default(60)
   passwordComplexity    PasswordComplexity @default(standard)
+  globalNotificationsEnabled Boolean       @default(true)
 
   @@map("system_config")
 }

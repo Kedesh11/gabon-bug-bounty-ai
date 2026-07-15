@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -125,8 +126,7 @@ export function IntegrationsTab(props: IntegrationsState) {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Mot de passe d'application</Label>
-                    <Input
-                      type="password"
+                    <PasswordInput
                       placeholder="xxxx xxxx xxxx xxxx"
                       value={googleSmtpPass}
                       onChange={(e) => setGoogleSmtpPass(e.target.value)}

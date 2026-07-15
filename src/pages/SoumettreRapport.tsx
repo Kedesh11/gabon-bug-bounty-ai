@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProgrammes } from "@/hooks/api/programmes";
 import { useCreateReport } from "@/hooks/api/reports";
 import { apiErrorMessage } from "@/lib/apiClient";
+import { broadcastGlobalNotification } from "@/lib/globalNotifications";
+import { useAuth } from "@/contexts/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
@@ -53,6 +55,7 @@ const SEVERITY_LEVELS: Array<{ value: Report["severity"]; label: string; color: 
 const SoumettreRapport = () => {
   const { data: programmes = [] } = useProgrammes();
   const createReport = useCreateReport();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const programmeIdFromQuery = searchParams.get("programme");
@@ -182,6 +185,14 @@ const SoumettreRapport = () => {
         proof: `Actif: ${form.impactedAsset.trim()}\nÉtapes:\n${form.steps.trim()}\n\nCaptures d'écran: ${screenshots.length} fichiers`,
         pdfFileName: pdfFile.name,
       });
+
+      if (form.severity === "critique") {
+        broadcastGlobalNotification({
+          title: "Rapport critique soumis",
+          message: `${form.title.trim()} — ${selectedProgramme!.name} (par ${user?.name ?? "un chercheur"})`,
+          type: "warning",
+        });
+      }
 
       toast.success("Rapport d'excellence envoyé ! Redirection vers vos rapports.");
       setTimeout(() => navigate("/hacker/rapports"), 2000);

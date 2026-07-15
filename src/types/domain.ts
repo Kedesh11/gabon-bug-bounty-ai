@@ -213,6 +213,7 @@ export interface SystemConfig {
   contactEmail: string;
   supportUrl: string;
   maintenanceMode: boolean;
+  maintenanceUntil?: string | null;
   autoTriage: boolean;
   enterpriseValidation: boolean;
   triageLimitHours: number;
@@ -221,6 +222,7 @@ export interface SystemConfig {
   ipWhitelisting: boolean;
   sessionTimeout: number;
   passwordComplexity: "standard" | "elevated" | "military";
+  globalNotificationsEnabled: boolean;
 }
 
 export interface PlatformLog {
