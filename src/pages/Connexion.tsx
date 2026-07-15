@@ -2,6 +2,7 @@ import Navbar from "@/components/Navbar";
 import { Shield, ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useState } from "react";
 import { useAuth } from "@/contexts/useAuth";
 import { UserRole } from "@/types/auth";
@@ -89,8 +90,7 @@ const Connexion = () => {
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Mot de passe</label>
                     <Link to="/mot-de-passe-oublie" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter">Oublié ?</Link>
                   </div>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
