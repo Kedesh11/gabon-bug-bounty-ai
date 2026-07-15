@@ -6,6 +6,7 @@ import { useEntreprises } from "@/hooks/api/entreprises";
 import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
 import { useSystemStatus, type ServiceStatus } from "@/hooks/api/systemStatus";
 import { apiErrorMessage } from "@/lib/apiClient";
+import { buildGrowthSeries } from "@/lib/platformGrowth";
 import {
   Bug,
   Users,
@@ -25,7 +26,7 @@ import { CrowdStream } from "@/components/CrowdStream";
 import { TriageQueueWidget } from "@/pages/admin/TriageQueueWidget";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { 
   Dialog, 
@@ -72,6 +73,21 @@ export default function AdminDashboard() {
     ? Math.round((serviceChecks.filter(s => s === "online").length / serviceChecks.length) * 100)
     : null;
   const formattedUptime = systemStatus ? formatUptime(systemStatus.uptimeSeconds) : null;
+
+  const growthSeries = useMemo(() => buildGrowthSeries(hackers, entreprises), [hackers, entreprises]);
+  const growthMax = Math.max(1, ...growthSeries.flatMap(p => [p.hackers, p.entreprises]));
+
+  const criticalFixed = reports.filter(r => r.severity === "critique" && (r.status === "résolu" || r.status === "accepté")).length;
+  const criticalFixedRate = critiques ? Math.round((criticalFixed / critiques) * 100) : 0;
+
+  const decidedReports = reports.filter(r => r.status === "accepté" || r.status === "résolu" || r.status === "rejeté");
+  const validityRate = decidedReports.length
+    ? Math.round((decidedReports.filter(r => r.status !== "rejeté").length / decidedReports.length) * 100)
+    : 0;
+
+  const activeProgrammeRate = programmes.length
+    ? Math.round((programmes.filter(p => p.status === "actif").length / programmes.length) * 100)
+    : 0;
 
   const handleExportData = () => {
     const data = {
@@ -146,7 +162,16 @@ export default function AdminDashboard() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              Contrôle Maître <span className="text-primary font-mono text-xs px-2 py-0.5 bg-primary/10 border border-primary/20 rounded uppercase tracking-widest animate-pulse">Système Actif</span>
+              Contrôle Maître
+              <span className={`font-mono text-xs px-2 py-0.5 border rounded uppercase tracking-widest animate-pulse ${
+                availabilityPercent === null
+                  ? "text-muted-foreground bg-secondary border-border"
+                  : availabilityPercent === 100
+                    ? "text-primary bg-primary/10 border-primary/20"
+                    : "text-destructive bg-destructive/10 border-destructive/20"
+              }`}>
+                {availabilityPercent === null ? "Vérification…" : availabilityPercent === 100 ? "Système Actif" : "Système Dégradé"}
+              </span>
             </h1>
             <p className="text-muted-foreground font-medium italic">Vue d'ensemble granulaire de l'écosystème {config.platformName}.</p>
           </div>
@@ -332,17 +357,25 @@ export default function AdminDashboard() {
                   </h3>
                 </div>
                 <div className="h-48 flex items-end justify-between gap-1 px-2">
-                  {[20, 35, 25, 45, 60, 85, 100].map((h, i) => (
+                  {growthSeries.map((point, i) => (
                     <div key={i} className="w-full flex flex-col items-center gap-2 group">
                       <div className="flex w-full gap-0.5">
-                        <div className="w-1/2 bg-primary/20 group-hover:bg-primary transition-all rounded-t-sm" style={{ height: `${h}%` }} />
-                        <div className="w-1/2 bg-accent/20 group-hover:bg-accent transition-all rounded-t-sm" style={{ height: `${h * 0.7}%` }} />
+                        <div
+                          className="w-1/2 bg-primary/20 group-hover:bg-primary transition-all rounded-t-sm"
+                          style={{ height: `${Math.max(2, (point.hackers / growthMax) * 100)}%` }}
+                          title={`${point.hackers} hackers`}
+                        />
+                        <div
+                          className="w-1/2 bg-accent/20 group-hover:bg-accent transition-all rounded-t-sm"
+                          style={{ height: `${Math.max(2, (point.entreprises / growthMax) * 100)}%` }}
+                          title={`${point.entreprises} entreprises`}
+                        />
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-between text-[9px] font-bold text-muted-foreground uppercase px-2">
-                  <span>Jan</span><span>Fév</span><span>Mar</span><span>Avr</span><span>Mai</span><span>Juin</span><span>Juil</span>
+                  {growthSeries.map((point, i) => <span key={i}>{point.label}</span>)}
                 </div>
                 <div className="flex justify-center gap-6 pt-2">
                   <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-2 h-2 rounded-full bg-primary" /> Hackers</div>
@@ -352,29 +385,29 @@ export default function AdminDashboard() {
 
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" /> État des Vulnérabilités
+                  <ShieldCheck className="w-4 h-4 text-green-500" /> Santé de la Plateforme
                 </h3>
                 <div className="space-y-5 pt-2">
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-black uppercase">
-                      <span>Bugs Critiques (Corrigés)</span>
-                      <span className="text-destructive">{critiques} détectés</span>
+                      <span>Bugs Critiques Corrigés</span>
+                      <span className="text-destructive">{criticalFixed} / {critiques}</span>
                     </div>
-                    <Progress value={82} className="h-1.5 bg-secondary" />
+                    <Progress value={criticalFixedRate} className="h-1.5 bg-secondary" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-black uppercase">
                       <span>Validité des Rapports</span>
-                      <span className="text-primary">74% Précision</span>
+                      <span className="text-primary">{validityRate}%</span>
                     </div>
-                    <Progress value={74} className="h-1.5 bg-secondary" />
+                    <Progress value={validityRate} className="h-1.5 bg-secondary" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-black uppercase">
-                      <span>Satisfaction Partenaires</span>
-                      <span className="text-accent">9.2 / 10</span>
+                      <span>Programmes Actifs</span>
+                      <span className="text-accent">{activeProgrammeRate}%</span>
                     </div>
-                    <Progress value={92} className="h-1.5 bg-secondary" />
+                    <Progress value={activeProgrammeRate} className="h-1.5 bg-secondary" />
                   </div>
                 </div>
               </div>
