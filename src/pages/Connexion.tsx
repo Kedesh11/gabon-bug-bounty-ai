@@ -1,15 +1,5 @@
 import Navbar from "@/components/Navbar";
-import {
-  Shield,
-  Terminal,
-  ArrowRight,
-  ShieldCheck,
-  Building2,
-  ShieldAlert,
-  Calculator,
-  LifeBuoy,
-  Search
-} from "lucide-react";
+import { Shield, ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -18,9 +8,6 @@ import { UserRole } from "@/types/auth";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/apiClient";
-
-// Mot de passe des comptes de démo créés par api/prisma/seed.ts
-const DEMO_PASSWORD = "Password123!";
 
 const ROLE_REDIRECTS: Record<UserRole, string> = {
   admin: "/admin",
@@ -63,20 +50,6 @@ const Connexion = () => {
     } catch (err) {
       toast.error(apiErrorMessage(err));
     }
-  };
-
-  const quickLogin = (userEmail: string) => {
-    setEmail(userEmail);
-    setPassword(DEMO_PASSWORD);
-    setTimeout(async () => {
-      try {
-        const loggedUser = await login(userEmail, DEMO_PASSWORD);
-        toast.success(`Connexion démo : ${loggedUser.name}`);
-        navigate(redirectPath || ROLE_REDIRECTS[loggedUser.role]);
-      } catch (err) {
-        toast.error(apiErrorMessage(err));
-      }
-    }, 300);
   };
 
   return (
@@ -130,20 +103,6 @@ const Connexion = () => {
                 SE CONNECTER <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </form>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-              <div className="relative flex justify-center text-[10px] uppercase font-black"><span className="bg-background px-4 text-muted-foreground tracking-widest">Accès Rapide (Mode Démo)</span></div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <QuickLoginBtn icon={<ShieldAlert className="w-4 h-4 text-primary" />} label="Admin" sub="Principal" onClick={() => quickLogin("admin@bugbounty.com")} />
-              <QuickLoginBtn icon={<Terminal className="w-4 h-4 text-accent" />} label="Hacker" sub="CyberPanther" onClick={() => quickLogin("hacker@bugbounty.com")} />
-              <QuickLoginBtn icon={<Building2 className="w-4 h-4 text-blue-500" />} label="Entreprise" sub="Ministère" onClick={() => quickLogin("entreprise@bugbounty.com")} />
-              <QuickLoginBtn icon={<Search className="w-4 h-4 text-orange-500" />} label="Triage" sub="Sarah" onClick={() => quickLogin("triage@bugbounty.com")} />
-              <QuickLoginBtn icon={<Calculator className="w-4 h-4 text-green-500" />} label="Finance" sub="Marc" onClick={() => quickLogin("finance@bugbounty.com")} />
-              <QuickLoginBtn icon={<LifeBuoy className="w-4 h-4 text-blue-400" />} label="Support" sub="Paul" onClick={() => quickLogin("support@bugbounty.com")} />
-            </div>
           </div>
 
           <div className="mt-8 text-center space-y-4">
@@ -162,17 +121,5 @@ const Connexion = () => {
     </div>
   );
 };
-
-function QuickLoginBtn({ icon, label, sub, onClick }: { icon: React.ReactNode, label: string, sub: string, onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group text-left">
-      <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">{icon}</div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-black text-foreground truncate">{label}</p>
-        <p className="text-[9px] text-muted-foreground truncate font-mono">{sub}</p>
-      </div>
-    </button>
-  );
-}
 
 export default Connexion;
