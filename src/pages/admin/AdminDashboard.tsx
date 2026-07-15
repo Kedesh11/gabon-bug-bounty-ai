@@ -54,6 +54,7 @@ export default function AdminDashboard() {
   // Local temporary state for the form
   const [tempPlatformName, setTempPlatformName] = useState(config.platformName);
   const [tempAiSensitivity, setTempAiSensitivity] = useState(config.aiSensitivity);
+  const [tempGlobalNotificationsEnabled, setTempGlobalNotificationsEnabled] = useState(config.globalNotificationsEnabled);
 
   // Maintenance mode is applied immediately (not batched with the form above) since
   // flipping it has an immediate, site-wide effect that shouldn't wait on unrelated fields.
@@ -91,6 +92,7 @@ export default function AdminDashboard() {
       {
         platformName: tempPlatformName,
         aiSensitivity: tempAiSensitivity,
+        globalNotificationsEnabled: tempGlobalNotificationsEnabled,
       },
       {
         onSuccess: () => {
@@ -147,6 +149,7 @@ export default function AdminDashboard() {
               if (open) {
                 setTempPlatformName(config.platformName);
                 setTempAiSensitivity(config.aiSensitivity);
+                setTempGlobalNotificationsEnabled(config.globalNotificationsEnabled);
               }
               setIsConfigOpen(open);
             }}>
@@ -217,9 +220,9 @@ export default function AdminDashboard() {
                       <Label className="text-sm font-bold flex items-center gap-2">
                         <Bell className="w-4 h-4 text-primary" /> Notifications Globales
                       </Label>
-                      <p className="text-xs text-muted-foreground">Activer les alertes critiques pour les admins.</p>
+                      <p className="text-xs text-muted-foreground">Diffuser les alertes critiques à toute la plateforme.</p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch checked={tempGlobalNotificationsEnabled} onCheckedChange={setTempGlobalNotificationsEnabled} />
                   </div>
                 </div>
                 <DialogFooter>

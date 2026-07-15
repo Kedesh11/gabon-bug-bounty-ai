@@ -5,6 +5,13 @@ import { useAuth } from "@/contexts/useAuth";
 import { UserRole } from "@/types/auth";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, notificationsEventName, type NotificationItem } from "@/lib/notifications";
+import {
+  getGlobalNotifications,
+  markAllGlobalNotificationsAsRead,
+  markGlobalNotificationAsRead,
+  globalNotificationsEventName,
+  globalNotificationsStorageKey,
+} from "@/lib/globalNotifications";
 import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { toast } from "sonner";
@@ -69,6 +76,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const userId = user?.id ?? "";
   const items = user ? NAV_ITEMS[user.role] : [];
+  // Platform-wide alerts, shown to every role, gated by the "Notifications Globales"
+  // toggle in Configuration Système (SystemConfig.globalNotificationsEnabled).
+  const showGlobalNotifications = config.globalNotificationsEnabled;
   const unreadCount = useMemo(() => notifications.filter((entry) => !entry.isRead).length, [notifications]);
 
   const reloadNotifications = useCallback(() => {
@@ -76,8 +86,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setNotifications([]);
       return;
     }
-    setNotifications(getNotifications(userId));
-  }, [userId]);
+    const own = getNotifications(userId);
+    const global = showGlobalNotifications ? getGlobalNotifications() : [];
+    const merged = [...own, ...global].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    setNotifications(merged);
+  }, [userId, showGlobalNotifications]);
 
   useEffect(() => {
     if (!userId) return;
@@ -89,17 +104,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         reloadNotifications();
       }
     };
+    const handleGlobalUpdate = () => reloadNotifications();
 
     const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key === `bb_notifications_${userId}`) {
+      if (!event.key || event.key === `bb_notifications_${userId}` || event.key === globalNotificationsStorageKey) {
         reloadNotifications();
       }
     };
 
     window.addEventListener(notificationsEventName, handleCustomUpdate as EventListener);
+    window.addEventListener(globalNotificationsEventName, handleGlobalUpdate);
     window.addEventListener("storage", handleStorage);
     return () => {
       window.removeEventListener(notificationsEventName, handleCustomUpdate as EventListener);
+      window.removeEventListener(globalNotificationsEventName, handleGlobalUpdate);
       window.removeEventListener("storage", handleStorage);
     };
   }, [reloadNotifications, userId]);
@@ -242,6 +260,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     className="text-xs"
                     onClick={() => {
                       markAllNotificationsAsRead(user.id);
+                      if (showGlobalNotifications) markAllGlobalNotificationsAsRead();
                       reloadNotifications();
                     }}
                   >
@@ -256,6 +275,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         key={entry.id}
                         onClick={() => {
                           markNotificationAsRead(user.id, entry.id);
+                          if (showGlobalNotifications) markGlobalNotificationAsRead(entry.id);
                           reloadNotifications();
                         }}
                         className={`w-full text-left rounded-lg border p-3 transition-colors ${

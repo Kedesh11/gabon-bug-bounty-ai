@@ -472,6 +472,7 @@ model SystemConfig {
   ipWhitelisting        Boolean            @default(false)
   sessionTimeout        Int                @default(60)
   passwordComplexity    PasswordComplexity @default(standard)
+  globalNotificationsEnabled Boolean       @default(true)
 
   @@map("system_config")
 }

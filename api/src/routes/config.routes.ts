@@ -42,6 +42,7 @@ const updateConfigSchema = z.object({
   ipWhitelisting: z.boolean().optional(),
   sessionTimeout: z.number().int().min(5).max(1440).optional(),
   passwordComplexity: z.nativeEnum(PasswordComplexity).optional(),
+  globalNotificationsEnabled: z.boolean().optional(),
 });
 
 configRouter.patch(

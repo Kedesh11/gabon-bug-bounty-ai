@@ -222,6 +222,7 @@ export interface SystemConfig {
   ipWhitelisting: boolean;
   sessionTimeout: number;
   passwordComplexity: "standard" | "elevated" | "military";
+  globalNotificationsEnabled: boolean;
 }
 
 export interface PlatformLog {

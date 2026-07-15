@@ -21,6 +21,7 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   ipWhitelisting: false,
   sessionTimeout: 60,
   passwordComplexity: "standard",
+  globalNotificationsEnabled: true,
 };
 
 export function useConfig() {
