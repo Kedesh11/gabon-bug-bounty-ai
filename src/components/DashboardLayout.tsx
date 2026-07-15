@@ -1,10 +1,13 @@
-import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, DollarSign, Terminal } from "lucide-react";
+import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, DollarSign, Terminal, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
 import { UserRole } from "@/types/auth";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, notificationsEventName, type NotificationItem } from "@/lib/notifications";
+import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
+import { apiErrorMessage } from "@/lib/apiClient";
+import { toast } from "sonner";
 
 const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.ElementType }[]> = {
   admin: [
@@ -59,6 +62,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: config = DEFAULT_SYSTEM_CONFIG } = useConfig();
+  const updateConfig = useUpdateConfig();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -108,6 +113,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = () => {
     logout();
     navigate("/");
+  };
+
+  const handleDisableMaintenance = () => {
+    updateConfig.mutate(
+      { maintenanceMode: false },
+      {
+        onSuccess: () => toast.success("Mode maintenance désactivé"),
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
   };
 
   const sidebar = (
@@ -262,6 +277,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
         </header>
+
+        {user.role === "admin" && config.maintenanceMode && (
+          <div className="sticky top-14 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/10 px-4 py-3">
+            <div className="flex items-center gap-3 text-destructive">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <p className="text-sm font-bold">
+                Mode maintenance actif
+                {config.maintenanceUntil &&
+                  ` — se termine à ${new Date(config.maintenanceUntil).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                . La plateforme est inaccessible pour tous les autres utilisateurs.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDisableMaintenance}
+              disabled={updateConfig.isPending}
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 font-bold shrink-0"
+            >
+              DÉSACTIVER
+            </Button>
+          </div>
+        )}
+
         <main className="p-4 md:p-6">{children}</main>
       </div>
     </div>
