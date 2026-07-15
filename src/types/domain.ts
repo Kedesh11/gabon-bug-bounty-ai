@@ -213,6 +213,7 @@ export interface SystemConfig {
   contactEmail: string;
   supportUrl: string;
   maintenanceMode: boolean;
+  maintenanceUntil?: string | null;
   autoTriage: boolean;
   enterpriseValidation: boolean;
   triageLimitHours: number;

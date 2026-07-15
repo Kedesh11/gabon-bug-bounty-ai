@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext.tsx";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import MaintenanceGate from "@/components/MaintenanceGate";
 
 import Index from "./pages/Index";
 
@@ -68,6 +69,7 @@ const App = () => (
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ErrorBoundary>
           <AuthProvider>
+            <MaintenanceGate>
             <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   {/* Public Routes */}
@@ -117,6 +119,7 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
             </Suspense>
+            </MaintenanceGate>
           </AuthProvider>
         </ErrorBoundary>
       </BrowserRouter>

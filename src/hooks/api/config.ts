@@ -12,6 +12,7 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   contactEmail: "admin@bugbounty.ga",
   supportUrl: "https://support.bugbounty.ga",
   maintenanceMode: false,
+  maintenanceUntil: null,
   autoTriage: true,
   enterpriseValidation: true,
   triageLimitHours: 48,
@@ -32,10 +33,16 @@ export function useConfig() {
   });
 }
 
+interface UpdateConfigInput extends Partial<SystemConfig> {
+  // Write-only: the server computes maintenanceUntil from this rather than trusting a
+  // client-supplied timestamp. Only meaningful when maintenanceMode is set to true.
+  maintenanceDurationHours?: number;
+}
+
 export function useUpdateConfig() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Partial<SystemConfig>) => {
+    mutationFn: async (data: UpdateConfigInput) => {
       const { config } = await apiFetch<{ config: Record<string, unknown> }>("/api/config", {
         method: "PATCH",
         body: data,
@@ -43,5 +50,20 @@ export function useUpdateConfig() {
       return mapConfig(config);
     },
     onSuccess: (data) => queryClient.setQueryData(KEY, data),
+  });
+}
+
+interface MaintenanceStatus {
+  active: boolean;
+  maintenanceUntil: string | null;
+}
+
+// Deliberately hits a public, unauthenticated endpoint (api/src/routes/maintenance.routes.ts) —
+// anonymous visitors and a not-yet-logged-in admin both need this before any session exists.
+export function useMaintenanceStatus() {
+  return useQuery({
+    queryKey: ["maintenance-status"],
+    queryFn: () => apiFetch<MaintenanceStatus>("/api/maintenance-status"),
+    refetchInterval: 30_000,
   });
 }

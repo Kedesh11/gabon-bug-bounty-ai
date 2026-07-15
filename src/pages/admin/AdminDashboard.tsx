@@ -50,11 +50,15 @@ export default function AdminDashboard() {
   const { data: config = DEFAULT_SYSTEM_CONFIG } = useConfig();
   const updateConfig = useUpdateConfig();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-  
+
   // Local temporary state for the form
   const [tempPlatformName, setTempPlatformName] = useState(config.platformName);
-  const [tempMaintenanceMode, setTempMaintenanceMode] = useState(config.maintenanceMode);
   const [tempAiSensitivity, setTempAiSensitivity] = useState(config.aiSensitivity);
+
+  // Maintenance mode is applied immediately (not batched with the form above) since
+  // flipping it has an immediate, site-wide effect that shouldn't wait on unrelated fields.
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
+  const [maintenanceDurationHours, setMaintenanceDurationHours] = useState(1);
 
   const totalBounties = reports.reduce((s, r) => s + r.reward, 0);
   const critiques = reports.filter(r => r.severity === "critique").length;
@@ -86,13 +90,40 @@ export default function AdminDashboard() {
     updateConfig.mutate(
       {
         platformName: tempPlatformName,
-        maintenanceMode: tempMaintenanceMode,
         aiSensitivity: tempAiSensitivity,
       },
       {
         onSuccess: () => {
           toast.success("Configuration mise à jour avec succès");
           setIsConfigOpen(false);
+        },
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
+  };
+
+  const handleMaintenanceToggle = (checked: boolean) => {
+    if (checked) {
+      setMaintenanceDurationHours(1);
+      setIsMaintenanceModalOpen(true);
+      return;
+    }
+    updateConfig.mutate(
+      { maintenanceMode: false },
+      {
+        onSuccess: () => toast.success("Mode maintenance désactivé"),
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
+  };
+
+  const handleConfirmMaintenance = () => {
+    updateConfig.mutate(
+      { maintenanceMode: true, maintenanceDurationHours },
+      {
+        onSuccess: () => {
+          toast.success(`Mode maintenance activé pour ${maintenanceDurationHours}h`);
+          setIsMaintenanceModalOpen(false);
         },
         onError: (err) => toast.error(apiErrorMessage(err)),
       },
@@ -115,7 +146,6 @@ export default function AdminDashboard() {
             <Dialog open={isConfigOpen} onOpenChange={(open) => {
               if (open) {
                 setTempPlatformName(config.platformName);
-                setTempMaintenanceMode(config.maintenanceMode);
                 setTempAiSensitivity(config.aiSensitivity);
               }
               setIsConfigOpen(open);
@@ -152,9 +182,17 @@ export default function AdminDashboard() {
                       <Label className="text-sm font-bold flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-yellow-500" /> Mode Maintenance
                       </Label>
-                      <p className="text-xs text-muted-foreground">Bloque les nouvelles soumissions de rapports.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {config.maintenanceMode && config.maintenanceUntil
+                          ? `Actif — se termine à ${new Date(config.maintenanceUntil).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                          : "Bloque l'accès à la plateforme pour tous, sauf les administrateurs."}
+                      </p>
                     </div>
-                    <Switch checked={tempMaintenanceMode} onCheckedChange={setTempMaintenanceMode} />
+                    <Switch
+                      checked={config.maintenanceMode}
+                      onCheckedChange={handleMaintenanceToggle}
+                      disabled={updateConfig.isPending}
+                    />
                   </div>
 
                   <div className="space-y-4">
@@ -188,6 +226,47 @@ export default function AdminDashboard() {
                   <Button variant="outline" onClick={() => setIsConfigOpen(false)} className="font-bold">ANNULER</Button>
                   <Button onClick={handleSaveConfig} className="bg-primary text-primary-foreground font-bold gap-2">
                     <Save className="w-4 h-4" /> SAUVEGARDER
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isMaintenanceModalOpen} onOpenChange={setIsMaintenanceModalOpen}>
+              <DialogContent className="sm:max-w-[420px] glass-card border-border">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-500" /> Activer la maintenance
+                  </DialogTitle>
+                  <DialogDescription className="font-medium">
+                    La plateforme sera inaccessible pour tous les utilisateurs (sauf les administrateurs)
+                    pendant la durée indiquée. Maximum 24 heures.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-2">
+                  <Label className="text-xs font-black uppercase tracking-widest">Durée (heures)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={maintenanceDurationHours}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (Number.isNaN(value)) return;
+                      setMaintenanceDurationHours(Math.min(24, Math.max(1, value)));
+                    }}
+                    className="mt-2 bg-secondary/50"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsMaintenanceModalOpen(false)} className="font-bold">
+                    ANNULER
+                  </Button>
+                  <Button
+                    onClick={handleConfirmMaintenance}
+                    disabled={updateConfig.isPending}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-bold gap-2"
+                  >
+                    <AlertTriangle className="w-4 h-4" /> ACTIVER
                   </Button>
                 </DialogFooter>
               </DialogContent>
