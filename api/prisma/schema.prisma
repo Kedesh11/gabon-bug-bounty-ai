@@ -1,0 +1,570 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth / Profiles
+// Supabase Auth owns `auth.users` (email, password hash, sessions, MFA).
+// `Profile.id` mirrors that user's id and carries the app-specific fields
+// (role, name, avatar) that Supabase Auth itself doesn't store.
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  hacker
+  entreprise
+  admin
+  triage
+  finance
+  support
+}
+
+model Profile {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  name      String
+  role      UserRole
+  avatar    String?
+  createdAt DateTime @default(now())
+
+  hackerProfile     HackerProfile?
+  entrepriseProfile EntrepriseProfile?
+  logs              PlatformLog[]
+
+  @@map("profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Hackers
+// ---------------------------------------------------------------------------
+
+enum HackerStatus {
+  actif
+  banni
+  suspendu
+}
+
+enum PaymentMethod {
+  mobile_money
+  bank_transfer
+  bank_card
+  paypal
+  crypto
+}
+
+enum MobileMoneyProvider {
+  airtel
+  mtn
+  moov
+  orange
+}
+
+enum CryptoType {
+  btc
+  eth
+  usdt
+}
+
+enum PreferredCurrency {
+  USD
+  EUR
+  XAF
+}
+
+enum CardBrand {
+  visa
+  mastercard
+  amex
+  other
+}
+
+model HackerProfile {
+  id           String       @id @default(uuid()) @db.Uuid
+  profileId    String       @unique @db.Uuid
+  profile      Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  reputation   Int          @default(0)
+  bugsFound    Int          @default(0)
+  totalRewards Int          @default(0)
+  rank         Int          @default(0)
+  specialties  String[]     @default([])
+  status       HackerStatus @default(actif)
+  joinedAt     DateTime     @default(now())
+
+  // Stripe Connect v2 Recipient account id, set once the hacker completes onboarding.
+  stripeAccountId String?
+
+  badges        Badge[]
+  paymentConfig HackerPaymentConfig?
+  reports       Report[]
+  payouts       Payout[]
+
+  @@map("hacker_profiles")
+}
+
+model Badge {
+  id          String        @id @default(uuid()) @db.Uuid
+  hackerId    String        @db.Uuid
+  hacker      HackerProfile @relation(fields: [hackerId], references: [id], onDelete: Cascade)
+  name        String
+  icon        String
+  description String
+
+  @@map("badges")
+}
+
+// Note: `cardCvv` is deliberately NOT persisted anywhere in this schema —
+// CVV must never be stored, even at rest. Full PCI-compliant tokenisation
+// via a payment provider is tracked separately (roadmap item #13).
+model HackerPaymentConfig {
+  id           String        @id @default(uuid()) @db.Uuid
+  hackerId     String        @unique @db.Uuid
+  hacker       HackerProfile @relation(fields: [hackerId], references: [id], onDelete: Cascade)
+
+  gainsEnabled       Boolean               @default(false)
+  paymentMethods     PaymentMethod[]       @default([])
+
+  mobileMoneyProvider MobileMoneyProvider?
+  phoneNumber          String?
+
+  accountName        String?
+  bankName           String?
+  accountHolderName  String?
+  accountNumber      String?
+  iban               String?
+  swiftCode          String?
+  bankCountry        String?
+
+  cardBrand           CardBrand?
+  cardHolderName      String?
+  cardNumberLast4     String?
+  cardExpiry          String?
+  cardBillingCountry  String?
+
+  paypalEmail         String?
+
+  cryptoType          CryptoType?
+  walletAddress       String?
+
+  preferredCurrency        PreferredCurrency @default(USD)
+  autoWithdrawal            Boolean          @default(false)
+  minimumPayoutThreshold    String           @default("50")
+
+  @@map("hacker_payment_configs")
+}
+
+// ---------------------------------------------------------------------------
+// Entreprises
+// ---------------------------------------------------------------------------
+
+enum EntrepriseStatus {
+  actif
+  suspendu
+}
+
+model EntrepriseProfile {
+  id              String           @id @default(uuid()) @db.Uuid
+  profileId       String           @unique @db.Uuid
+  profile         Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  sector          String
+  programmesCount Int              @default(0)
+  totalPaid       Int              @default(0)
+  status          EntrepriseStatus @default(actif)
+  joinedAt        DateTime         @default(now())
+
+  programmes Programme[]
+  reports    Report[]
+  payments   Payment[]
+
+  @@map("entreprise_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Programmes
+// ---------------------------------------------------------------------------
+
+enum ProgrammeStatus {
+  actif
+  pause
+  ferme
+}
+
+enum ProgrammeType {
+  public
+  private
+  vdp
+}
+
+enum SafeHarbor {
+  partiel
+  complet
+  aucun
+}
+
+enum TestingPeriod {
+  ongoing
+  scheduled
+  closed
+}
+
+enum RewardCurrency {
+  USD
+  EUR
+  XAF
+}
+
+enum Severity {
+  critique
+  haute
+  moyenne
+  faible
+  info
+}
+
+model Programme {
+  id              String            @id @default(uuid()) @db.Uuid
+  name            String
+  entrepriseId    String            @db.Uuid
+  entreprise      EntrepriseProfile @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
+
+  description     String
+  descriptionLong String?
+  overview        String?
+  scope           String[]          @default([])
+  outOfScope      String[]          @default([])
+  methodology     String?
+  eligibility     String[]          @default([])
+  howItWorks      String[]          @default([])
+  responsibleDisclosure String[]    @default([])
+  rulesOfEngagement String[]        @default([])
+  hardwareResearchRegistration String?
+  focusAreas      String[]          @default([])
+  nonQualifyingFindings String[]    @default([])
+  terms           String[]          @default([])
+  disclosurePolicy String?
+  communicationChannels String[]    @default([])
+  tags            String[]          @default([])
+  sector          String?
+  logoUrl         String?
+  website         String?
+
+  safeHarbor      SafeHarbor?
+  scopeRating     Int?
+  testingPeriod   TestingPeriod?
+  startedAt       DateTime?
+  statusText      String?
+  lastUpdated     DateTime?
+
+  vulnerabilitiesRewarded Int?
+  validationWithinDays    Int?
+  acceptanceRate          Int?
+  averagePayout           Int?
+  averagePayoutWindow     String?
+
+  programType     ProgrammeType     @default(public)
+  minReward       Int
+  maxReward       Int
+  rewardCurrency  RewardCurrency    @default(XAF)
+
+  payoutGuidelines String?
+  payoutFactors    String[]         @default([])
+  rootAccessProgram String?
+
+  hallOfFamers    String[]          @default([])
+  recentlyJoined  String[]          @default([])
+  totalResearchers Int?
+
+  additionalInformation String?
+  thingsToKnow    Json?
+
+  triageTimeHours    Int?
+  firstResponseHours Int?
+  resolutionDays     Int?
+  isNew              Boolean        @default(false)
+
+  status          ProgrammeStatus  @default(actif)
+  createdAt       DateTime         @default(now())
+  reportsCount    Int              @default(0)
+
+  rewardTiers        RewardTier[]
+  targetGroups        TargetGroup[]
+  inScopeTargets       ProgrammeTarget[] @relation("InScopeTargets")
+  outOfScopeTargets    ProgrammeTarget[] @relation("OutOfScopeTargets")
+  announcements        Announcement[]
+  activities           Activity[]
+  reports              Report[]
+  payments             Payment[]
+
+  @@map("programmes")
+}
+
+model RewardTier {
+  id          String    @id @default(uuid()) @db.Uuid
+  programmeId String    @db.Uuid
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  severity    Severity
+  min         Int
+  max         Int
+  note        String?
+
+  @@map("reward_tiers")
+}
+
+model TargetGroup {
+  id          String    @id @default(uuid()) @db.Uuid
+  programmeId String    @db.Uuid
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  scopeRating String?
+  inScope     Boolean
+  payoutChart Json?
+
+  targets ProgrammeTarget[] @relation("TargetGroupTargets")
+
+  @@map("target_groups")
+}
+
+model ProgrammeTarget {
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String
+  tags         String[]     @default([])
+  knownIssues  String?
+
+  targetGroupId String?     @db.Uuid
+  targetGroup   TargetGroup? @relation("TargetGroupTargets", fields: [targetGroupId], references: [id], onDelete: Cascade)
+
+  inScopeProgrammeId    String?    @db.Uuid
+  inScopeProgramme      Programme? @relation("InScopeTargets", fields: [inScopeProgrammeId], references: [id], onDelete: Cascade)
+
+  outOfScopeProgrammeId String?    @db.Uuid
+  outOfScopeProgramme   Programme? @relation("OutOfScopeTargets", fields: [outOfScopeProgrammeId], references: [id], onDelete: Cascade)
+
+  @@map("programme_targets")
+}
+
+model Announcement {
+  id          String    @id @default(uuid()) @db.Uuid
+  programmeId String    @db.Uuid
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  title       String
+  author      String
+  createdAt   DateTime  @default(now())
+  content     String
+
+  @@map("announcements")
+}
+
+enum ActivityType {
+  submission
+  reward
+  announcement
+  update
+}
+
+model Activity {
+  id          String       @id @default(uuid()) @db.Uuid
+  title       String
+  subtitle    String?
+  type        ActivityType
+  createdAt   DateTime     @default(now())
+  priority    Severity?
+  amount      Int?
+  hackerName  String?
+  programmeName String?
+
+  programmeId String?      @db.Uuid
+  programme   Programme?   @relation(fields: [programmeId], references: [id], onDelete: SetNull)
+
+  @@map("activities")
+}
+
+// ---------------------------------------------------------------------------
+// Reports
+// ---------------------------------------------------------------------------
+
+enum ReportStatus {
+  soumis
+  en_analyse
+  accepte
+  rejete
+  resolu
+}
+
+enum AnalysisStatus {
+  en_attente
+  en_cours
+  terminee
+}
+
+model Report {
+  id          String       @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  severity    Severity
+  status      ReportStatus @default(soumis)
+
+  hackerId    String        @db.Uuid
+  hacker      HackerProfile @relation(fields: [hackerId], references: [id], onDelete: Cascade)
+
+  programmeId String    @db.Uuid
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  entrepriseId String            @db.Uuid
+  entreprise   EntrepriseProfile @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
+
+  reward      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vulnerability String
+  vrtCategory   String?
+  vrtType       String?
+  proof         String
+  pdfFileName   String?
+
+  analysisStatus AnalysisStatus?
+  aiAnalysis     AiAnalysis?
+  payout         Payout?
+
+  @@map("reports")
+}
+
+model AiAnalysis {
+  id                     String   @id @default(uuid()) @db.Uuid
+  reportId               String   @unique @db.Uuid
+  report                 Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  confidence             Float
+  suggestedSeverity      Severity
+  isDuplicate            Boolean  @default(false)
+  duplicateOfId          String?  @db.Uuid
+  summary                String
+  reproductionLikelihood Float
+
+  @@map("ai_analyses")
+}
+
+// ---------------------------------------------------------------------------
+// System configuration (singleton) & platform logs
+// ---------------------------------------------------------------------------
+
+enum PasswordComplexity {
+  standard
+  elevated
+  military
+}
+
+model SystemConfig {
+  id                    Int                @id @default(1)
+  platformName          String             @default("Gabon Bug Bounty AI")
+  contactEmail          String             @default("admin@bugbounty.ga")
+  supportUrl            String             @default("https://support.bugbounty.ga")
+  maintenanceMode       Boolean            @default(false)
+  autoTriage            Boolean            @default(true)
+  enterpriseValidation  Boolean            @default(true)
+  triageLimitHours      Int                @default(48)
+  aiSensitivity         Int                @default(75)
+  require2FA            Boolean            @default(false)
+  ipWhitelisting        Boolean            @default(false)
+  sessionTimeout        Int                @default(60)
+  passwordComplexity    PasswordComplexity @default(standard)
+
+  @@map("system_config")
+}
+
+enum LogType {
+  security
+  performance
+  user_action
+  system
+}
+
+enum LogLevel {
+  info
+  warning
+  error
+  critical
+}
+
+model PlatformLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  timestamp DateTime @default(now())
+  type      LogType
+  level     LogLevel
+  message   String
+  source    String
+  metadata  Json?
+
+  userId String?  @db.Uuid
+  user   Profile? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("platform_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Payments (collection) & payouts (disbursement)
+// ---------------------------------------------------------------------------
+
+enum PaymentProvider {
+  stripe
+  cinetpay
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+}
+
+enum PayoutStatus {
+  pending
+  succeeded
+  failed
+}
+
+// An entreprise funding a programme (money coming into the platform).
+model Payment {
+  id           String            @id @default(uuid()) @db.Uuid
+  programmeId  String            @db.Uuid
+  programme    Programme         @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  entrepriseId String            @db.Uuid
+  entreprise   EntrepriseProfile @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
+
+  provider  PaymentProvider
+  status    PaymentStatus @default(pending)
+  amount    Int
+  currency  String
+
+  // Stripe Checkout Session id, or CinetPay transaction_id
+  providerRef String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payments")
+}
+
+// A reward payout to a hacker for one specific accepted report (money leaving the platform).
+model Payout {
+  id       String        @id @default(uuid()) @db.Uuid
+  reportId String        @unique @db.Uuid
+  report   Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  hackerId String        @db.Uuid
+  hacker   HackerProfile @relation(fields: [hackerId], references: [id], onDelete: Cascade)
+
+  provider PaymentProvider
+  status   PayoutStatus    @default(pending)
+  amount   Int
+  currency String
+
+  // Stripe Transfer id, or CinetPay transfer transaction id
+  providerRef String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payouts")
+}
