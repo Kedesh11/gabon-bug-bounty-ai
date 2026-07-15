@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useReports } from "@/hooks/api/reports";
 import {
   Bug,
   Search,
@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 
 export default function TriageDashboard() {
-  const { reports } = useData();
+  const { data: reports = [] } = useReports();
   const pendingReports = reports.filter(r => r.status === "soumis" || r.status === "en_analyse");
 
   return (

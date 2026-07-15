@@ -3,8 +3,9 @@ import { useAuth } from "@/contexts/useAuth";
 import { UserRole } from "@/types/auth";
 
 export default function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles: UserRole[] }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
+  if (isLoading) return null;
   if (!isAuthenticated || !user) return <Navigate to="/connexion" replace />;
   if (!roles.includes(user.role)) return <Navigate to="/" replace />;
 

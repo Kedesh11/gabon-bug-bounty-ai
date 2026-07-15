@@ -5,15 +5,16 @@ import { AuthContext, AuthContextType } from "@/contexts/AuthContextObject";
 import { User } from "@/types/auth";
 import ProtectedRoute from "./ProtectedRoute";
 
-const noop = () => null;
+const noop = () => null as never;
 
 function renderProtected(authValue: Partial<AuthContextType>) {
   const fullValue: AuthContextType = {
     user: null,
     isAuthenticated: false,
-    login: noop,
-    register: noop,
-    updateProfile: noop,
+    isLoading: false,
+    login: async () => noop(),
+    register: async () => noop(),
+    updateProfile: async () => noop(),
     logout: () => {},
     ...authValue,
   };
@@ -59,5 +60,13 @@ describe("ProtectedRoute", () => {
     renderProtected({ user: admin, isAuthenticated: true });
 
     expect(screen.getByText("Contenu protégé")).toBeInTheDocument();
+  });
+
+  it("n'affiche rien ni ne redirige pendant le chargement de la session", () => {
+    renderProtected({ user: null, isAuthenticated: false, isLoading: true });
+
+    expect(screen.queryByText("Contenu protégé")).not.toBeInTheDocument();
+    expect(screen.queryByText("Page de connexion")).not.toBeInTheDocument();
+    expect(screen.queryByText("Accueil")).not.toBeInTheDocument();
   });
 });

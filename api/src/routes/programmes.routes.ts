@@ -8,7 +8,8 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/requireRole.js";
 
 export const programmesRouter = Router();
-programmesRouter.use(requireAuth);
+// Listing/detail are public (a bug bounty catalogue browsable before signup, like the
+// frontend's public /programmes pages) — only mutating routes require auth below.
 
 const rewardTierSchema = z.object({
   severity: z.nativeEnum(Severity),
@@ -53,11 +54,13 @@ async function resolveEntrepriseId(userId: string, role: string, requestedId?: s
   return owned.id;
 }
 
+const entrepriseInclude = { entreprise: { include: { profile: true } } };
+
 programmesRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const programmes = await prisma.programme.findMany({
-      include: { rewardTiers: true },
+      include: { rewardTiers: true, ...entrepriseInclude },
       orderBy: { createdAt: "desc" },
     });
     res.json({ programmes });
@@ -69,7 +72,13 @@ programmesRouter.get(
   asyncHandler(async (req, res) => {
     const programme = await prisma.programme.findUnique({
       where: { id: req.params.id },
-      include: { rewardTiers: true, targetGroups: { include: { targets: true } }, announcements: true, activities: true },
+      include: {
+        rewardTiers: true,
+        targetGroups: { include: { targets: true } },
+        announcements: true,
+        activities: true,
+        ...entrepriseInclude,
+      },
     });
     if (!programme) throw new HttpError(404, "Programme introuvable");
     res.json({ programme });
@@ -78,6 +87,7 @@ programmesRouter.get(
 
 programmesRouter.post(
   "/",
+  requireAuth,
   requireRole("entreprise", "admin"),
   asyncHandler(async (req, res) => {
     const body = programmeSchema.parse(req.body);
@@ -90,7 +100,7 @@ programmesRouter.post(
         entrepriseId,
         ...(rewardTiers ? { rewardTiers: { create: rewardTiers } } : {}),
       },
-      include: { rewardTiers: true },
+      include: { rewardTiers: true, ...entrepriseInclude },
     });
 
     res.status(201).json({ programme });
@@ -99,6 +109,7 @@ programmesRouter.post(
 
 programmesRouter.patch(
   "/:id",
+  requireAuth,
   requireRole("entreprise", "admin"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.programme.findUnique({ where: { id: req.params.id } });
@@ -122,7 +133,7 @@ programmesRouter.patch(
           ? { rewardTiers: { deleteMany: {}, create: rewardTiers } }
           : {}),
       },
-      include: { rewardTiers: true },
+      include: { rewardTiers: true, ...entrepriseInclude },
     });
 
     res.json({ programme });
@@ -131,6 +142,7 @@ programmesRouter.patch(
 
 programmesRouter.delete(
   "/:id",
+  requireAuth,
   requireRole("admin"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.programme.findUnique({ where: { id: req.params.id } });

@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/useAuth";
 import { UserRole } from "@/types/auth";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/apiClient";
 
 const ROLE_REDIRECTS: Record<UserRole, string> = {
   admin: "/admin",
@@ -37,7 +38,7 @@ const Inscription = () => {
     }
   }, [isEntrepriseFlow]);
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!name || !email || !password || !confirmPassword) {
       toast.error("Veuillez remplir tous les champs");
@@ -50,18 +51,18 @@ const Inscription = () => {
 
     const effectiveRole = isEntrepriseFlow ? "entreprise" : role;
 
-    const createdUser = register(name, email, password, effectiveRole);
-    if (!createdUser) {
-      toast.error("Échec de l'inscription");
-      return;
-    }
+    try {
+      const createdUser = await register(name, email, password, effectiveRole);
 
-    toast.success("Bienvenue dans l'aventure !");
-    if (redirectPath && createdUser.role === "entreprise") {
-      navigate(redirectPath);
-      return;
+      toast.success("Bienvenue dans l'aventure !");
+      if (redirectPath && createdUser.role === "entreprise") {
+        navigate(redirectPath);
+        return;
+      }
+      navigate(ROLE_REDIRECTS[createdUser.role]);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
     }
-    navigate(ROLE_REDIRECTS[createdUser.role]);
   };
 
   return (

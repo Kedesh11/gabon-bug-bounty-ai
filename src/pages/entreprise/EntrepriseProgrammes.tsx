@@ -4,12 +4,13 @@ import { toast } from "sonner";
 import { Edit2, ExternalLink, Plus, Save, Trash2, X } from "lucide-react";
 
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useProgrammes, useCreateProgramme, useUpdateProgramme, useDeleteProgramme } from "@/hooks/api/programmes";
 import { useAuth } from "@/contexts/useAuth";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Programme } from "@/stores/dataStore";
+import { Programme } from "@/types/domain";
 
 type ProgrammeForm = {
   name: string;
@@ -94,15 +95,18 @@ const statusBadgeClass = (status: Programme["status"]) => {
 
 export default function EntrepriseProgrammes() {
   const { user } = useAuth();
-  const { programmes, addProgramme, updateProgramme, deleteProgramme } = useData();
+  const { data: programmes = [] } = useProgrammes();
+  const createProgramme = useCreateProgramme();
+  const updateProgramme = useUpdateProgramme();
+  const deleteProgramme = useDeleteProgramme();
 
   const [editing, setEditing] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState<ProgrammeForm>(DEFAULT_FORM);
 
   const myProgrammes = useMemo(
-    () => programmes.filter((programme) => programme.entrepriseId === user?.id),
-    [programmes, user?.id],
+    () => programmes.filter((programme) => programme.entrepriseId === user?.entrepriseProfileId),
+    [programmes, user?.entrepriseProfileId],
   );
 
   const resetForm = () => {
@@ -158,8 +162,6 @@ export default function EntrepriseProgrammes() {
       name: form.name.trim(),
       description: form.description.trim(),
       descriptionLong: form.descriptionLong.trim() || undefined,
-      entrepriseId: user?.id || "",
-      entrepriseName: user?.name || "",
       scope: parseList(form.scope),
       outOfScope: parseList(form.outOfScope),
       methodology: form.methodology.trim() || undefined,
@@ -183,16 +185,20 @@ export default function EntrepriseProgrammes() {
     };
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const error = validateCoreFields();
     if (error) {
       toast.error(error);
       return;
     }
 
-    addProgramme(buildProgrammePayload());
-    toast.success("Programme détaillé créé");
-    resetForm();
+    try {
+      await createProgramme.mutateAsync(buildProgrammePayload());
+      toast.success("Programme détaillé créé");
+      resetForm();
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
   };
 
   const startEdit = (programme: Programme) => {
@@ -232,16 +238,20 @@ export default function EntrepriseProgrammes() {
     });
   };
 
-  const handleUpdate = (id: string) => {
+  const handleUpdate = async (id: string) => {
     const error = validateCoreFields();
     if (error) {
       toast.error(error);
       return;
     }
 
-    updateProgramme(id, buildProgrammePayload());
-    toast.success("Programme mis à jour");
-    resetForm();
+    try {
+      await updateProgramme.mutateAsync({ id, data: buildProgrammePayload() });
+      toast.success("Programme mis à jour");
+      resetForm();
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
   };
 
   return (
@@ -344,15 +354,15 @@ export default function EntrepriseProgrammes() {
                   <Edit2 className="w-3 h-3" />
                 </Button>
                 {programme.status === "actif" ? (
-                  <Button variant="outline" size="sm" onClick={() => { updateProgramme(programme.id, { status: "pause" }); toast.info("Mis en pause"); }}>
+                  <Button variant="outline" size="sm" onClick={() => { updateProgramme.mutate({ id: programme.id, data: { status: "pause" } }); toast.info("Mis en pause"); }}>
                     Pause
                   </Button>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={() => { updateProgramme(programme.id, { status: "actif" }); toast.success("Activé"); }}>
+                  <Button variant="outline" size="sm" onClick={() => { updateProgramme.mutate({ id: programme.id, data: { status: "actif" } }); toast.success("Activé"); }}>
                     Activer
                   </Button>
                 )}
-                <Button variant="destructive" size="sm" onClick={() => { deleteProgramme(programme.id); toast.error("Supprimé"); }}>
+                <Button variant="destructive" size="sm" onClick={() => { deleteProgramme.mutate(programme.id); toast.error("Supprimé"); }}>
                   <Trash2 className="w-3 h-3" />
                 </Button>
               </div>

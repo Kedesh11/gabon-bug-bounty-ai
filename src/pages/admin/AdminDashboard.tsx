@@ -1,5 +1,10 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useReports } from "@/hooks/api/reports";
+import { useProgrammes } from "@/hooks/api/programmes";
+import { useHackers } from "@/hooks/api/hackers";
+import { useEntreprises } from "@/hooks/api/entreprises";
+import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
+import { apiErrorMessage } from "@/lib/apiClient";
 import {
   Bug,
   Users,
@@ -38,7 +43,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
 export default function AdminDashboard() {
-  const { reports, programmes, hackers, entreprises, config, updateConfig } = useData();
+  const { data: reports = [] } = useReports();
+  const { data: programmes = [] } = useProgrammes();
+  const { data: hackers = [] } = useHackers();
+  const { data: entreprises = [] } = useEntreprises();
+  const { data: config = DEFAULT_SYSTEM_CONFIG } = useConfig();
+  const updateConfig = useUpdateConfig();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   
   // Local temporary state for the form
@@ -73,13 +83,20 @@ export default function AdminDashboard() {
   };
 
   const handleSaveConfig = () => {
-    updateConfig({
-      platformName: tempPlatformName,
-      maintenanceMode: tempMaintenanceMode,
-      aiSensitivity: tempAiSensitivity
-    });
-    toast.success("Configuration mise à jour avec succès");
-    setIsConfigOpen(false);
+    updateConfig.mutate(
+      {
+        platformName: tempPlatformName,
+        maintenanceMode: tempMaintenanceMode,
+        aiSensitivity: tempAiSensitivity,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Configuration mise à jour avec succès");
+          setIsConfigOpen(false);
+        },
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
   };
 
   return (

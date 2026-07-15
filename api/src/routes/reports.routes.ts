@@ -41,6 +41,8 @@ function buildPlaceholderAnalysis(title: string, vulnerability: string, severity
   };
 }
 
+const reportInclude = { hacker: { include: { profile: true } }, programme: true, aiAnalysis: true };
+
 async function canView(userId: string, role: string, report: { hackerId: string; entrepriseId: string }) {
   if (role === "admin" || role === "triage" || role === "finance" || role === "support") return true;
   if (role === "hacker") {
@@ -67,7 +69,7 @@ reportsRouter.get(
 
     const reports = await prisma.report.findMany({
       where,
-      include: { aiAnalysis: true },
+      include: reportInclude,
       orderBy: { createdAt: "desc" },
     });
     res.json({ reports });
@@ -79,7 +81,7 @@ reportsRouter.get(
   asyncHandler(async (req, res) => {
     const report = await prisma.report.findUnique({
       where: { id: req.params.id },
-      include: { aiAnalysis: true },
+      include: reportInclude,
     });
     if (!report) throw new HttpError(404, "Rapport introuvable");
     if (!(await canView(req.user!.id, req.user!.role, report))) {
@@ -111,7 +113,7 @@ reportsRouter.post(
         analysisStatus: "en_attente",
         aiAnalysis: { create: buildPlaceholderAnalysis(body.title, body.vulnerability, body.severity) },
       },
-      include: { aiAnalysis: true },
+      include: reportInclude,
     });
 
     await prisma.programme.update({
@@ -134,7 +136,7 @@ reportsRouter.patch(
     const report = await prisma.report.update({
       where: { id: req.params.id },
       data: body,
-      include: { aiAnalysis: true },
+      include: reportInclude,
     });
 
     res.json({ report });

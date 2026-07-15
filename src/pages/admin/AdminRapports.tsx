@@ -1,12 +1,13 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useReports, useUpdateReport, useDeleteReport } from "@/hooks/api/reports";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, CheckCircle, XCircle, Eye, Search, DollarSign, BrainCircuit, ShieldAlert, AlertTriangle, Info } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Report } from "@/stores/dataStore";
+import { Report } from "@/types/domain";
 
 const SEVERITY_COLORS: Record<string, string> = {
   critique: "bg-destructive/20 text-destructive border-destructive/20",
@@ -25,7 +26,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminRapports() {
-  const { reports, updateReport, deleteReport } = useData();
+  const { data: reports = [] } = useReports();
+  const updateReport = useUpdateReport();
+  const deleteReport = useDeleteReport();
   const [search, setSearch] = useState("");
   const [detail, setDetail] = useState<Report | null>(null);
   const [rewardInput, setRewardInput] = useState("");
@@ -107,14 +110,20 @@ export default function AdminRapports() {
 
               <div className="pt-6 border-t border-border flex flex-wrap items-center gap-4">
                 <div className="flex gap-2">
-                  <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => { updateReport(detail.id, { status: "accepté" }); setDetail({ ...detail, status: "accepté" }); toast.success("Rapport accepté"); }}>
+                  <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => updateReport.mutate(
+                    { id: detail.id, data: { status: "accepté" } },
+                    { onSuccess: (updated) => { setDetail(updated); toast.success("Rapport accepté"); }, onError: (err) => toast.error(apiErrorMessage(err)) },
+                  )}>
                     <CheckCircle className="w-4 h-4 mr-2" /> Accepter
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => { updateReport(detail.id, { status: "rejeté" }); setDetail({ ...detail, status: "rejeté" }); toast.error("Rapport rejeté"); }}>
+                  <Button size="sm" variant="destructive" onClick={() => updateReport.mutate(
+                    { id: detail.id, data: { status: "rejeté" } },
+                    { onSuccess: (updated) => { setDetail(updated); toast.error("Rapport rejeté"); }, onError: (err) => toast.error(apiErrorMessage(err)) },
+                  )}>
                     <XCircle className="w-4 h-4 mr-2" /> Rejeter
                   </Button>
                 </div>
-                
+
                 <div className="flex-1" />
 
                 <div className="flex items-center gap-2">
@@ -124,7 +133,13 @@ export default function AdminRapports() {
                   </div>
                   <Button size="sm" variant="outline" className="border-primary/30 text-primary hover:bg-primary/10" onClick={() => {
                     const v = parseInt(rewardInput);
-                    if (v > 0) { updateReport(detail.id, { reward: v }); setDetail({ ...detail, reward: v }); toast.success(`Récompense: ${v.toLocaleString()} XAF`); setRewardInput(""); }
+                    if (v > 0) updateReport.mutate(
+                      { id: detail.id, data: { reward: v } },
+                      {
+                        onSuccess: (updated) => { setDetail(updated); toast.success(`Récompense: ${v.toLocaleString()} XAF`); setRewardInput(""); },
+                        onError: (err) => toast.error(apiErrorMessage(err)),
+                      },
+                    );
                   }}>
                     Payer
                   </Button>
@@ -233,7 +248,10 @@ export default function AdminRapports() {
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => { setDetail(r); setRewardInput(""); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                       <Eye className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => { deleteReport(r.id); toast.error("Rapport supprimé"); }}>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => deleteReport.mutate(r.id, {
+                      onSuccess: () => toast.error("Rapport supprimé"),
+                      onError: (err) => toast.error(apiErrorMessage(err)),
+                    })}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>

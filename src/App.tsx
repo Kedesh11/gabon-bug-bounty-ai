@@ -5,7 +5,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext.tsx";
-import { DataProvider } from "@/contexts/DataContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -69,8 +68,7 @@ const App = () => (
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ErrorBoundary>
           <AuthProvider>
-            <DataProvider>
-              <Suspense fallback={<RouteFallback />}>
+            <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   {/* Public Routes */}
                   <Route path="/" element={<Index />} />
@@ -118,8 +116,7 @@ const App = () => (
                   {/* 404 */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
-              </Suspense>
-            </DataProvider>
+            </Suspense>
           </AuthProvider>
         </ErrorBoundary>
       </BrowserRouter>

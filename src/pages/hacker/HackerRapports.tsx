@@ -1,6 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
-import { useAuth } from "@/contexts/useAuth";
+import { useReports, useDeleteReport } from "@/hooks/api/reports";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,7 +21,7 @@ import {
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { Report } from "@/stores/dataStore";
+import { Report } from "@/types/domain";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
@@ -44,13 +43,11 @@ const STATUS_CONFIG: Record<string, { label: string, color: string, icon: Lucide
 };
 
 export default function HackerRapports() {
-  const { user } = useAuth();
-  const { reports, deleteReport } = useData();
+  const { data: myReports = [] } = useReports();
+  const deleteReport = useDeleteReport();
   const [detail, setDetail] = useState<Report | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("Tous");
-
-  const myReports = reports.filter(r => r.hackerId === user?.id);
 
   const filteredReports = useMemo(() => {
     return myReports.filter(r => {
@@ -270,7 +267,7 @@ export default function HackerRapports() {
                     <span className="text-xl font-black text-foreground">{detail.reward > 0 ? `${detail.reward.toLocaleString()} XAF` : "En attente de validation"}</span>
                   </div>
                   {detail.status === "soumis" && (
-                    <Button variant="destructive" size="sm" onClick={() => { deleteReport(detail.id); setDetail(null); toast.error("Rapport supprimé"); }} className="font-bold gap-2">
+                    <Button variant="destructive" size="sm" onClick={() => { deleteReport.mutate(detail.id); setDetail(null); toast.error("Rapport supprimé"); }} className="font-bold gap-2">
                       <Trash2 className="w-4 h-4" /> SUPPRIMER
                     </Button>
                   )}

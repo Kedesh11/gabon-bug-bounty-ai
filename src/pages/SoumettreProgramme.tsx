@@ -7,14 +7,15 @@ import { ArrowRight, Building2, ListChecks } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/useAuth";
-import { useData } from "@/contexts/DataContext";
+import { useCreateProgramme } from "@/hooks/api/programmes";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { useNavigate } from "react-router-dom";
 
 const ENTERPRISE_REGISTERED_KEY = "bugbounty_has_registered_enterprise";
 
 const SoumettreProgramme = () => {
   const { user, isAuthenticated } = useAuth();
-  const { addProgramme } = useData();
+  const createProgramme = useCreateProgramme();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -45,7 +46,7 @@ const SoumettreProgramme = () => {
     }
   }, [isAuthenticated, navigate, user]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isAuthenticated || user?.role !== "entreprise") {
       return;
     }
@@ -74,18 +75,20 @@ const SoumettreProgramme = () => {
       return;
     }
 
-    addProgramme({
-      name: form.programmeName,
-      entrepriseId: user.id,
-      entrepriseName: form.organisation,
-      description: `${form.description}\n\nRègles: ${form.rules || "Aucune règle supplémentaire"}`,
-      scope,
-      minReward,
-      maxReward,
-      status: "actif",
-    });
-    toast.success("Programme soumis et publié");
-    navigate("/entreprise/programmes");
+    try {
+      await createProgramme.mutateAsync({
+        name: form.programmeName,
+        description: `${form.description}\n\nRègles: ${form.rules || "Aucune règle supplémentaire"}`,
+        scope,
+        minReward,
+        maxReward,
+        status: "actif",
+      });
+      toast.success("Programme soumis et publié");
+      navigate("/entreprise/programmes");
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
   };
 
   if (!isAuthenticated || user?.role !== "entreprise") {

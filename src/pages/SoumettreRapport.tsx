@@ -3,8 +3,9 @@ import FooterSection from "@/components/FooterSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useData } from "@/contexts/DataContext";
-import { useAuth } from "@/contexts/useAuth";
+import { useProgrammes } from "@/hooks/api/programmes";
+import { useCreateReport } from "@/hooks/api/reports";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
@@ -25,7 +26,7 @@ import {
   Search
 } from "lucide-react";
 import { toast } from "sonner";
-import { Report } from "@/stores/dataStore";
+import { Report } from "@/types/domain";
 
 const VRT_CATEGORIES = [
   "Injection côté serveur (SQLi, NoSQL, Commande OS)",
@@ -50,8 +51,8 @@ const SEVERITY_LEVELS: Array<{ value: Report["severity"]; label: string; color: 
 ];
 
 const SoumettreRapport = () => {
-  const { programmes, addReport } = useData();
-  const { user } = useAuth();
+  const { data: programmes = [] } = useProgrammes();
+  const createReport = useCreateReport();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const programmeIdFromQuery = searchParams.get("programme");
@@ -158,7 +159,7 @@ const SoumettreRapport = () => {
 
   const prevStep = () => setStep(prev => prev - 1);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!pdfFile) {
       toast.error("Veuillez joindre le rapport PDF d'excellence");
       return;
@@ -169,25 +170,25 @@ const SoumettreRapport = () => {
     }
 
     setSubmitting(true);
-    addReport({
-      title: form.title.trim(),
-      description: `${form.description.trim()}\n\nREMEDIATION:\n${form.remediation.trim() || "Non spécifiée"}\n\nHTTP LOGS:\n${form.httpLogs.trim() || "Aucun log fourni"}`,
-      severity: form.severity,
-      hackerId: user?.id || "",
-      hackerName: user?.name || "",
-      programmeId: selectedProgramme!.id,
-      programmeName: selectedProgramme!.name,
-      entrepriseId: selectedProgramme!.entrepriseId,
-      vulnerability: form.vulnerability.trim(),
-      vrtCategory: vrtSearch.trim(),
-      vrtType: form.vulnerability.trim(),
-      proof: `Actif: ${form.impactedAsset.trim()}\nÉtapes:\n${form.steps.trim()}\n\nCaptures d'écran: ${screenshots.length} fichiers`,
-      pdfFileName: pdfFile.name,
-      analysisStatus: "en_attente",
-    });
+    try {
+      await createReport.mutateAsync({
+        title: form.title.trim(),
+        description: `${form.description.trim()}\n\nREMEDIATION:\n${form.remediation.trim() || "Non spécifiée"}\n\nHTTP LOGS:\n${form.httpLogs.trim() || "Aucun log fourni"}`,
+        severity: form.severity,
+        programmeId: selectedProgramme!.id,
+        vulnerability: form.vulnerability.trim(),
+        vrtCategory: vrtSearch.trim(),
+        vrtType: form.vulnerability.trim(),
+        proof: `Actif: ${form.impactedAsset.trim()}\nÉtapes:\n${form.steps.trim()}\n\nCaptures d'écran: ${screenshots.length} fichiers`,
+        pdfFileName: pdfFile.name,
+      });
 
-    toast.success("Rapport d'excellence envoyé ! Redirection vers vos rapports.");
-    setTimeout(() => navigate("/hacker/rapports"), 2000);
+      toast.success("Rapport d'excellence envoyé ! Redirection vers vos rapports.");
+      setTimeout(() => navigate("/hacker/rapports"), 2000);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+      setSubmitting(false);
+    }
   };
 
   const InputError = ({ show, message }: { show: boolean, message: string }) => {

@@ -1,4 +1,4 @@
-import { useData } from "@/contexts/DataContext";
+import { MOCK_ACTIVITIES } from "@/lib/mockFeed";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, ShieldAlert, Trophy, Megaphone, Clock } from "lucide-react";
@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export const CrowdStream = () => {
-  const { activities } = useData();
+  const activities = MOCK_ACTIVITIES;
 
   const getIcon = (type: string) => {
     switch (type) {

@@ -17,6 +17,10 @@ import { useAuth } from "@/contexts/useAuth";
 import { UserRole } from "@/types/auth";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/apiClient";
+
+// Mot de passe des comptes de démo créés par api/prisma/seed.ts
+const DEMO_PASSWORD = "Password123!";
 
 const ROLE_REDIRECTS: Record<UserRole, string> = {
   admin: "/admin",
@@ -39,40 +43,38 @@ const Connexion = () => {
     roleParam === "triage" || roleParam === "finance" || roleParam === "support" ? roleParam as UserRole : null;
   const redirectPath = searchParams.get("redirect");
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!email || !password) {
       toast.error("Veuillez remplir tous les champs");
       return;
     }
 
-    const loggedUser = login(email, password);
-    if (!loggedUser) {
-      toast.error("Identifiants invalides ou compte inexistant");
-      return;
-    }
+    try {
+      const loggedUser = await login(email, password);
 
-    if (requiredRole && loggedUser.role !== requiredRole) {
-      toast.error(`Accès refusé. Veuillez vous connecter avec un compte ${requiredRole}.`);
-      return;
-    }
+      if (requiredRole && loggedUser.role !== requiredRole) {
+        toast.error(`Accès refusé. Veuillez vous connecter avec un compte ${requiredRole}.`);
+        return;
+      }
 
-    toast.success(`Bienvenue, ${loggedUser.name} !`);
-    if (redirectPath) {
-      navigate(redirectPath);
-      return;
+      toast.success(`Bienvenue, ${loggedUser.name} !`);
+      navigate(redirectPath || ROLE_REDIRECTS[loggedUser.role]);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
     }
-    navigate(ROLE_REDIRECTS[loggedUser.role]);
   };
 
   const quickLogin = (userEmail: string) => {
     setEmail(userEmail);
-    setPassword("demo");
-    setTimeout(() => {
-      const loggedUser = login(userEmail, "demo");
-      if (loggedUser) {
+    setPassword(DEMO_PASSWORD);
+    setTimeout(async () => {
+      try {
+        const loggedUser = await login(userEmail, DEMO_PASSWORD);
         toast.success(`Connexion démo : ${loggedUser.name}`);
         navigate(redirectPath || ROLE_REDIRECTS[loggedUser.role]);
+      } catch (err) {
+        toast.error(apiErrorMessage(err));
       }
     }, 300);
   };

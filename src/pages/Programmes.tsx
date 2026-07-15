@@ -18,7 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/DataContext";
+import { useProgrammes } from "@/hooks/api/programmes";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const FILTERS = ["Tous", "Web", "API", "Mobile", "Infrastructure", "Private", "VDP"] as const;
@@ -30,7 +30,7 @@ const severityColor = (maxReward: number) => {
 };
 
 const Programmes = () => {
-  const { programmes } = useData();
+  const { data: programmes = [] } = useProgrammes();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<string>("Tous");
   const [search, setSearch] = useState("");

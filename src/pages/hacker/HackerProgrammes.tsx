@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useProgrammes } from "@/hooks/api/programmes";
 import {
   Shield,
   Search,
@@ -28,7 +28,7 @@ const severityColor = (maxReward: number) => {
 };
 
 export default function HackerProgrammes() {
-  const { programmes } = useData();
+  const { data: programmes = [] } = useProgrammes();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<string>("Tous");
   const [search, setSearch] = useState("");

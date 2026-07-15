@@ -1,5 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useHackers, useUpdateHacker, useDeleteHacker } from "@/hooks/api/hackers";
+import { useEntreprises, useUpdateEntreprise, useDeleteEntreprise } from "@/hooks/api/entreprises";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +24,12 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminUtilisateurs() {
-  const { hackers, updateHacker, deleteHacker, entreprises, updateEntreprise, deleteEntreprise } = useData();
+  const { data: hackers = [] } = useHackers();
+  const { data: entreprises = [] } = useEntreprises();
+  const updateHacker = useUpdateHacker();
+  const deleteHacker = useDeleteHacker();
+  const updateEntreprise = useUpdateEntreprise();
+  const deleteEntreprise = useDeleteEntreprise();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"hackers" | "entreprises" | "kyc">("hackers");
   const [search, setSearch] = useState("");
@@ -103,10 +110,19 @@ export default function AdminUtilisateurs() {
                    </div>
                    <div className="flex items-center gap-2">
                       <Button variant="outline" className="flex-1 rounded-xl h-10 text-[10px] font-black uppercase border-border group-hover:bg-blue-600 group-hover:text-white transition-all">VOIR DOSSIER</Button>
-                      <Button variant="outline" className="h-10 w-10 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => { event.stopPropagation(); updateHacker(h.id, { status: h.status === 'actif' ? 'suspendu' : 'actif' }); toast.info("Statut mis à jour"); }}>
+                      <Button variant="outline" className="h-10 w-10 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => {
+                        event.stopPropagation();
+                        updateHacker.mutate(
+                          { id: h.id, data: { status: h.status === 'actif' ? 'suspendu' : 'actif' } },
+                          { onSuccess: () => toast.info("Statut mis à jour"), onError: (err) => toast.error(apiErrorMessage(err)) },
+                        );
+                      }}>
                         <Ban className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" className="h-10 w-10 rounded-xl border-border text-muted-foreground hover:bg-destructive hover:text-white transition-all" onClick={(event) => { event.stopPropagation(); deleteHacker(h.id); toast.error("Utilisateur supprimé"); }}>
+                      <Button variant="outline" className="h-10 w-10 rounded-xl border-border text-muted-foreground hover:bg-destructive hover:text-white transition-all" onClick={(event) => {
+                        event.stopPropagation();
+                        deleteHacker.mutate(h.id, { onSuccess: () => toast.error("Utilisateur supprimé"), onError: (err) => toast.error(apiErrorMessage(err)) });
+                      }}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                    </div>
@@ -143,10 +159,19 @@ export default function AdminUtilisateurs() {
                    </div>
                    <div className="flex items-center gap-2">
                       <Button variant="outline" className="flex-1 rounded-xl h-10 text-[10px] font-black uppercase border-border group-hover:bg-blue-600 group-hover:text-white transition-all">AUDIT CLIENT</Button>
-                      <Button variant="outline" className="h-10 w-10 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => { event.stopPropagation(); updateEntreprise(e.id, { status: e.status === 'actif' ? 'suspendu' : 'actif' }); toast.info("Statut mis à jour"); }}>
+                      <Button variant="outline" className="h-10 w-10 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => {
+                        event.stopPropagation();
+                        updateEntreprise.mutate(
+                          { id: e.id, data: { status: e.status === 'actif' ? 'suspendu' : 'actif' } },
+                          { onSuccess: () => toast.info("Statut mis à jour"), onError: (err) => toast.error(apiErrorMessage(err)) },
+                        );
+                      }}>
                         <Ban className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" className="h-10 w-10 rounded-xl border-border text-muted-foreground hover:bg-destructive hover:text-white transition-all" onClick={(event) => { event.stopPropagation(); deleteEntreprise(e.id); toast.error("Entreprise supprimée"); }}>
+                      <Button variant="outline" className="h-10 w-10 rounded-xl border-border text-muted-foreground hover:bg-destructive hover:text-white transition-all" onClick={(event) => {
+                        event.stopPropagation();
+                        deleteEntreprise.mutate(e.id, { onSuccess: () => toast.error("Entreprise supprimée"), onError: (err) => toast.error(apiErrorMessage(err)) });
+                      }}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                    </div>

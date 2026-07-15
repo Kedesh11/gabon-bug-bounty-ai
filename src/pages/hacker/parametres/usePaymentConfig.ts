@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/useAuth";
-import { useData } from "@/contexts/DataContext";
+import { useMyPaymentConfig, useUpdateMyPaymentConfig } from "@/hooks/api/hackers";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { addNotification } from "@/lib/notifications";
 import {
   emailRegex,
@@ -25,7 +26,7 @@ import {
   type PaymentMethod,
   type PreferredCurrency,
   type HackerPaymentConfig,
-} from "@/stores/dataStore";
+} from "@/types/domain";
 
 export const DEFAULT_CONFIG: HackerPaymentConfig = {
   gainsEnabled: false,
@@ -135,16 +136,16 @@ function validatePaymentConfig(config: HackerPaymentConfig): string | null {
 
 export function usePaymentConfig() {
   const { user } = useAuth();
-  const { hackers, updateHackerConfig } = useData();
-  const hackerProfile = hackers.find(h => h.id === user?.id);
+  const { data: savedConfig } = useMyPaymentConfig(!!user);
+  const updateMyPaymentConfig = useUpdateMyPaymentConfig();
 
-  const [config, setConfig] = useState<HackerPaymentConfig>(hackerProfile?.config || DEFAULT_CONFIG);
+  const [config, setConfig] = useState<HackerPaymentConfig>(savedConfig || DEFAULT_CONFIG);
 
   useEffect(() => {
-    if (hackerProfile?.config) {
-      setConfig(hackerProfile.config);
+    if (savedConfig) {
+      setConfig(savedConfig);
     }
-  }, [hackerProfile]);
+  }, [savedConfig]);
 
   // Real-time validations
   const validations = useMemo(() => {
@@ -202,7 +203,7 @@ export function usePaymentConfig() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!user) return;
 
     const validationError = validatePaymentConfig(config);
@@ -238,14 +239,18 @@ export function usePaymentConfig() {
       minimumPayoutThreshold: String(Number(config.minimumPayoutThreshold)),
     };
 
-    updateHackerConfig(user.id, payload);
+    try {
+      await updateMyPaymentConfig.mutateAsync(payload);
 
-    addNotification(user.id, {
-      title: "Moyens de paiement mis à jour",
-      message: "Votre configuration de paiement a été validée.",
-      type: "success",
-    });
-    toast.success("Paramètres de paiement enregistrés");
+      addNotification(user.id, {
+        title: "Moyens de paiement mis à jour",
+        message: "Votre configuration de paiement a été validée.",
+        type: "success",
+      });
+      toast.success("Paramètres de paiement enregistrés");
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
   };
 
   return { config, setField, togglePaymentMethod, validations, handleSave };

@@ -39,6 +39,7 @@ authRouter.post(
         ...(body.role === "hacker" ? { hackerProfile: { create: {} } } : {}),
         ...(body.role === "entreprise" ? { entrepriseProfile: { create: { sector: "" } } } : {}),
       },
+      include: { hackerProfile: true, entrepriseProfile: true },
     });
 
     const { data: session, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
@@ -71,12 +72,33 @@ authRouter.post(
       throw new HttpError(401, "Email ou mot de passe invalide");
     }
 
-    const profile = await prisma.profile.findUnique({ where: { id: data.user.id } });
+    const profile = await prisma.profile.findUnique({
+      where: { id: data.user.id },
+      include: { hackerProfile: true, entrepriseProfile: true },
+    });
     if (!profile) {
       throw new HttpError(401, "Profil introuvable pour cet utilisateur");
     }
 
     res.json({ profile, session: data.session });
+  }),
+);
+
+const refreshSchema = z.object({
+  refresh_token: z.string().min(1),
+});
+
+authRouter.post(
+  "/refresh",
+  asyncHandler(async (req, res) => {
+    const body = refreshSchema.parse(req.body);
+
+    const { data, error } = await supabaseAdmin.auth.refreshSession({ refresh_token: body.refresh_token });
+    if (error || !data.session) {
+      throw new HttpError(401, "Session expirée, veuillez vous reconnecter");
+    }
+
+    res.json({ session: data.session });
   }),
 );
 
@@ -97,6 +119,27 @@ authRouter.get(
   asyncHandler(async (req, res) => {
     const profile = await prisma.profile.findUnique({
       where: { id: req.user!.id },
+      include: { hackerProfile: true, entrepriseProfile: true },
+    });
+    res.json({ profile });
+  }),
+);
+
+// Email isn't editable here: it's owned by Supabase Auth (auth.users) and changing it
+// requires the reconfirmation flow (supabase.auth.updateUser) — out of scope for now.
+const updateMeSchema = z.object({
+  name: z.string().min(1).optional(),
+  avatar: z.string().optional(),
+});
+
+authRouter.patch(
+  "/me",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const body = updateMeSchema.parse(req.body);
+    const profile = await prisma.profile.update({
+      where: { id: req.user!.id },
+      data: body,
       include: { hackerProfile: true, entrepriseProfile: true },
     });
     res.json({ profile });

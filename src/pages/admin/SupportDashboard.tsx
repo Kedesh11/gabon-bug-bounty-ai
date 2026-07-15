@@ -1,5 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useHackers, useUpdateHacker } from "@/hooks/api/hackers";
+import { useEntreprises, useUpdateEntreprise } from "@/hooks/api/entreprises";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { useNavigate } from "react-router-dom";
 import {
   MessageSquare,
@@ -26,7 +28,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export default function SupportDashboard() {
-  const { hackers, updateHacker, entreprises, updateEntreprise } = useData();
+  const { data: hackers = [] } = useHackers();
+  const { data: entreprises = [] } = useEntreprises();
+  const updateHacker = useUpdateHacker();
+  const updateEntreprise = useUpdateEntreprise();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"tickets" | "moderation" | "users">("tickets");
   
@@ -163,7 +168,13 @@ export default function SupportDashboard() {
                           <Button className="flex-1 rounded-xl h-11 bg-secondary text-foreground group-hover:bg-blue-600 group-hover:text-white font-black text-[10px] uppercase transition-all">
                             <Eye className="w-4 h-4 mr-2" /> VOIR PROFIL
                           </Button>
-                          <Button variant="outline" className="h-11 w-11 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => { event.stopPropagation(); updateHacker(h.id, { status: "suspendu" }); toast.error("Utilisateur suspendu"); }}>
+                          <Button variant="outline" className="h-11 w-11 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => {
+                            event.stopPropagation();
+                            updateHacker.mutate({ id: h.id, data: { status: "suspendu" } }, {
+                              onSuccess: () => toast.error("Utilisateur suspendu"),
+                              onError: (err) => toast.error(apiErrorMessage(err)),
+                            });
+                          }}>
                             <Ban className="w-4 h-4" />
                           </Button>
                        </div>
@@ -185,7 +196,13 @@ export default function SupportDashboard() {
                           <Button className="flex-1 rounded-xl h-11 bg-secondary text-foreground group-hover:bg-blue-600 group-hover:text-white font-black text-[10px] uppercase transition-all">
                             <Eye className="w-4 h-4 mr-2" /> AUDIT CLIENT
                           </Button>
-                          <Button variant="outline" className="h-11 w-11 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => { event.stopPropagation(); updateEntreprise(e.id, { status: "suspendu" }); toast.error("Entreprise suspendue"); }}>
+                          <Button variant="outline" className="h-11 w-11 rounded-xl border-border text-destructive hover:bg-destructive hover:text-white transition-all" onClick={(event) => {
+                            event.stopPropagation();
+                            updateEntreprise.mutate({ id: e.id, data: { status: "suspendu" } }, {
+                              onSuccess: () => toast.error("Entreprise suspendue"),
+                              onError: (err) => toast.error(apiErrorMessage(err)),
+                            });
+                          }}>
                             <Ban className="w-4 h-4" />
                           </Button>
                        </div>

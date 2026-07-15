@@ -4,9 +4,10 @@ import { app } from "../src/index.js";
 import { createTestUser } from "./helpers.js";
 
 describe("Programmes RBAC & CRUD", () => {
-  it("rejects listing without a token", async () => {
+  it("allows listing without a token (public catalogue)", async () => {
     const res = await request(app).get("/api/programmes");
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.programmes)).toBe(true);
   });
 
   it("allows listing with any authenticated role", async () => {

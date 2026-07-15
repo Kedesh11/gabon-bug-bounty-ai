@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Globe, Settings, Share2, Shield, Users } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,8 +11,6 @@ import { IntegrationsTab } from "./parametres/IntegrationsTab";
 import { TeamTab } from "./parametres/TeamTab";
 
 export default function AdminParametres() {
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-
   const general = useGeneralSettings();
   const security = useSecuritySettings();
   const integrations = useIntegrations();
@@ -58,9 +55,6 @@ export default function AdminParametres() {
             securitySettings={security.securitySettings}
             setSecuritySettings={security.setSecuritySettings}
             onSave={security.handleSaveSecurity}
-            isResetDialogOpen={isResetDialogOpen}
-            setIsResetDialogOpen={setIsResetDialogOpen}
-            onResetPlatform={security.handleResetPlatform}
           />
 
           <IntegrationsTab {...integrations} />

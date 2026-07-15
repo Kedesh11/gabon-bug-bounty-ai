@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useProgrammes } from "@/hooks/api/programmes";
+import { useReports } from "@/hooks/api/reports";
 import { useAuth } from "@/contexts/useAuth";
 import {
   Bug,
@@ -22,10 +23,10 @@ import { Link } from "react-router-dom";
 
 export default function EntrepriseDashboard() {
   const { user } = useAuth();
-  const { programmes, reports } = useData();
+  const { data: programmes = [] } = useProgrammes();
+  const { data: myReports = [] } = useReports();
 
-  const myProgrammes = programmes.filter(p => p.entrepriseId === user?.id);
-  const myReports = reports.filter(r => r.entrepriseId === user?.id);
+  const myProgrammes = programmes.filter(p => p.entrepriseId === user?.entrepriseProfileId);
   const totalPaid = myReports.reduce((s, r) => s + r.reward, 0);
   
   const stats = {

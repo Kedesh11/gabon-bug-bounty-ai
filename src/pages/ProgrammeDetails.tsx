@@ -1,7 +1,7 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/DataContext";
+import { useProgramme } from "@/hooks/api/programmes";
 import {
   Shield,
   DollarSign,
@@ -24,9 +24,16 @@ import { Progress } from "@/components/ui/progress";
 
 const ProgrammeDetails = () => {
   const { id } = useParams();
-  const { programmes } = useData();
+  const { data: programme, isLoading } = useProgramme(id);
   const navigate = useNavigate();
-  const programme = programmes.find((p) => p.id === id);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!programme) {
     return (

@@ -1,12 +1,11 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
-import { useAuth } from "@/contexts/useAuth";
+import { useReports, useUpdateReport } from "@/hooks/api/reports";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, CheckCircle, XCircle, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Report } from "@/stores/dataStore";
+import { Report } from "@/types/domain";
 
 const SEVERITY_COLORS: Record<string, string> = {
   critique: "bg-destructive/20 text-destructive",
@@ -17,12 +16,10 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 export default function EntrepriseRapports() {
-  const { user } = useAuth();
-  const { reports, updateReport } = useData();
+  const { data: myReports = [] } = useReports();
+  const updateReport = useUpdateReport();
   const [detail, setDetail] = useState<Report | null>(null);
   const [rewardInput, setRewardInput] = useState("");
-
-  const myReports = reports.filter(r => r.entrepriseId === user?.id);
 
   return (
     <DashboardLayout>
@@ -44,18 +41,18 @@ export default function EntrepriseRapports() {
               <p className="text-xs text-muted-foreground font-mono">Preuve: {detail.proof}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => { updateReport(detail.id, { status: "accepté" }); setDetail({ ...detail, status: "accepté" }); toast.success("Rapport accepté"); }}>
+              <Button size="sm" onClick={() => { updateReport.mutate({ id: detail.id, data: { status: "accepté" } }); setDetail({ ...detail, status: "accepté" }); toast.success("Rapport accepté"); }}>
                 <CheckCircle className="w-3 h-3 mr-1" /> Accepter
               </Button>
-              <Button size="sm" variant="destructive" onClick={() => { updateReport(detail.id, { status: "rejeté" }); setDetail({ ...detail, status: "rejeté" }); toast.error("Rapport rejeté"); }}>
+              <Button size="sm" variant="destructive" onClick={() => { updateReport.mutate({ id: detail.id, data: { status: "rejeté" } }); setDetail({ ...detail, status: "rejeté" }); toast.error("Rapport rejeté"); }}>
                 <XCircle className="w-3 h-3 mr-1" /> Rejeter
               </Button>
-              <Button size="sm" variant="outline" onClick={() => { updateReport(detail.id, { status: "résolu" }); setDetail({ ...detail, status: "résolu" }); toast.success("Résolu"); }}>Résolu</Button>
+              <Button size="sm" variant="outline" onClick={() => { updateReport.mutate({ id: detail.id, data: { status: "résolu" } }); setDetail({ ...detail, status: "résolu" }); toast.success("Résolu"); }}>Résolu</Button>
               <div className="flex items-center gap-1">
                 <Input placeholder="Récompense FCFA" value={rewardInput} onChange={e => setRewardInput(e.target.value)} className="w-36 bg-secondary border-border h-9 text-sm" />
                 <Button size="sm" variant="outline" onClick={() => {
                   const v = parseInt(rewardInput);
-                  if (v > 0) { updateReport(detail.id, { reward: v }); setDetail({ ...detail, reward: v }); toast.success(`${v.toLocaleString()} FCFA`); setRewardInput(""); }
+                  if (v > 0) { updateReport.mutate({ id: detail.id, data: { reward: v } }); setDetail({ ...detail, reward: v }); toast.success(`${v.toLocaleString()} FCFA`); setRewardInput(""); }
                 }}><DollarSign className="w-3 h-3" /></Button>
               </div>
             </div>
