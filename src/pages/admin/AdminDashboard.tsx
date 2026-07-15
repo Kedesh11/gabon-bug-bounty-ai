@@ -14,18 +14,15 @@ import {
   DollarSign,
   ShieldCheck,
   Activity,
-  Zap,
   Settings,
   Database,
-  ShieldAlert,
-  ChevronRight,
   Save,
   Globe,
   Bell,
   Cpu
 } from "lucide-react";
 import { CrowdStream } from "@/components/CrowdStream";
-import { Badge } from "@/components/ui/badge";
+import { TriageQueueWidget } from "@/pages/admin/TriageQueueWidget";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -383,43 +380,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Global Triage Queue */}
-            <div className="glass-card rounded-2xl border border-border overflow-hidden">
-              <div className="p-5 border-b border-border bg-secondary/30 flex items-center justify-between">
-                <h3 className="text-sm font-bold flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-yellow-500" /> File de Triage Global (Priorité IA)
-                </h3>
-                <Button variant="ghost" size="sm" className="text-[10px] font-bold h-7">GÉRER LA FILE</Button>
-              </div>
-              <div className="divide-y divide-border">
-                {reports.filter(r => r.status === "soumis" || r.status === "en_analyse").slice(0, 5).map(r => (
-                  <div key={r.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors group">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        r.severity === "critique" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
-                      }`}>
-                        <ShieldAlert className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{r.title}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-black">{r.hackerName} ➜ {r.programmeName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <Badge className={
-                        r.severity === "critique" ? "bg-destructive text-destructive-foreground" : 
-                        r.severity === "haute" ? "bg-orange-500 text-white" : "bg-yellow-500 text-black"
-                      }>
-                        {r.severity.toUpperCase()}
-                      </Badge>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full border border-border group-hover:border-primary/50 transition-all">
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TriageQueueWidget reports={reports} />
           </div>
 
           {/* Right Sidebar: Platform Health & Feed */}
