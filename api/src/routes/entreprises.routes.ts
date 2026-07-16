@@ -5,14 +5,14 @@ import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 export const entreprisesRouter = Router();
 entreprisesRouter.use(requireAuth);
 
 entreprisesRouter.get(
   "/",
-  requireRole("admin"),
+  requirePermission("entreprises.manage"),
   asyncHandler(async (req, res) => {
     const entreprises = await prisma.entrepriseProfile.findMany({ include: { profile: true } });
     res.json({ entreprises });
@@ -64,7 +64,7 @@ entreprisesRouter.patch(
 
 entreprisesRouter.delete(
   "/:id",
-  requireRole("admin"),
+  requirePermission("entreprises.manage"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.entrepriseProfile.findUnique({ where: { id: req.params.id } });
     if (!existing) throw new HttpError(404, "Entreprise introuvable");

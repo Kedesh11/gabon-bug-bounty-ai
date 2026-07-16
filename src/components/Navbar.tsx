@@ -3,16 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
-import { UserRole } from "@/types/auth";
-
-const DASHBOARD_PATHS: Record<UserRole, string> = {
-  admin: "/admin",
-  hacker: "/hacker",
-  entreprise: "/entreprise",
-  triage: "/admin/triage",
-  finance: "/admin/finance",
-  support: "/admin/support",
-};
+import { resolveDashboardPath } from "@/lib/roleNav";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
@@ -42,7 +33,7 @@ const Navbar = () => {
           <Link to="/documentation" className="text-sm text-muted-foreground hover:text-primary transition-colors">Documentation</Link>
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">
-              <Link to={DASHBOARD_PATHS[user.role]}>
+              <Link to={resolveDashboardPath(user)}>
                 <Button size="sm" variant="outline" className="font-mono text-xs">
                   <LayoutDashboard className="w-3 h-3 mr-1" /> Tableau de bord
                 </Button>
@@ -76,7 +67,7 @@ const Navbar = () => {
           <Link to="/documentation" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Documentation</Link>
           {isAuthenticated && user ? (
             <>
-              <Link to={DASHBOARD_PATHS[user.role]} onClick={() => setOpen(false)} className="block text-sm text-primary font-semibold">Tableau de bord</Link>
+              <Link to={resolveDashboardPath(user)} onClick={() => setOpen(false)} className="block text-sm text-primary font-semibold">Tableau de bord</Link>
               <button onClick={handleLogout} className="block text-sm text-destructive">Déconnexion</button>
             </>
           ) : (

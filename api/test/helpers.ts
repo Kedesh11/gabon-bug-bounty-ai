@@ -1,20 +1,21 @@
 import { randomUUID } from "node:crypto";
-import type { UserRole } from "@prisma/client";
 import { prisma } from "../src/prisma.js";
 import { registerTestToken } from "./setup.js";
 
-export async function createTestUser(role: UserRole) {
+export async function createTestUser(roleKey: string) {
   const id = randomUUID();
   const email = `test-${id}@example.com`;
+
+  const role = await prisma.role.findUniqueOrThrow({ where: { key: roleKey } });
 
   await prisma.profile.create({
     data: {
       id,
       email,
       name: "Test User",
-      role,
-      ...(role === "hacker" ? { hackerProfile: { create: {} } } : {}),
-      ...(role === "entreprise" ? { entrepriseProfile: { create: { sector: "Test" } } } : {}),
+      roleId: role.id,
+      ...(roleKey === "hacker" ? { hackerProfile: { create: {} } } : {}),
+      ...(roleKey === "entreprise" ? { entrepriseProfile: { create: { sector: "Test" } } } : {}),
     },
   });
 

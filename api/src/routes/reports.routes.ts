@@ -5,7 +5,7 @@ import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 export const reportsRouter = Router();
 reportsRouter.use(requireAuth);
@@ -43,8 +43,15 @@ function buildPlaceholderAnalysis(title: string, vulnerability: string, severity
 
 const reportInclude = { hacker: { include: { profile: true } }, programme: true, aiAnalysis: true };
 
-async function canView(userId: string, role: string, report: { hackerId: string; entrepriseId: string }) {
-  if (role === "admin" || role === "triage" || role === "finance" || role === "support") return true;
+// "reports.view.all" is what used to be a hardcoded role === admin/triage/finance/support
+// check — any role (built-in or custom) holding it sees every report, not just its own.
+async function canView(
+  userId: string,
+  role: string,
+  permissions: string[],
+  report: { hackerId: string; entrepriseId: string },
+) {
+  if (permissions.includes("reports.view.all")) return true;
   if (role === "hacker") {
     const hacker = await prisma.hackerProfile.findUnique({ where: { profileId: userId } });
     return hacker?.id === report.hackerId;
@@ -59,16 +66,32 @@ async function canView(userId: string, role: string, report: { hackerId: string;
 reportsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
-    const { role, id: userId } = req.user!;
-    const where =
-      role === "hacker"
-        ? { hacker: { profileId: userId } }
-        : role === "entreprise"
-          ? { programme: { entreprise: { profileId: userId } } }
-          : {};
+    const { role, permissions, id: userId } = req.user!;
+
+    if (role === "hacker") {
+      const reports = await prisma.report.findMany({
+        where: { hacker: { profileId: userId } },
+        include: reportInclude,
+        orderBy: { createdAt: "desc" },
+      });
+      res.json({ reports });
+      return;
+    }
+    if (role === "entreprise") {
+      const reports = await prisma.report.findMany({
+        where: { programme: { entreprise: { profileId: userId } } },
+        include: reportInclude,
+        orderBy: { createdAt: "desc" },
+      });
+      res.json({ reports });
+      return;
+    }
+    if (!permissions.includes("reports.view.all")) {
+      res.json({ reports: [] });
+      return;
+    }
 
     const reports = await prisma.report.findMany({
-      where,
       include: reportInclude,
       orderBy: { createdAt: "desc" },
     });
@@ -84,7 +107,7 @@ reportsRouter.get(
       include: reportInclude,
     });
     if (!report) throw new HttpError(404, "Rapport introuvable");
-    if (!(await canView(req.user!.id, req.user!.role, report))) {
+    if (!(await canView(req.user!.id, req.user!.role, req.user!.permissions, report))) {
       throw new HttpError(403, "Accès refusé à ce rapport");
     }
     res.json({ report });
@@ -93,7 +116,7 @@ reportsRouter.get(
 
 reportsRouter.post(
   "/",
-  requireRole("hacker"),
+  requirePermission("reports.create"),
   asyncHandler(async (req, res) => {
     const body = createReportSchema.parse(req.body);
 
@@ -127,7 +150,7 @@ reportsRouter.post(
 
 reportsRouter.patch(
   "/:id",
-  requireRole("admin", "triage", "finance"),
+  requirePermission("reports.triage"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.report.findUnique({ where: { id: req.params.id } });
     if (!existing) throw new HttpError(404, "Rapport introuvable");
@@ -145,7 +168,7 @@ reportsRouter.patch(
 
 reportsRouter.delete(
   "/:id",
-  requireRole("admin"),
+  requirePermission("reports.delete"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.report.findUnique({ where: { id: req.params.id } });
     if (!existing) throw new HttpError(404, "Rapport introuvable");

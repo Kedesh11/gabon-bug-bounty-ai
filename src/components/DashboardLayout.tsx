@@ -1,8 +1,8 @@
-import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, DollarSign, Terminal, AlertTriangle } from "lucide-react";
+import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
-import { UserRole } from "@/types/auth";
+import { getStaffNavItems } from "@/lib/roleNav";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, notificationsEventName, type NotificationItem } from "@/lib/notifications";
 import {
@@ -16,54 +16,20 @@ import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/c
 import { apiErrorMessage } from "@/lib/apiClient";
 import { toast } from "sonner";
 
-const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.ElementType }[]> = {
-  admin: [
-    { label: "Tableau de bord", path: "/admin", icon: BarChart3 },
-    { label: "Utilisateurs", path: "/admin/utilisateurs", icon: Users },
-    { label: "Programmes", path: "/admin/programmes", icon: FileText },
-    { label: "Rapports", path: "/admin/rapports", icon: Bug },
-    { label: "Logs Système", path: "/admin/logs", icon: Terminal },
-    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
-  ],
-  hacker: [
-    { label: "Tableau de bord", path: "/hacker", icon: BarChart3 },
-    { label: "Programmes", path: "/hacker/programmes", icon: FileText },
-    { label: "Mes rapports", path: "/hacker/rapports", icon: Bug },
-    { label: "Profil", path: "/hacker/profil", icon: Users },
-    { label: "Paramètres", path: "/hacker/parametres", icon: Settings },
-  ],
-  entreprise: [
-    { label: "Tableau de bord", path: "/entreprise", icon: BarChart3 },
-    { label: "Mes programmes", path: "/entreprise/programmes", icon: FileText },
-    { label: "Rapports reçus", path: "/entreprise/rapports", icon: Bug },
-    { label: "Paramètres", path: "/entreprise/parametres", icon: Settings },
-  ],
-  triage: [
-    { label: "Dashboard Triage", path: "/admin/triage", icon: BarChart3 },
-    { label: "Rapports", path: "/admin/rapports", icon: Bug },
-    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
-  ],
-  finance: [
-    { label: "Dashboard Finance", path: "/admin/finance", icon: BarChart3 },
-    { label: "Rapports Financiers", path: "/admin/finance", icon: DollarSign },
-    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
-  ],
-  support: [
-    { label: "Dashboard Support", path: "/admin/support", icon: BarChart3 },
-    { label: "Utilisateurs", path: "/admin/utilisateurs", icon: Users },
-    { label: "Logs Plateforme", path: "/admin/logs", icon: Terminal },
-    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
-  ],
-};
+const HACKER_NAV_ITEMS = [
+  { label: "Tableau de bord", path: "/hacker", icon: BarChart3 },
+  { label: "Programmes", path: "/hacker/programmes", icon: FileText },
+  { label: "Mes rapports", path: "/hacker/rapports", icon: Bug },
+  { label: "Profil", path: "/hacker/profil", icon: Users },
+  { label: "Paramètres", path: "/hacker/parametres", icon: Settings },
+];
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  admin: "Administrateur",
-  hacker: "Chercheur Élite",
-  entreprise: "Partenaire Entreprise",
-  triage: "Responsable Triage",
-  finance: "Gestionnaire Finance",
-  support: "Support Technique",
-};
+const ENTREPRISE_NAV_ITEMS = [
+  { label: "Tableau de bord", path: "/entreprise", icon: BarChart3 },
+  { label: "Mes programmes", path: "/entreprise/programmes", icon: FileText },
+  { label: "Rapports reçus", path: "/entreprise/rapports", icon: Bug },
+  { label: "Paramètres", path: "/entreprise/parametres", icon: Settings },
+];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -75,7 +41,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const userId = user?.id ?? "";
-  const items = user ? NAV_ITEMS[user.role] : [];
+  const items = !user
+    ? []
+    : user.role === "hacker"
+      ? HACKER_NAV_ITEMS
+      : user.role === "entreprise"
+        ? ENTREPRISE_NAV_ITEMS
+        : getStaffNavItems(user);
   // Platform-wide alerts, shown to every role, gated by the "Notifications Globales"
   // toggle in Configuration Système (SystemConfig.globalNotificationsEnabled).
   const showGlobalNotifications = config.globalNotificationsEnabled;
@@ -163,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground font-mono truncate">{ROLE_LABELS[user.role]}</p>
+            <p className="text-xs text-muted-foreground font-mono truncate">{user.roleLabel}</p>
           </div>
         </div>
       </div>

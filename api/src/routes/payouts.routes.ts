@@ -3,7 +3,7 @@ import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import { createPayout } from "../services/payments/paymentService.js";
 
 export const payoutsRouter = Router();
@@ -11,7 +11,7 @@ payoutsRouter.use(requireAuth);
 
 payoutsRouter.post(
   "/reports/:id",
-  requireRole("admin", "finance"),
+  requirePermission("payouts.create"),
   asyncHandler(async (req, res) => {
     const report = await prisma.report.findUnique({
       where: { id: req.params.id },

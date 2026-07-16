@@ -5,19 +5,10 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useState } from "react";
 import { useAuth } from "@/contexts/useAuth";
-import { UserRole } from "@/types/auth";
+import { resolveDashboardPath } from "@/lib/roleNav";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/apiClient";
-
-const ROLE_REDIRECTS: Record<UserRole, string> = {
-  admin: "/admin",
-  hacker: "/hacker",
-  entreprise: "/entreprise",
-  triage: "/admin/triage",
-  finance: "/admin/finance",
-  support: "/admin/support",
-};
 
 const Connexion = () => {
   const [email, setEmail] = useState("");
@@ -25,10 +16,7 @@ const Connexion = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const roleParam = searchParams.get("role");
-  const requiredRole: UserRole | null =
-    roleParam === "admin" || roleParam === "hacker" || roleParam === "entreprise" || 
-    roleParam === "triage" || roleParam === "finance" || roleParam === "support" ? roleParam as UserRole : null;
+  const requiredRole = searchParams.get("role");
   const redirectPath = searchParams.get("redirect");
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -47,7 +35,7 @@ const Connexion = () => {
       }
 
       toast.success(`Bienvenue, ${loggedUser.name} !`);
-      navigate(redirectPath || ROLE_REDIRECTS[loggedUser.role]);
+      navigate(redirectPath || resolveDashboardPath(loggedUser));
     } catch (err) {
       toast.error(apiErrorMessage(err));
     }

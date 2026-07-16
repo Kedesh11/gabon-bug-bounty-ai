@@ -4,10 +4,10 @@ import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { stripe } from "../services/payments/stripe/client.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireAuth } from "../middleware/auth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 export const systemStatusRouter = Router();
-systemStatusRouter.use(requireAuth, requireRole("admin"));
+systemStatusRouter.use(requireAuth, requirePermission("system.status.read"));
 
 type ServiceStatus = "online" | "offline";
 

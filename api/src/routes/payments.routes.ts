@@ -5,7 +5,7 @@ import { env } from "../env.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 import { createCollection } from "../services/payments/paymentService.js";
 import { createRecipientAccount, createOnboardingLink } from "../services/payments/stripe/connect.js";
 
@@ -20,7 +20,7 @@ const fundSchema = z.object({
 
 paymentsRouter.post(
   "/programmes/:id/fund",
-  requireRole("entreprise", "admin"),
+  requirePermission("payments.fund"),
   asyncHandler(async (req, res) => {
     const programme = await prisma.programme.findUnique({
       where: { id: req.params.id },
@@ -75,7 +75,7 @@ paymentsRouter.post(
 
 paymentsRouter.post(
   "/onboarding/stripe",
-  requireRole("hacker"),
+  requirePermission("payments.onboarding.self"),
   asyncHandler(async (req, res) => {
     const hacker = await prisma.hackerProfile.findUnique({ where: { profileId: req.user!.id } });
     if (!hacker) throw new HttpError(403, "Aucun profil hacker associé à ce compte");

@@ -1,5 +1,5 @@
 import { useState, ReactNode, useCallback, useEffect } from "react";
-import { User, UserRole } from "@/types/auth";
+import { User } from "@/types/auth";
 import { AuthContext } from "./AuthContextObject";
 import { apiFetch, getSession, setSession, Session } from "@/lib/apiClient";
 
@@ -7,7 +7,9 @@ interface ApiProfile {
   id: string;
   email: string;
   name: string;
-  role: UserRole;
+  role: string;
+  roleLabel: string;
+  permissions: string[];
   avatar?: string | null;
   createdAt: string;
   hackerProfile?: { id: string } | null;
@@ -20,6 +22,8 @@ function toUser(profile: ApiProfile): User {
     email: profile.email,
     name: profile.name,
     role: profile.role,
+    roleLabel: profile.roleLabel,
+    permissions: profile.permissions,
     avatar: profile.avatar ?? undefined,
     createdAt: profile.createdAt,
     hackerProfileId: profile.hackerProfile?.id,
@@ -66,7 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return loggedUser;
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string, role: UserRole) => {
+  const register = useCallback(async (name: string, email: string, password: string, role: "hacker" | "entreprise") => {
     const { profile, session } = await apiFetch<{ profile: ApiProfile; session: Session }>("/api/auth/register", {
       method: "POST",
       body: { name, email, password, role },

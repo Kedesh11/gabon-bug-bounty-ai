@@ -12,22 +12,58 @@ datasource db {
 // Supabase Auth owns `auth.users` (email, password hash, sessions, MFA).
 // `Profile.id` mirrors that user's id and carries the app-specific fields
 // (role, name, avatar) that Supabase Auth itself doesn't store.
+//
+// Roles/permissions are data, not an enum: a new role (with any combination of
+// existing permissions) can be created from the admin UI with zero deploy. The
+// permission *keys* themselves are still defined in code (something has to know
+// what "reports.triage" gates), but which roles have which permissions is fully
+// dynamic. See api/src/services/roles/permissionCatalog.ts for the fixed catalog
+// and api/src/services/roles/rolesService.ts for role CRUD.
 // ---------------------------------------------------------------------------
 
-enum UserRole {
-  hacker
-  entreprise
-  admin
-  triage
-  finance
-  support
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  label       String
+  description String?
+  // Protects the 6 roles the app ships with from deletion/rename-away via the API —
+  // custom roles created later are not system roles and can be freely removed.
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  profiles    Profile[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique
+  label       String
+  description String?
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String     @db.Uuid
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }
 
 model Profile {
   id        String   @id @db.Uuid
   email     String   @unique
   name      String
-  role      UserRole
+  roleId    String   @db.Uuid
+  role      Role     @relation(fields: [roleId], references: [id])
   avatar    String?
   createdAt DateTime @default(now())
 

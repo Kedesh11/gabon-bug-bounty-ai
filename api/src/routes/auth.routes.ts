@@ -1,25 +1,33 @@
 import { Router } from "express";
 import { z } from "zod";
-import { UserRole } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
+import { serializeProfile, profileRoleInclude } from "../lib/serializeProfile.js";
 
 export const authRouter = Router();
 
+const profileInclude = { hackerProfile: true, entrepriseProfile: true, ...profileRoleInclude };
+
+// Self-registration only ever creates a hacker or an entreprise account — the only two
+// roles wired to a public signup flow in the frontend (Inscription.tsx). Staff roles
+// (admin/triage/finance/support/any custom role) are assigned by an admin, never here.
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
   name: z.string().min(2),
-  role: z.nativeEnum(UserRole),
+  role: z.enum(["hacker", "entreprise"]),
 });
 
 authRouter.post(
   "/register",
   asyncHandler(async (req, res) => {
     const body = registerSchema.parse(req.body);
+
+    const role = await prisma.role.findUnique({ where: { key: body.role } });
+    if (!role) throw new HttpError(500, `Rôle "${body.role}" introuvable — la base n'est pas correctement initialisée`);
 
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: body.email,
@@ -35,11 +43,11 @@ authRouter.post(
         id: created.user.id,
         email: body.email,
         name: body.name,
-        role: body.role,
+        roleId: role.id,
         ...(body.role === "hacker" ? { hackerProfile: { create: {} } } : {}),
         ...(body.role === "entreprise" ? { entrepriseProfile: { create: { sector: "" } } } : {}),
       },
-      include: { hackerProfile: true, entrepriseProfile: true },
+      include: profileInclude,
     });
 
     const { data: session, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
@@ -50,7 +58,7 @@ authRouter.post(
       throw new HttpError(500, "Compte créé mais échec de connexion automatique");
     }
 
-    res.status(201).json({ profile, session: session.session });
+    res.status(201).json({ profile: serializeProfile(profile), session: session.session });
   }),
 );
 
@@ -74,13 +82,13 @@ authRouter.post(
 
     const profile = await prisma.profile.findUnique({
       where: { id: data.user.id },
-      include: { hackerProfile: true, entrepriseProfile: true },
+      include: profileInclude,
     });
     if (!profile) {
       throw new HttpError(401, "Profil introuvable pour cet utilisateur");
     }
 
-    res.json({ profile, session: data.session });
+    res.json({ profile: serializeProfile(profile), session: data.session });
   }),
 );
 
@@ -117,11 +125,11 @@ authRouter.get(
   "/me",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const profile = await prisma.profile.findUnique({
+    const profile = await prisma.profile.findUniqueOrThrow({
       where: { id: req.user!.id },
-      include: { hackerProfile: true, entrepriseProfile: true },
+      include: profileInclude,
     });
-    res.json({ profile });
+    res.json({ profile: serializeProfile(profile) });
   }),
 );
 
@@ -140,8 +148,8 @@ authRouter.patch(
     const profile = await prisma.profile.update({
       where: { id: req.user!.id },
       data: body,
-      include: { hackerProfile: true, entrepriseProfile: true },
+      include: profileInclude,
     });
-    res.json({ profile });
+    res.json({ profile: serializeProfile(profile) });
   }),
 );

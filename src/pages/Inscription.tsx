@@ -5,19 +5,10 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/useAuth";
-import { UserRole } from "@/types/auth";
+import { resolveDashboardPath } from "@/lib/roleNav";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/apiClient";
-
-const ROLE_REDIRECTS: Record<UserRole, string> = {
-  admin: "/admin",
-  hacker: "/hacker",
-  entreprise: "/entreprise",
-  triage: "/admin/triage",
-  finance: "/admin/finance",
-  support: "/admin/support",
-};
 
 const Inscription = () => {
   const [searchParams] = useSearchParams();
@@ -60,7 +51,7 @@ const Inscription = () => {
         navigate(redirectPath);
         return;
       }
-      navigate(ROLE_REDIRECTS[createdUser.role]);
+      navigate(resolveDashboardPath(createdUser));
     } catch (err) {
       toast.error(apiErrorMessage(err));
     }

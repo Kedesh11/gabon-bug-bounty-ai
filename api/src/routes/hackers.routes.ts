@@ -5,7 +5,7 @@ import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 export const hackersRouter = Router();
 hackersRouter.use(requireAuth);
@@ -18,7 +18,7 @@ async function getOwnHackerProfile(userId: string) {
 
 hackersRouter.get(
   "/me/payment-config",
-  requireRole("hacker"),
+  requirePermission("hackers.self.manage"),
   asyncHandler(async (req, res) => {
     const hacker = await getOwnHackerProfile(req.user!.id);
     const config = await prisma.hackerPaymentConfig.findUnique({ where: { hackerId: hacker.id } });
@@ -55,7 +55,7 @@ const paymentConfigSchema = z.object({
 
 hackersRouter.patch(
   "/me/payment-config",
-  requireRole("hacker"),
+  requirePermission("hackers.self.manage"),
   asyncHandler(async (req, res) => {
     const hacker = await getOwnHackerProfile(req.user!.id);
     const body = paymentConfigSchema.parse(req.body);
@@ -79,7 +79,7 @@ const updateOwnHackerSchema = z.object({
 // (they're computed/trust signals, not something the hacker should set themselves).
 hackersRouter.patch(
   "/me",
-  requireRole("hacker"),
+  requirePermission("hackers.self.manage"),
   asyncHandler(async (req, res) => {
     const hacker = await getOwnHackerProfile(req.user!.id);
     const body = updateOwnHackerSchema.parse(req.body);
@@ -126,7 +126,7 @@ const updateHackerSchema = z.object({
 
 hackersRouter.patch(
   "/:id",
-  requireRole("admin"),
+  requirePermission("hackers.manage"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.hackerProfile.findUnique({ where: { id: req.params.id } });
     if (!existing) throw new HttpError(404, "Hacker introuvable");
@@ -143,7 +143,7 @@ hackersRouter.patch(
 
 hackersRouter.delete(
   "/:id",
-  requireRole("admin"),
+  requirePermission("hackers.manage"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.hackerProfile.findUnique({ where: { id: req.params.id } });
     if (!existing) throw new HttpError(404, "Hacker introuvable");

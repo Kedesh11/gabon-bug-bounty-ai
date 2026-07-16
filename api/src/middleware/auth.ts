@@ -1,12 +1,15 @@
 import type { NextFunction, Request, Response } from "express";
-import type { UserRole } from "@prisma/client";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { prisma } from "../prisma.js";
 
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  role: UserRole;
+  // The role *key* (e.g. "admin", or any custom role's key) — kept as a plain string for
+  // the handful of ownership checks that compare it directly (e.g. "is this caller an
+  // entreprise-type account"). Everything else should gate on `permissions`, not this.
+  role: string;
+  permissions: string[];
 }
 
 declare global {
@@ -33,12 +36,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  const profile = await prisma.profile.findUnique({ where: { id: data.user.id } });
+  const profile = await prisma.profile.findUnique({
+    where: { id: data.user.id },
+    include: { role: { include: { permissions: { include: { permission: true } } } } },
+  });
   if (!profile) {
     res.status(401).json({ error: "Profil introuvable pour cet utilisateur" });
     return;
   }
 
-  req.user = { id: profile.id, email: profile.email, role: profile.role };
+  req.user = {
+    id: profile.id,
+    email: profile.email,
+    role: profile.role.key,
+    permissions: profile.role.permissions.map((rp) => rp.permission.key),
+  };
   next();
 }

@@ -5,7 +5,7 @@ import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 export const programmesRouter = Router();
 // Listing/detail are public (a bug bounty catalogue browsable before signup, like the
@@ -88,7 +88,7 @@ programmesRouter.get(
 programmesRouter.post(
   "/",
   requireAuth,
-  requireRole("entreprise", "admin"),
+  requirePermission("programmes.create"),
   asyncHandler(async (req, res) => {
     const body = programmeSchema.parse(req.body);
     const entrepriseId = await resolveEntrepriseId(req.user!.id, req.user!.role, body.entrepriseId);
@@ -110,7 +110,7 @@ programmesRouter.post(
 programmesRouter.patch(
   "/:id",
   requireAuth,
-  requireRole("entreprise", "admin"),
+  requirePermission("programmes.update"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.programme.findUnique({ where: { id: req.params.id } });
     if (!existing) throw new HttpError(404, "Programme introuvable");
@@ -143,7 +143,7 @@ programmesRouter.patch(
 programmesRouter.delete(
   "/:id",
   requireAuth,
-  requireRole("admin"),
+  requirePermission("programmes.delete"),
   asyncHandler(async (req, res) => {
     const existing = await prisma.programme.findUnique({ where: { id: req.params.id } });
     if (!existing) throw new HttpError(404, "Programme introuvable");

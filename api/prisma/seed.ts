@@ -8,6 +8,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
+import { seedSystemRolesAndPermissions } from "../src/services/roles/seedSystemRoles.js";
 
 const prisma = new PrismaClient();
 const supabaseAdmin = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -38,6 +39,10 @@ async function resetDemoData() {
   await prisma.profile.deleteMany();
   await prisma.platformLog.deleteMany();
   await prisma.systemConfig.deleteMany();
+  // Custom roles created by test/roles.test.ts (or manual smoke-testing of /admin/roles)
+  // would otherwise also accumulate — the 6 system roles are reseeded right after this
+  // via seedSystemRolesAndPermissions, so it's safe to drop every non-system one first.
+  await prisma.role.deleteMany({ where: { isSystem: false } });
 
   let page = 1;
   while (true) {
@@ -50,7 +55,7 @@ async function resetDemoData() {
   }
 }
 
-async function createDemoUser(email: string, name: string, role: (typeof DEMO_USERS)[number]["role"]) {
+async function createDemoUser(email: string, name: string, roleId: string) {
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password: DEMO_PASSWORD,
@@ -59,7 +64,7 @@ async function createDemoUser(email: string, name: string, role: (typeof DEMO_US
   if (error || !data.user) throw new Error(`Failed to create auth user ${email}: ${error?.message}`);
 
   await prisma.profile.create({
-    data: { id: data.user.id, email, name, role },
+    data: { id: data.user.id, email, name, roleId },
   });
 
   return data.user.id;
@@ -68,10 +73,13 @@ async function createDemoUser(email: string, name: string, role: (typeof DEMO_US
 async function main() {
   await resetDemoData();
 
+  console.log("Seeding roles & permissions...");
+  const roleIds = await seedSystemRolesAndPermissions(prisma);
+
   console.log("Creating demo accounts...");
   const ids: Record<string, string> = {};
   for (const u of DEMO_USERS) {
-    ids[u.email] = await createDemoUser(u.email, u.name, u.role);
+    ids[u.email] = await createDemoUser(u.email, u.name, roleIds[u.role]);
   }
 
   console.log("Seeding hacker profiles...");

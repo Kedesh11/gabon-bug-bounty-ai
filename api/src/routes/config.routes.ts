@@ -5,7 +5,7 @@ import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requirePermission } from "../middleware/requirePermission.js";
 
 export const configRouter = Router();
 configRouter.use(requireAuth);
@@ -47,7 +47,7 @@ const updateConfigSchema = z.object({
 
 configRouter.patch(
   "/",
-  requireRole("admin"),
+  requirePermission("config.write"),
   asyncHandler(async (req, res) => {
     await getOrCreateConfig();
     const { maintenanceDurationHours, ...body } = updateConfigSchema.parse(req.body);
