@@ -1,7 +1,13 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
+import { useJsonContent } from "@/hooks/api/content";
 
-const sections = [
+interface LegalSection {
+  title: string;
+  content: string;
+}
+
+const DEFAULT_SECTIONS: LegalSection[] = [
   {
     title: "Éditeur de la plateforme",
     content:
@@ -25,6 +31,8 @@ const sections = [
 ];
 
 export default function MentionsLegales() {
+  const sections = useJsonContent<LegalSection[]>("mentions-legales.sections", DEFAULT_SECTIONS);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
