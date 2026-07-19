@@ -1,14 +1,34 @@
-import { FileText, Cpu, BarChart3, CheckCircle, Bell, ArrowRight } from "lucide-react";
+import { FileText, Cpu, BarChart3, CheckCircle, Bell, ArrowRight, type LucideIcon } from "lucide-react";
+import { useJsonContent } from "@/hooks/api/content";
 
-const steps = [
-  { icon: FileText, label: "Soumission", description: "Rapport envoyé par le hacker" },
-  { icon: Cpu, label: "Analyse MCP", description: "Classification automatique" },
-  { icon: BarChart3, label: "Évaluation", description: "Scoring de sévérité" },
-  { icon: CheckCircle, label: "Décision", description: "Accepter / Rejeter / Compléter" },
-  { icon: Bell, label: "Notification", description: "Organisation alertée" },
+interface WorkflowStep {
+  id: string;
+  label: string;
+  description: string;
+}
+
+// Icons are a display concern, not editable content — kept as a fixed local mapping
+// by step id instead of stored in ContentEntry (which only holds JSON-safe data).
+const STEP_ICONS: Record<string, LucideIcon> = {
+  submission: FileText,
+  analysis: Cpu,
+  evaluation: BarChart3,
+  decision: CheckCircle,
+  notification: Bell,
+};
+
+const DEFAULT_STEPS: WorkflowStep[] = [
+  { id: "submission", label: "Soumission", description: "Rapport envoyé par le hacker" },
+  { id: "analysis", label: "Analyse MCP", description: "Classification automatique" },
+  { id: "evaluation", label: "Évaluation", description: "Scoring de sévérité" },
+  { id: "decision", label: "Décision", description: "Accepter / Rejeter / Compléter" },
+  { id: "notification", label: "Notification", description: "Organisation alertée" },
 ];
 
 const WorkflowSection = () => {
+  const rawSteps = useJsonContent<WorkflowStep[]>("home.workflow-steps", DEFAULT_STEPS);
+  const steps = rawSteps.map((s) => ({ ...s, icon: STEP_ICONS[s.id] ?? FileText }));
+
   return (
     <section className="py-24 relative overflow-hidden">
       <div className="container px-4">
@@ -25,7 +45,7 @@ const WorkflowSection = () => {
         {/* Steps */}
         <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
           {steps.map((step, i) => (
-            <div key={i} className="flex items-center">
+            <div key={step.id} className="flex items-center">
               <div className="glass-card rounded-xl p-6 border-glow text-center min-w-[180px] hover:cyber-glow transition-all duration-300">
                 <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-3">
                   <step.icon className="w-6 h-6 text-primary" />

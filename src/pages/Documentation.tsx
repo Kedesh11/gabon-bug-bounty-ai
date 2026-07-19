@@ -1,12 +1,27 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
-import { Book, Shield, FileText, Terminal, ChevronRight } from "lucide-react";
+import { Book, Shield, FileText, Terminal, ChevronRight, type LucideIcon } from "lucide-react";
 import { useState } from "react";
+import { useJsonContent } from "@/hooks/api/content";
 
-const sections = [
+interface DocSection {
+  id: string;
+  title: string;
+  content: { subtitle: string; text: string }[];
+}
+
+// Icons are a display concern, not editable content — kept as a fixed local mapping
+// by section id instead of stored in ContentEntry (which only holds JSON-safe data).
+const SECTION_ICONS: Record<string, LucideIcon> = {
+  introduction: Book,
+  "getting-started": Terminal,
+  mcp: Shield,
+  rules: FileText,
+};
+
+const DEFAULT_SECTIONS: DocSection[] = [
   {
     id: "introduction",
-    icon: Book,
     title: "Introduction",
     content: [
       {
@@ -21,7 +36,6 @@ const sections = [
   },
   {
     id: "getting-started",
-    icon: Terminal,
     title: "Démarrage Rapide",
     content: [
       {
@@ -36,7 +50,6 @@ const sections = [
   },
   {
     id: "mcp",
-    icon: Shield,
     title: "Agents MCP",
     content: [
       {
@@ -51,7 +64,6 @@ const sections = [
   },
   {
     id: "rules",
-    icon: FileText,
     title: "Règles & Politiques",
     content: [
       {
@@ -67,9 +79,11 @@ const sections = [
 ];
 
 const Documentation = () => {
+  const rawSections = useJsonContent<DocSection[]>("documentation.sections", DEFAULT_SECTIONS);
+  const sections = rawSections.map((s) => ({ ...s, icon: SECTION_ICONS[s.id] ?? Book }));
   const [activeSection, setActiveSection] = useState("introduction");
 
-  const currentSection = sections.find((s) => s.id === activeSection)!;
+  const currentSection = sections.find((s) => s.id === activeSection) ?? sections[0];
 
   return (
     <div className="min-h-screen bg-background">
@@ -110,26 +124,28 @@ const Documentation = () => {
 
             {/* Content */}
             <div className="lg:col-span-3">
-              <div className="glass-card rounded-xl border-glow p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <currentSection.icon className="w-6 h-6 text-primary" />
-                  <h2 className="text-2xl font-bold text-foreground">{currentSection.title}</h2>
-                </div>
+              {currentSection && (
+                <div className="glass-card rounded-xl border-glow p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <currentSection.icon className="w-6 h-6 text-primary" />
+                    <h2 className="text-2xl font-bold text-foreground">{currentSection.title}</h2>
+                  </div>
 
-                <div className="space-y-8">
-                  {currentSection.content.map((block, i) => (
-                    <div key={i}>
-                      <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-                        <ChevronRight className="w-4 h-4 text-primary" />
-                        {block.subtitle}
-                      </h3>
-                      <div className="text-muted-foreground leading-relaxed whitespace-pre-line pl-6 border-l-2 border-primary/20">
-                        {block.text}
+                  <div className="space-y-8">
+                    {currentSection.content.map((block, i) => (
+                      <div key={i}>
+                        <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <ChevronRight className="w-4 h-4 text-primary" />
+                          {block.subtitle}
+                        </h3>
+                        <div className="text-muted-foreground leading-relaxed whitespace-pre-line pl-6 border-l-2 border-primary/20">
+                          {block.text}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
