@@ -24,6 +24,11 @@ import { useContent } from "@/hooks/api/content";
 
 export default function EntrepriseDashboard() {
   const pageTitle = useContent("entreprise.dashboard.title", "Corporate Shield");
+  const slaHeading = useContent("entreprise.dashboard.sla-heading", "Performance SLA");
+  const severityHeading = useContent("entreprise.dashboard.severity-heading", "Répartition par Sévérité");
+  const programmesHeading = useContent("entreprise.dashboard.programmes-heading", "État des Programmes");
+  const topResearchersHeading = useContent("entreprise.dashboard.top-researchers-heading", "Top Chercheurs");
+  const healthScoreHeading = useContent("entreprise.dashboard.health-score-heading", "Score de Santé Sécurité");
   const { user } = useAuth();
   const { data: programmes = [] } = useProgrammes();
   const { data: myReports = [] } = useReports();
@@ -106,7 +111,7 @@ export default function EntrepriseDashboard() {
               {/* SLA Performance */}
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <Timer className="w-4 h-4 text-primary" /> Performance SLA
+                  <Timer className="w-4 h-4 text-primary" /> {slaHeading}
                 </h3>
                 
                 <div className="space-y-6">
@@ -119,7 +124,7 @@ export default function EntrepriseDashboard() {
               {/* Vulnerability Distribution */}
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <PieChart className="w-4 h-4 text-accent" /> Répartition par Sévérité
+                  <PieChart className="w-4 h-4 text-accent" /> {severityHeading}
                 </h3>
                 
                 <div className="space-y-4 pt-2">
@@ -136,7 +141,7 @@ export default function EntrepriseDashboard() {
               <div className="lg:col-span-3 glass-card rounded-2xl border border-border overflow-hidden">
                 <div className="p-5 border-b border-border bg-secondary/30 flex items-center justify-between">
                   <h3 className="text-sm font-bold flex items-center gap-2">
-                    <LayoutDashboard className="w-4 h-4 text-primary" /> État des Programmes
+                    <LayoutDashboard className="w-4 h-4 text-primary" /> {programmesHeading}
                   </h3>
                 </div>
                 <div className="divide-y divide-border">
@@ -162,7 +167,7 @@ export default function EntrepriseDashboard() {
 
               <div className="lg:col-span-2 glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" /> Top Chercheurs
+                  <Users className="w-4 h-4 text-primary" /> {topResearchersHeading}
                 </h3>
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
@@ -186,7 +191,7 @@ export default function EntrepriseDashboard() {
           <div className="xl:col-span-1 space-y-6">
             <div className="glass-card rounded-2xl border border-border p-6 space-y-6 bg-gradient-to-br from-background to-secondary/30">
               <div className="text-center space-y-2">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Score de Santé Sécurité</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{healthScoreHeading}</h3>
                 <div className="relative inline-flex items-center justify-center">
                   <svg className="h-32 w-32">
                     <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-secondary" />

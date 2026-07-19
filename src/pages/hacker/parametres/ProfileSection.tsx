@@ -3,6 +3,7 @@ import { Save, UserCircle2, ImagePlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useContent } from "@/hooks/api/content";
 
 interface ProfileSectionProps {
   profileName: string;
@@ -23,11 +24,12 @@ export function ProfileSection({
   onAvatarChange,
   onSave,
 }: ProfileSectionProps) {
+  const heading = useContent("hacker.parametres.profile.heading", "Informations d'inscription");
   return (
     <div className="glass-card rounded-xl p-5 border-glow space-y-4">
       <div className="flex items-center gap-3">
         <UserCircle2 className="w-5 h-5 text-primary" />
-        <h2 className="text-sm font-semibold text-foreground">Informations d'inscription</h2>
+        <h2 className="text-sm font-semibold text-foreground">{heading}</h2>
       </div>
       <div className="flex items-center gap-4">
         {profileAvatar ? (

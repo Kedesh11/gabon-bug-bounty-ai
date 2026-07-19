@@ -28,8 +28,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
+import { useContent } from "@/hooks/api/content";
 
 export default function HackerProfil() {
+  const statsHeading = useContent("hacker.profil.stats-heading", "Statistiques Vitales");
+  const badgesHeading = useContent("hacker.profil.badges-heading", "Succès & Badges");
+  const configHeading = useContent("hacker.profil.config-heading", "Configuration du Profil");
+  const configSubtitle = useContent("hacker.profil.config-subtitle", "Gérez votre identité publique sur Gabon Bug Bounty AI.");
+  const nameHelp = useContent("hacker.profil.name-help", "C'est le nom qui sera affiché sur les leaderboards.");
+  const socialHeading = useContent("hacker.profil.social-heading", "Connexions Sociales");
   const { user, updateProfile } = useAuth();
   const { data: hackers = [] } = useHackers();
   const { data: myReports = [] } = useReports();
@@ -147,7 +154,7 @@ export default function HackerProfil() {
             
             {/* Detailed Stats */}
             <Card className="glass-card p-8 rounded-[32px] border-border space-y-8">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Statistiques Vitales</h3>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary">{statsHeading}</h3>
               
               <div className="space-y-6">
                 <div className="flex items-center justify-between group">
@@ -195,7 +202,7 @@ export default function HackerProfil() {
 
             {/* Badges Collection */}
             <Card className="glass-card p-8 rounded-[32px] border-border space-y-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-accent">Succès & Badges</h3>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-accent">{badgesHeading}</h3>
               <div className="grid grid-cols-4 gap-4">
                 <BadgeItem icon={<Zap className="text-yellow-400" />} label="First Blood" />
                 <BadgeItem icon={<ShieldCheck className="text-blue-400" />} label="Périmètre Sûr" />
@@ -212,8 +219,8 @@ export default function HackerProfil() {
             
             <Card className="glass-card p-10 rounded-[40px] border-border space-y-10">
               <div className="space-y-2">
-                <h2 className="text-2xl font-black tracking-tight">Configuration du Profil</h2>
-                <p className="text-sm text-muted-foreground">Gérez votre identité publique sur Gabon Bug Bounty AI.</p>
+                <h2 className="text-2xl font-black tracking-tight">{configHeading}</h2>
+                <p className="text-sm text-muted-foreground">{configSubtitle}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -226,7 +233,7 @@ export default function HackerProfil() {
                     maxLength={30}
                   />
                   {!validations.name && editName !== "" && <p className="text-[10px] text-destructive font-bold">3-30 caractères requis</p>}
-                  <p className="text-[10px] text-muted-foreground italic">C'est le nom qui sera affiché sur les leaderboards.</p>
+                  <p className="text-[10px] text-muted-foreground italic">{nameHelp}</p>
                 </div>
 
                 <div className="space-y-3">
@@ -283,7 +290,7 @@ export default function HackerProfil() {
 
             {/* Social Links Card */}
             <Card className="glass-card p-10 rounded-[40px] border-border space-y-8">
-              <h3 className="text-xl font-black tracking-tight">Connexions Sociales</h3>
+              <h3 className="text-xl font-black tracking-tight">{socialHeading}</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <SocialInput icon={<Github className="w-4 h-4" />} label="GitHub" placeholder="github.com/votre_pseudo" />
                 <SocialInput icon={<Twitter className="w-4 h-4" />} label="Twitter / X" placeholder="@votre_pseudo" />

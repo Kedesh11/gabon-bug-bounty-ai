@@ -97,6 +97,7 @@ const statusBadgeClass = (status: Programme["status"]) => {
 export default function EntrepriseProgrammes() {
   const pageTitle = useContent("entreprise.programmes.title", "Mes programmes");
   const emptyStateText = useContent("entreprise.programmes.empty-state", "Aucun programme créé");
+  const tiersHelp = useContent("entreprise.programmes.tiers-help", "Tiers de récompense par sévérité (optionnel)");
   const { user } = useAuth();
   const { data: programmes = [] } = useProgrammes();
   const createProgramme = useCreateProgramme();
@@ -309,7 +310,7 @@ export default function EntrepriseProgrammes() {
             </div>
 
             <div className="rounded-lg border border-border p-4 space-y-3">
-              <p className="text-xs text-muted-foreground font-mono">Tiers de récompense par sévérité (optionnel)</p>
+              <p className="text-xs text-muted-foreground font-mono">{tiersHelp}</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <Input placeholder="Critique min" value={form.critMin} onChange={(event) => setForm((prev) => ({ ...prev, critMin: event.target.value }))} className="bg-secondary border-border" />
                 <Input placeholder="Critique max" value={form.critMax} onChange={(event) => setForm((prev) => ({ ...prev, critMax: event.target.value }))} className="bg-secondary border-border" />

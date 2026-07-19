@@ -7,6 +7,7 @@ import { BankTransferFields } from "./fields/BankTransferFields";
 import { CardFields } from "./fields/CardFields";
 import { PaypalFields } from "./fields/PaypalFields";
 import { CryptoFields } from "./fields/CryptoFields";
+import { useContent } from "@/hooks/api/content";
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   mobile_money: "Mobile Money",
@@ -24,17 +25,20 @@ interface PaymentSectionProps {
 }
 
 export function PaymentSection({ config, setField, togglePaymentMethod, validations }: PaymentSectionProps) {
+  const heading = useContent("hacker.parametres.payment.heading", "Configuration paiement");
+  const gainsHelp = useContent("hacker.parametres.payment.gains-help", "Activez cette option pour recevoir vos paiements.");
+  const methodsHeading = useContent("hacker.parametres.payment.methods-heading", "Ajouter un ou plusieurs moyens de paiement");
   return (
     <>
       <div className="glass-card rounded-xl p-5 border-glow space-y-4">
         <div className="flex items-center gap-3">
           <Wallet className="w-5 h-5 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">Configuration paiement</h2>
+          <h2 className="text-sm font-semibold text-foreground">{heading}</h2>
         </div>
         <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary px-4 py-3">
           <div>
             <p className="text-sm font-semibold text-foreground">Activer les gains</p>
-            <p className="text-xs text-muted-foreground font-mono">Activez cette option pour recevoir vos paiements.</p>
+            <p className="text-xs text-muted-foreground font-mono">{gainsHelp}</p>
           </div>
           <Switch checked={config.gainsEnabled} onCheckedChange={(value) => setField("gainsEnabled", value)} />
         </div>
@@ -43,7 +47,7 @@ export function PaymentSection({ config, setField, togglePaymentMethod, validati
       <div className="glass-card rounded-xl p-5 border-glow space-y-5">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <ArrowDownToLine className="w-4 h-4 text-primary" />
-          Ajouter un ou plusieurs moyens de paiement
+          {methodsHeading}
         </h3>
 
         <div className="space-y-2">
