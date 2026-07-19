@@ -35,6 +35,16 @@ export function registerTestToken(token: string, userId: string) {
   tokenToUserId.set(token, userId);
 }
 
+// Storage: never hit real Supabase Storage from tests. Behaves like an always-empty,
+// always-succeeding bucket — good enough to exercise reportStorage.ts's own logic
+// (upload/signed-url calls happen for real against these mocks) without a live stack.
+export const storageMocks = {
+  listBuckets: vi.fn().mockResolvedValue({ data: [], error: null }),
+  createBucket: vi.fn().mockResolvedValue({ data: { name: "report-attachments" }, error: null }),
+  upload: vi.fn().mockResolvedValue({ data: { path: "mock-path" }, error: null }),
+  createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: "https://mock.local/signed" }, error: null }),
+};
+
 vi.mock("../src/lib/supabaseAdmin.js", () => ({
   supabaseAdmin: {
     auth: {
@@ -51,6 +61,14 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
         listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
       },
       signInWithPassword: vi.fn(),
+    },
+    storage: {
+      listBuckets: storageMocks.listBuckets,
+      createBucket: storageMocks.createBucket,
+      from: vi.fn(() => ({
+        upload: storageMocks.upload,
+        createSignedUrl: storageMocks.createSignedUrl,
+      })),
     },
   },
 }));
@@ -81,7 +99,11 @@ vi.mock("../src/services/payments/stripe/client.js", () => ({
   },
 }));
 
-export const cinetpayFetchMock = vi.fn();
+// Defaults to the real fetch so unrelated code that happens to call fetch (e.g.
+// @react-pdf/renderer's yoga-layout WASM loader) keeps working; CinetPay tests
+// override this explicitly per-call via mockResolvedValue(Once), which still wins.
+const realFetch = globalThis.fetch;
+export const cinetpayFetchMock = vi.fn(realFetch);
 vi.stubGlobal("fetch", cinetpayFetchMock);
 
 export function jsonResponse(body: unknown, ok = true) {

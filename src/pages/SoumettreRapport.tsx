@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProgrammes } from "@/hooks/api/programmes";
-import { useCreateReport } from "@/hooks/api/reports";
+import { useCreateReport, useUploadReportPdf } from "@/hooks/api/reports";
 import { useVulnerabilityCategories } from "@/hooks/api/taxonomy";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { broadcastGlobalNotification } from "@/lib/globalNotifications";
@@ -43,6 +43,7 @@ const SoumettreRapport = () => {
   const { data: programmes = [] } = useProgrammes();
   const { data: vulnerabilityCategories = [] } = useVulnerabilityCategories();
   const createReport = useCreateReport();
+  const uploadReportPdf = useUploadReportPdf();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -165,7 +166,7 @@ const SoumettreRapport = () => {
     setSubmitting(true);
     try {
       const selectedCategory = vulnerabilityCategories.find(c => c.id === form.vulnerabilityCategoryId);
-      await createReport.mutateAsync({
+      const created = await createReport.mutateAsync({
         title: form.title.trim(),
         description: form.description.trim(),
         severity: form.severity,
@@ -181,6 +182,14 @@ const SoumettreRapport = () => {
         impact: `Impact technique:\n${form.technicalImpact.trim() || "Non spécifié"}\n\nImpact métier:\n${form.businessImpact.trim() || "Non spécifié"}`,
         remediation: form.remediation.trim() || undefined,
       });
+
+      try {
+        await uploadReportPdf.mutateAsync({ reportId: created.id, file: pdfFile });
+      } catch {
+        // The report itself was created successfully; only the attachment failed.
+        // Surface it distinctly rather than failing the whole submission.
+        toast.error("Rapport soumis, mais l'envoi du PDF a échoué. Contactez le support pour le transmettre.");
+      }
 
       if (form.severity === "critique") {
         broadcastGlobalNotification({
@@ -306,7 +315,7 @@ const SoumettreRapport = () => {
                       </div>
 
                       <div className="space-y-3 relative" ref={vrtRef}>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Catégorie VRT (Taxonomie) *</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Catégorie Vulnérabilité (Taxonomie) *</label>
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input 
@@ -322,35 +331,35 @@ const SoumettreRapport = () => {
                           />
                         </div>
                         
-                        {showVrtSuggestions && (
-                          <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-xl shadow-2xl max-h-[250px] overflow-y-auto glass-card">
-                            {filteredVrt.length > 0 ? (
-                              filteredVrt.map((c) => (
-                                <button
-                                  key={c.id}
-                                  onClick={() => {
-                                    setVrtSearch(c.name);
-                                    setShowVrtSuggestions(false);
-                                    setForm(prev => ({
-                                      ...prev,
-                                      vulnerabilityCategoryId: c.id,
-                                      vulnerability: prev.vulnerability || (c.cweId ? `${c.name} (${c.cweId})` : c.name),
-                                      severity: (c.defaultSeverity as Report["severity"]) || prev.severity,
-                                    }));
-                                  }}
-                                  className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-primary/10 transition-colors border-b border-border last:border-0"
-                                >
-                                  {c.name}
-                                  {c.cweId && <span className="ml-2 text-[9px] font-mono text-muted-foreground">{c.cweId}</span>}
-                                </button>
-                              ))
-                            ) : (
-                              <div className="p-4 text-center text-xs text-muted-foreground">
-                                Aucune catégorie correspondante
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          {showVrtSuggestions && (
+                            <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-xl shadow-2xl max-h-[250px] overflow-y-auto glass-card">
+                              {filteredVrt.length > 0 ? (
+                                filteredVrt.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    onClick={() => {
+                                      setVrtSearch(c.name);
+                                      setShowVrtSuggestions(false);
+                                      setForm(prev => ({
+                                        ...prev,
+                                        vulnerabilityCategoryId: c.id,
+                                        vulnerability: prev.vulnerability || (c.cweId ? `${c.name} (${c.cweId})` : c.name),
+                                        severity: (c.defaultSeverity as Report["severity"]) || prev.severity,
+                                      }));
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-primary/10 transition-colors border-b border-border last:border-0"
+                                  >
+                                    {c.name}
+                                    {c.cweId && <span className="ml-2 text-[9px] font-mono text-muted-foreground">{c.cweId}</span>}
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="p-4 text-center text-xs text-muted-foreground">
+                                  Aucune catégorie correspondante
+                                </div>
+                              )}
+                            </div>
+                          )}
                       </div>
 
                       <div className="space-y-3">

@@ -3,6 +3,8 @@ import { prisma } from "../../prisma.js";
 import { HttpError } from "../../middleware/errorHandler.js";
 import type { AuthenticatedUser } from "../../middleware/auth.js";
 import { findEarlierDuplicate } from "./duplicateDetection.js";
+import { uploadReportPdf } from "./reportStorage.js";
+import type { ReportPdfData } from "./reportPdf.js";
 
 export const reportInclude = {
   hacker: { include: { profile: true } },
@@ -151,4 +153,55 @@ export async function deleteReport(id: string) {
   const existing = await prisma.report.findUnique({ where: { id } });
   if (!existing) throw new HttpError(404, "Rapport introuvable");
   await prisma.report.delete({ where: { id } });
+}
+
+// Only the hacker who submitted the report may attach its supporting PDF — this is
+// part of their own submission, not something triage/admin do on their behalf.
+export async function attachReportPdf(
+  reportId: string,
+  userId: string,
+  file: { buffer: Buffer; originalname: string; mimetype: string },
+) {
+  const report = await prisma.report.findUnique({ where: { id: reportId } });
+  if (!report) throw new HttpError(404, "Rapport introuvable");
+
+  const hacker = await prisma.hackerProfile.findUnique({ where: { profileId: userId } });
+  if (!hacker || hacker.id !== report.hackerId) {
+    throw new HttpError(403, "Vous ne pouvez joindre un PDF qu'à vos propres rapports");
+  }
+
+  const { path } = await uploadReportPdf(reportId, file);
+
+  return prisma.report.update({
+    where: { id: reportId },
+    data: { pdfPath: path, pdfFileName: file.originalname, pdfUploadedAt: new Date() },
+    include: reportInclude,
+  });
+}
+
+type ReportWithIncludes = Awaited<ReturnType<typeof getReportById>>;
+
+// Maps the Prisma report shape (reportInclude) onto the flat data the PDF renderer
+// needs — kept here rather than in reportPdf.tsx so that file has no Prisma dependency.
+export function toReportPdfData(report: ReportWithIncludes): ReportPdfData {
+  return {
+    id: report.id,
+    title: report.title,
+    description: report.description,
+    severity: report.severity,
+    status: report.status,
+    createdAt: report.createdAt,
+    hackerName: report.hacker.profile.name,
+    programmeName: report.programme.name,
+    vulnerabilityCategoryName: report.vulnerabilityCategory?.name ?? null,
+    cweId: report.vulnerabilityCategory?.cweId ?? null,
+    cvssScore: report.cvssScore,
+    cvssVector: report.cvssVector,
+    affectedAsset: report.affectedAsset,
+    stepsToReproduce: report.stepsToReproduce,
+    impact: report.impact,
+    remediation: report.remediation,
+    proof: report.proof,
+    isDuplicate: report.aiAnalysis?.isDuplicate ?? false,
+  };
 }
