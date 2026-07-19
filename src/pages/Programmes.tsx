@@ -20,8 +20,9 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProgrammes } from "@/hooks/api/programmes";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useJsonContent } from "@/hooks/api/content";
 
-const FILTERS = ["Tous", "Web", "API", "Mobile", "Infrastructure", "Private", "VDP"] as const;
+const DEFAULT_FILTERS = ["Tous", "Web", "API", "Mobile", "Infrastructure", "Private", "VDP"];
 
 const severityColor = (maxReward: number) => {
   if (maxReward >= 5000000) return "text-destructive border-destructive/20 bg-destructive/10";
@@ -30,6 +31,7 @@ const severityColor = (maxReward: number) => {
 };
 
 const Programmes = () => {
+  const FILTERS = useJsonContent<string[]>("programmes.filters", DEFAULT_FILTERS);
   const { data: programmes = [] } = useProgrammes();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<string>("Tous");

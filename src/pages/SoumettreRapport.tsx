@@ -30,16 +30,36 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Report } from "@/types/domain";
+import { useJsonContent } from "@/hooks/api/content";
 
-const SEVERITY_LEVELS: Array<{ value: Report["severity"]; label: string; color: string; description: string }> = [
-  { value: "critique", label: "Critique", color: "bg-destructive text-destructive-foreground", description: "Contrôle total, RCE, accès DB total" },
-  { value: "haute", label: "Haute", color: "bg-orange-500 text-white", description: "Accès données sensibles, IDOR critique" },
-  { value: "moyenne", label: "Moyenne", color: "bg-yellow-500 text-black", description: "Impact partiel, contournement mineur" },
-  { value: "faible", label: "Faible", color: "bg-blue-500 text-white", description: "Impact limité, exposition faible" },
-  { value: "info", label: "Info", color: "bg-slate-500 text-white", description: "Best practices, info non sensible" },
+interface SeverityLevelContent {
+  value: Report["severity"];
+  label: string;
+  description: string;
+}
+
+// The Tailwind color class is a styling concern tied to the value (the actual
+// Report["severity"] enum), not editable content — kept as a fixed local mapping
+// instead of stored in ContentEntry. Only label/description are admin-editable.
+const SEVERITY_COLORS: Record<Report["severity"], string> = {
+  critique: "bg-destructive text-destructive-foreground",
+  haute: "bg-orange-500 text-white",
+  moyenne: "bg-yellow-500 text-black",
+  faible: "bg-blue-500 text-white",
+  info: "bg-slate-500 text-white",
+};
+
+const DEFAULT_SEVERITY_LEVELS: SeverityLevelContent[] = [
+  { value: "critique", label: "Critique", description: "Contrôle total, RCE, accès DB total" },
+  { value: "haute", label: "Haute", description: "Accès données sensibles, IDOR critique" },
+  { value: "moyenne", label: "Moyenne", description: "Impact partiel, contournement mineur" },
+  { value: "faible", label: "Faible", description: "Impact limité, exposition faible" },
+  { value: "info", label: "Info", description: "Best practices, info non sensible" },
 ];
 
 const SoumettreRapport = () => {
+  const rawSeverityLevels = useJsonContent<SeverityLevelContent[]>("soumettre-rapport.severity-levels", DEFAULT_SEVERITY_LEVELS);
+  const SEVERITY_LEVELS = rawSeverityLevels.map((lvl) => ({ ...lvl, color: SEVERITY_COLORS[lvl.value] }));
   const { data: programmes = [] } = useProgrammes();
   const { data: vulnerabilityCategories = [] } = useVulnerabilityCategories();
   const createReport = useCreateReport();
