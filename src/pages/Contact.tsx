@@ -7,8 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Mail, Phone } from "lucide-react";
+import { useContent } from "@/hooks/api/content";
 
 export default function Contact() {
+  const contactEmail = useContent("contact.email", "contact@bugbounty.com");
+  const contactPhone = useContent("contact.phone", "+241 00 00 00 00");
+  const intro = useContent("contact.intro", "Une question sur la plateforme ? Envoyez-nous un message.");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -35,15 +39,15 @@ export default function Contact() {
           <div className="text-center mb-10">
             <span className="font-mono text-primary text-sm tracking-widest uppercase">Support</span>
             <h1 className="text-4xl md:text-5xl font-black mt-3 mb-4 text-foreground">Contact</h1>
-            <p className="text-muted-foreground">Une question sur la plateforme ? Envoyez-nous un message.</p>
+            <p className="text-muted-foreground">{intro}</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="glass-card rounded-xl border-glow p-5 lg:col-span-1 space-y-4">
               <h2 className="text-sm font-semibold text-foreground">Canaux</h2>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-primary" /> contact@bugbounty.com</p>
-                <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> +241 00 00 00 00</p>
+                <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-primary" /> {contactEmail}</p>
+                <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> {contactPhone}</p>
               </div>
             </div>
 

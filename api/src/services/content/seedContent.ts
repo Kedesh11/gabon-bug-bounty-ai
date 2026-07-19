@@ -121,6 +121,25 @@ const DEFAULT_JSON_ENTRIES: Record<string, unknown> = {
     { step: "5", label: "Recommandation", desc: "Enrichissement si nécessaire" },
     { step: "6", label: "Décision", desc: "Suggestion soumise à la triage" },
   ],
+  "soumettre-rapport.severity-levels": [
+    { value: "critique", label: "Critique", description: "Contrôle total, RCE, accès DB total" },
+    { value: "haute", label: "Haute", description: "Accès données sensibles, IDOR critique" },
+    { value: "moyenne", label: "Moyenne", description: "Impact partiel, contournement mineur" },
+    { value: "faible", label: "Faible", description: "Impact limité, exposition faible" },
+    { value: "info", label: "Info", description: "Best practices, info non sensible" },
+  ],
+  "programmes.filters": ["Tous", "Web", "API", "Mobile", "Infrastructure", "Private", "VDP"],
+};
+
+// Flat text entries, same "seeded so the admin editor starts pre-populated" rationale
+// as DEFAULT_JSON_ENTRIES above.
+const DEFAULT_TEXT_ENTRIES: Record<string, string> = {
+  "contact.email": "contact@bugbounty.com",
+  "contact.phone": "+241 00 00 00 00",
+  "contact.intro": "Une question sur la plateforme ? Envoyez-nous un message.",
+  "home.hero.title-line1": "Bug Bounty",
+  "home.hero.title-line2": "Gabon",
+  "home.hero.subtitle": "Système collaboratif de cybersécurité propulsé par des agents MCP intelligents. Protégez vos infrastructures numériques avec les meilleurs hackers éthiques.",
 };
 
 export async function seedContentDefaults(prisma: PrismaClient) {
@@ -146,6 +165,13 @@ export async function seedContentDefaults(prisma: PrismaClient) {
     const exists = await prisma.contentEntry.findUnique({ where: { key } });
     if (!exists) {
       await prisma.contentEntry.create({ data: { key, type: "json", value: JSON.stringify(value) } });
+    }
+  }
+
+  for (const [key, value] of Object.entries(DEFAULT_TEXT_ENTRIES)) {
+    const exists = await prisma.contentEntry.findUnique({ where: { key } });
+    if (!exists) {
+      await prisma.contentEntry.create({ data: { key, type: "text", value } });
     }
   }
 }

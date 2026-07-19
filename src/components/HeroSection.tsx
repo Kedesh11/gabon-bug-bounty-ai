@@ -1,8 +1,16 @@
 import { Shield, ChevronRight, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useContent } from "@/hooks/api/content";
 
 const HeroSection = () => {
+  const titleLine1 = useContent("home.hero.title-line1", "Bug Bounty");
+  const titleLine2 = useContent("home.hero.title-line2", "Gabon");
+  const subtitle = useContent(
+    "home.hero.subtitle",
+    "Système collaboratif de cybersécurité propulsé par des agents MCP intelligents. Protégez vos infrastructures numériques avec les meilleurs hackers éthiques.",
+  );
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden grid-pattern">
       {/* Ambient glow */}
@@ -18,15 +26,13 @@ const HeroSection = () => {
 
         {/* Title */}
         <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight mb-6 leading-[0.95]">
-          <span className="text-foreground">Bug Bounty</span>
+          <span className="text-foreground">{titleLine1}</span>
           <br />
-          <span className="text-gradient-cyber">Gabon</span>
+          <span className="text-gradient-cyber">{titleLine2}</span>
         </h1>
 
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          Système collaboratif de cybersécurité propulsé par des{" "}
-          <span className="text-primary font-semibold">agents MCP intelligents</span>.
-          Protégez vos infrastructures numériques avec les meilleurs hackers éthiques.
+          {subtitle}
         </p>
 
         {/* CTA */}
