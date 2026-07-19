@@ -1,3 +1,4 @@
+import { env } from "../../../env.js";
 import { z } from "zod";
 import { runAgent, GROUNDING_INSTRUCTION } from "./shared.js";
 import { formatReportContextForPrompt } from "../reportContext.js";
@@ -5,7 +6,7 @@ import type { ReportContext } from "../types.js";
 import type { SeverityOutput } from "./severity.js";
 import type { DecisionOutput } from "./decision.js";
 
-export const MODEL = "openai/gpt-4o-mini";
+export const MODEL = env.OPENROUTER_MODEL_CHATGPT;
 
 export const rewardSchema = z.object({
   // null when suggestedStatus isn't "accepte" — no reward to suggest for a rejected/pending report.

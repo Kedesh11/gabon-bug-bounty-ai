@@ -1,10 +1,11 @@
+import { env } from "../../../env.js";
 import { z } from "zod";
 import { runAgent, GROUNDING_INSTRUCTION } from "./shared.js";
 import { formatReportContextForPrompt } from "../reportContext.js";
 import type { ReportContext } from "../types.js";
 import type { ClassificationOutput } from "./classification.js";
 
-export const MODEL = "deepseek/deepseek-chat";
+export const MODEL = env.OPENROUTER_MODEL_DEEPSEEK;
 
 export const severitySchema = z.object({
   severity: z.enum(["critique", "haute", "moyenne", "faible", "info"]),

@@ -1,10 +1,11 @@
+import { env } from "../../../env.js";
 import { z } from "zod";
 import { runAgent, GROUNDING_INSTRUCTION } from "./shared.js";
 import { formatReportContextForPrompt } from "../reportContext.js";
 import type { ReportContext } from "../types.js";
 import type { ClassificationOutput } from "./classification.js";
 
-export const MODEL = "moonshotai/kimi-k2";
+export const MODEL = env.OPENROUTER_MODEL_KIMI;
 
 export const recommendationSchema = z.object({
   // True if the hacker's own `remediation` field is already substantial —

@@ -1,3 +1,4 @@
+import { env } from "../../../env.js";
 import { z } from "zod";
 import { runAgent, GROUNDING_INSTRUCTION } from "./shared.js";
 import { formatReportContextForPrompt } from "../reportContext.js";
@@ -7,7 +8,7 @@ import type { SeverityOutput } from "./severity.js";
 import type { FalsePositiveOutput } from "./falsePositive.js";
 import type { AntiFraudOutput } from "./antiFraud.js";
 
-export const MODEL = "openai/gpt-4o-mini";
+export const MODEL = env.OPENROUTER_MODEL_CHATGPT;
 
 export const decisionSchema = z.object({
   // "en_analyse" = needs more information from the hacker before a call can be made.

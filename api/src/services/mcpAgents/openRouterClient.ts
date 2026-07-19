@@ -1,7 +1,5 @@
 import { env } from "../../env.js";
 
-const CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
-
 function requireOpenRouterCredentials() {
   if (!env.OPENROUTER_API_KEY) {
     throw new Error("OpenRouter non configuré (OPENROUTER_API_KEY manquant) — voir api/.env.example");
@@ -34,18 +32,23 @@ export async function callOpenRouter(model: string, messages: ChatMessage[]): Pr
   const apiKey = requireOpenRouterCredentials();
   const startedAt = Date.now();
 
-  const res = await fetch(CHAT_COMPLETIONS_URL, {
+  const res = await fetch(env.OPENROUTER_BASE_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": env.OPENROUTER_SITE_URL,
-      "X-Title": "Gabon Bug Bounty AI — MCP Agents",
+      // Header values must be Latin-1/ByteString — no em-dash or other non-ASCII here.
+      "X-Title": "Gabon Bug Bounty AI - MCP Agents",
     },
     body: JSON.stringify({
       model,
       messages,
       response_format: { type: "json_object" },
+      // Every agent returns a handful of short JSON fields — without a cap some
+      // models default to their full context window (Kimi K2: 65536), which some
+      // OpenRouter accounts don't have the credit balance to cover.
+      max_tokens: 2000,
     }),
   });
 

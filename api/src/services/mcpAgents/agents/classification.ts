@@ -1,9 +1,10 @@
+import { env } from "../../../env.js";
 import { z } from "zod";
 import { runAgent, GROUNDING_INSTRUCTION } from "./shared.js";
 import { formatReportContextForPrompt } from "../reportContext.js";
 import type { ReportContext } from "../types.js";
 
-export const MODEL = "deepseek/deepseek-chat";
+export const MODEL = env.OPENROUTER_MODEL_DEEPSEEK;
 
 export const classificationSchema = z.object({
   // Key of an existing VulnerabilityCategory (e.g. "xss.stored"), or null if none fit.
