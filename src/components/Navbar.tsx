@@ -4,11 +4,42 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
 import { resolveDashboardPath } from "@/lib/roleNav";
+import { useNavbarItems, type NavbarItem } from "@/hooks/api/content";
+import { usePublicPlatformName } from "@/hooks/api/config";
+
+// Shown while the real navbar-items query is loading/unavailable, so the navbar
+// never flashes empty — matches what /admin/contenu seeds by default.
+const FALLBACK_ITEMS: Pick<NavbarItem, "label" | "url" | "isExternal">[] = [
+  { label: "Programmes", url: "/programmes", isExternal: false },
+  { label: "Soumettre Rapport", url: "/soumettre-rapport", isExternal: false },
+  { label: "Hackers", url: "/hackers", isExternal: false },
+  { label: "Agents MCP", url: "/mcp-agents", isExternal: false },
+  { label: "Documentation", url: "/documentation", isExternal: false },
+];
+
+function NavLink({ item, className, onClick }: { item: Pick<NavbarItem, "label" | "url" | "isExternal">; className: string; onClick?: () => void }) {
+  if (item.isExternal) {
+    return (
+      <a href={item.url} target="_blank" rel="noopener noreferrer" className={className} onClick={onClick}>
+        {item.label}
+      </a>
+    );
+  }
+  return (
+    <Link to={item.url} className={className} onClick={onClick}>
+      {item.label}
+    </Link>
+  );
+}
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const { data: navItems } = useNavbarItems();
+  const { data: platformName } = usePublicPlatformName();
+  const items = navItems ?? FALLBACK_ITEMS;
+  const brandName = platformName ?? "Bug Bounty";
 
   const handleLogout = () => {
     logout();
@@ -21,16 +52,14 @@ const Navbar = () => {
       <div className="container px-4 flex items-center justify-between h-16">
         <Link to="/" className="flex items-center gap-2">
           <Shield className="w-6 h-6 text-primary" />
-          <span className="font-black text-lg text-foreground">Bug Bounty</span>
+          <span className="font-black text-lg text-foreground">{brandName}</span>
         </Link>
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-8">
-          <Link to="/programmes" className="text-sm text-muted-foreground hover:text-primary transition-colors">Programmes</Link>
-          <Link to="/soumettre-rapport" className="text-sm text-muted-foreground hover:text-primary transition-colors">Soumettre Rapport</Link>
-          <Link to="/hackers" className="text-sm text-muted-foreground hover:text-primary transition-colors">Hackers</Link>
-          <Link to="/mcp-agents" className="text-sm text-muted-foreground hover:text-primary transition-colors">Agents MCP</Link>
-          <Link to="/documentation" className="text-sm text-muted-foreground hover:text-primary transition-colors">Documentation</Link>
+          {items.map((item) => (
+            <NavLink key={item.url + item.label} item={item} className="text-sm text-muted-foreground hover:text-primary transition-colors" />
+          ))}
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">
               <Link to={resolveDashboardPath(user)}>
@@ -60,11 +89,14 @@ const Navbar = () => {
       {/* Mobile menu */}
       {open && (
         <div className="md:hidden glass-card border-t border-border px-4 py-4 space-y-3">
-          <Link to="/programmes" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Programmes</Link>
-          <Link to="/soumettre-rapport" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Soumettre Rapport</Link>
-          <Link to="/hackers" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Hackers</Link>
-          <Link to="/mcp-agents" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">MCP Agents</Link>
-          <Link to="/documentation" onClick={() => setOpen(false)} className="block text-sm text-muted-foreground hover:text-primary">Documentation</Link>
+          {items.map((item) => (
+            <NavLink
+              key={item.url + item.label}
+              item={item}
+              className="block text-sm text-muted-foreground hover:text-primary"
+              onClick={() => setOpen(false)}
+            />
+          ))}
           {isAuthenticated && user ? (
             <>
               <Link to={resolveDashboardPath(user)} onClick={() => setOpen(false)} className="block text-sm text-primary font-semibold">Tableau de bord</Link>

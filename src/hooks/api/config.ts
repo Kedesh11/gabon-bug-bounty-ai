@@ -54,6 +54,19 @@ export function useUpdateConfig() {
   });
 }
 
+// Public: just the brand name, for pages rendered before/without any session
+// (Navbar, FooterSection) — GET /api/config requires auth, this endpoint doesn't.
+export function usePublicPlatformName() {
+  return useQuery({
+    queryKey: ["config", "public"],
+    queryFn: async () => {
+      const { platformName } = await apiFetch<{ platformName: string }>("/api/config/public");
+      return platformName;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 interface MaintenanceStatus {
   active: boolean;
   maintenanceUntil: string | null;

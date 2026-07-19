@@ -42,6 +42,7 @@ const AdminKnowledgeBase = lazy(() => import("./pages/admin/AdminKnowledgeBase")
 const AdminRoles = lazy(() => import("./pages/admin/AdminRoles"));
 const AdminFraud = lazy(() => import("./pages/admin/AdminFraud"));
 const AdminTaxonomy = lazy(() => import("./pages/admin/AdminTaxonomy"));
+const AdminContenu = lazy(() => import("./pages/admin/AdminContenu"));
 
 // Hacker
 const HackerDashboard = lazy(() => import("./pages/hacker/HackerDashboard"));
@@ -107,6 +108,7 @@ const App = () => (
                   <Route path="/admin/roles" element={<ProtectedRoute permissions={["roles.manage"]}><AdminRoles /></ProtectedRoute>} />
                   <Route path="/admin/fraude" element={<ProtectedRoute permissions={["fraud.review"]}><AdminFraud /></ProtectedRoute>} />
                   <Route path="/admin/taxonomie" element={<ProtectedRoute permissions={["taxonomy.manage"]}><AdminTaxonomy /></ProtectedRoute>} />
+                  <Route path="/admin/contenu" element={<ProtectedRoute permissions={["content.manage"]}><AdminContenu /></ProtectedRoute>} />
 
                   {/* Hacker Routes */}
                   <Route path="/hacker" element={<ProtectedRoute roles={["hacker"]}><HackerDashboard /></ProtectedRoute>} />

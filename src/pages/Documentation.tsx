@@ -1,6 +1,6 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
-import { Book, Code, Shield, FileText, Terminal, ChevronRight } from "lucide-react";
+import { Book, Shield, FileText, Terminal, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 const sections = [
@@ -31,21 +31,6 @@ const sections = [
       {
         subtitle: "Pour les Organisations",
         text: "1. Inscrivez votre organisation\n2. Définissez le périmètre de test (scope)\n3. Configurez les récompenses par niveau de sévérité\n4. Publiez votre programme\n5. Recevez et traitez les rapports via le tableau de bord"
-      },
-    ],
-  },
-  {
-    id: "api",
-    icon: Code,
-    title: "API & Intégration",
-    content: [
-      {
-        subtitle: "Authentification",
-        text: "L'API utilise des tokens JWT pour l'authentification. Chaque requête doit inclure un header Authorization: Bearer <token>. Les tokens sont générés lors de la connexion et ont une durée de validité de 24 heures."
-      },
-      {
-        subtitle: "Endpoints principaux",
-        text: "POST /api/reports — Soumettre un rapport\nGET /api/reports/:id — Consulter un rapport\nGET /api/programs — Lister les programmes\nPOST /api/programs — Créer un programme (organisation)\nGET /api/leaderboard — Classement des hackers"
       },
     ],
   },

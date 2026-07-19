@@ -7,6 +7,19 @@ import { requirePermission } from "../middleware/requirePermission.js";
 import { getOrCreateConfig, updateConfig } from "../services/config/configService.js";
 
 export const configRouter = Router();
+
+// Deliberately unauthenticated and registered before the requireAuth gate below:
+// public pages (Navbar/FooterSection) need the platform name before any session
+// exists, same posture as maintenance.routes.ts. Only the brand name is exposed —
+// every other SystemConfig field stays behind requireAuth.
+configRouter.get(
+  "/public",
+  asyncHandler(async (_req, res) => {
+    const config = await getOrCreateConfig();
+    res.json({ platformName: config.platformName });
+  }),
+);
+
 configRouter.use(requireAuth);
 
 configRouter.get(
