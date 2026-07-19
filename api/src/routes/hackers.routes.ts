@@ -1,27 +1,27 @@
 import { Router } from "express";
 import { z } from "zod";
 import { CardBrand, CryptoType, HackerStatus, MobileMoneyProvider, PaymentMethod, PreferredCurrency } from "@prisma/client";
-import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import {
+  getOwnPaymentConfig,
+  updateOwnPaymentConfig,
+  updateOwnHacker,
+  listHackers,
+  getHackerById,
+  updateHacker,
+  deleteHacker,
+} from "../services/hackers/hackersService.js";
 
 export const hackersRouter = Router();
 hackersRouter.use(requireAuth);
-
-async function getOwnHackerProfile(userId: string) {
-  const hacker = await prisma.hackerProfile.findUnique({ where: { profileId: userId } });
-  if (!hacker) throw new HttpError(403, "Aucun profil hacker associé à ce compte");
-  return hacker;
-}
 
 hackersRouter.get(
   "/me/payment-config",
   requirePermission("hackers.self.manage"),
   asyncHandler(async (req, res) => {
-    const hacker = await getOwnHackerProfile(req.user!.id);
-    const config = await prisma.hackerPaymentConfig.findUnique({ where: { hackerId: hacker.id } });
+    const config = await getOwnPaymentConfig(req.user!.id);
     res.json({ config });
   }),
 );
@@ -57,15 +57,8 @@ hackersRouter.patch(
   "/me/payment-config",
   requirePermission("hackers.self.manage"),
   asyncHandler(async (req, res) => {
-    const hacker = await getOwnHackerProfile(req.user!.id);
     const body = paymentConfigSchema.parse(req.body);
-
-    const config = await prisma.hackerPaymentConfig.upsert({
-      where: { hackerId: hacker.id },
-      update: body,
-      create: { hackerId: hacker.id, ...body },
-    });
-
+    const config = await updateOwnPaymentConfig(req.user!.id, body);
     res.json({ config });
   }),
 );
@@ -74,31 +67,20 @@ const updateOwnHackerSchema = z.object({
   specialties: z.array(z.string()).optional(),
 });
 
-// Self-service subset of updateHackerSchema below — a hacker can edit their own
-// specialties, but reputation/bugsFound/totalRewards/rank/status stay admin-only
-// (they're computed/trust signals, not something the hacker should set themselves).
 hackersRouter.patch(
   "/me",
   requirePermission("hackers.self.manage"),
   asyncHandler(async (req, res) => {
-    const hacker = await getOwnHackerProfile(req.user!.id);
     const body = updateOwnHackerSchema.parse(req.body);
-    const updated = await prisma.hackerProfile.update({
-      where: { id: hacker.id },
-      data: body,
-      include: { profile: true, badges: true },
-    });
-    res.json({ hacker: updated });
+    const hacker = await updateOwnHacker(req.user!.id, body);
+    res.json({ hacker });
   }),
 );
 
 hackersRouter.get(
   "/",
-  asyncHandler(async (req, res) => {
-    const hackers = await prisma.hackerProfile.findMany({
-      include: { profile: true, badges: true },
-      orderBy: { reputation: "desc" },
-    });
+  asyncHandler(async (_req, res) => {
+    const hackers = await listHackers();
     res.json({ hackers });
   }),
 );
@@ -106,11 +88,7 @@ hackersRouter.get(
 hackersRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
-    const hacker = await prisma.hackerProfile.findUnique({
-      where: { id: req.params.id },
-      include: { profile: true, badges: true },
-    });
-    if (!hacker) throw new HttpError(404, "Hacker introuvable");
+    const hacker = await getHackerById(req.params.id);
     res.json({ hacker });
   }),
 );
@@ -128,15 +106,8 @@ hackersRouter.patch(
   "/:id",
   requirePermission("hackers.manage"),
   asyncHandler(async (req, res) => {
-    const existing = await prisma.hackerProfile.findUnique({ where: { id: req.params.id } });
-    if (!existing) throw new HttpError(404, "Hacker introuvable");
-
     const body = updateHackerSchema.parse(req.body);
-    const hacker = await prisma.hackerProfile.update({
-      where: { id: req.params.id },
-      data: body,
-      include: { profile: true, badges: true },
-    });
+    const hacker = await updateHacker(req.params.id, body);
     res.json({ hacker });
   }),
 );
@@ -145,9 +116,7 @@ hackersRouter.delete(
   "/:id",
   requirePermission("hackers.manage"),
   asyncHandler(async (req, res) => {
-    const existing = await prisma.hackerProfile.findUnique({ where: { id: req.params.id } });
-    if (!existing) throw new HttpError(404, "Hacker introuvable");
-    await prisma.hackerProfile.delete({ where: { id: req.params.id } });
+    await deleteHacker(req.params.id);
     res.status(204).send();
   }),
 );

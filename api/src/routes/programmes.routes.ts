@@ -1,11 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
 import { ProgrammeStatus, ProgrammeType, RewardCurrency, SafeHarbor, Severity, TestingPeriod } from "@prisma/client";
-import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import {
+  listProgrammes,
+  getProgrammeById,
+  createProgramme,
+  updateProgramme,
+  deleteProgramme,
+} from "../services/programmes/programmesService.js";
 
 export const programmesRouter = Router();
 // Listing/detail are public (a bug bounty catalogue browsable before signup, like the
@@ -44,25 +49,10 @@ const programmeSchema = z.object({
   entrepriseId: z.string().uuid().optional(),
 });
 
-async function resolveEntrepriseId(userId: string, role: string, requestedId?: string) {
-  if (role === "admin") {
-    if (!requestedId) throw new HttpError(400, "entrepriseId requis pour un admin");
-    return requestedId;
-  }
-  const owned = await prisma.entrepriseProfile.findUnique({ where: { profileId: userId } });
-  if (!owned) throw new HttpError(403, "Aucun profil entreprise associé à ce compte");
-  return owned.id;
-}
-
-const entrepriseInclude = { entreprise: { include: { profile: true } } };
-
 programmesRouter.get(
   "/",
-  asyncHandler(async (req, res) => {
-    const programmes = await prisma.programme.findMany({
-      include: { rewardTiers: true, ...entrepriseInclude },
-      orderBy: { createdAt: "desc" },
-    });
+  asyncHandler(async (_req, res) => {
+    const programmes = await listProgrammes();
     res.json({ programmes });
   }),
 );
@@ -70,17 +60,7 @@ programmesRouter.get(
 programmesRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
-    const programme = await prisma.programme.findUnique({
-      where: { id: req.params.id },
-      include: {
-        rewardTiers: true,
-        targetGroups: { include: { targets: true } },
-        announcements: true,
-        activities: true,
-        ...entrepriseInclude,
-      },
-    });
-    if (!programme) throw new HttpError(404, "Programme introuvable");
+    const programme = await getProgrammeById(req.params.id);
     res.json({ programme });
   }),
 );
@@ -91,18 +71,7 @@ programmesRouter.post(
   requirePermission("programmes.create"),
   asyncHandler(async (req, res) => {
     const body = programmeSchema.parse(req.body);
-    const entrepriseId = await resolveEntrepriseId(req.user!.id, req.user!.role, body.entrepriseId);
-
-    const { rewardTiers, entrepriseId: _ignored, ...rest } = body;
-    const programme = await prisma.programme.create({
-      data: {
-        ...rest,
-        entrepriseId,
-        ...(rewardTiers ? { rewardTiers: { create: rewardTiers } } : {}),
-      },
-      include: { rewardTiers: true, ...entrepriseInclude },
-    });
-
+    const programme = await createProgramme(req.user!.id, req.user!.role, body);
     res.status(201).json({ programme });
   }),
 );
@@ -112,30 +81,8 @@ programmesRouter.patch(
   requireAuth,
   requirePermission("programmes.update"),
   asyncHandler(async (req, res) => {
-    const existing = await prisma.programme.findUnique({ where: { id: req.params.id } });
-    if (!existing) throw new HttpError(404, "Programme introuvable");
-
-    if (req.user!.role === "entreprise") {
-      const owned = await prisma.entrepriseProfile.findUnique({ where: { profileId: req.user!.id } });
-      if (!owned || owned.id !== existing.entrepriseId) {
-        throw new HttpError(403, "Ce programme n'appartient pas à votre entreprise");
-      }
-    }
-
     const body = programmeSchema.partial().parse(req.body);
-    const { rewardTiers, entrepriseId: _ignored, ...rest } = body;
-
-    const programme = await prisma.programme.update({
-      where: { id: req.params.id },
-      data: {
-        ...rest,
-        ...(rewardTiers
-          ? { rewardTiers: { deleteMany: {}, create: rewardTiers } }
-          : {}),
-      },
-      include: { rewardTiers: true, ...entrepriseInclude },
-    });
-
+    const programme = await updateProgramme(req.params.id, req.user!, body);
     res.json({ programme });
   }),
 );
@@ -145,9 +92,7 @@ programmesRouter.delete(
   requireAuth,
   requirePermission("programmes.delete"),
   asyncHandler(async (req, res) => {
-    const existing = await prisma.programme.findUnique({ where: { id: req.params.id } });
-    if (!existing) throw new HttpError(404, "Programme introuvable");
-    await prisma.programme.delete({ where: { id: req.params.id } });
+    await deleteProgramme(req.params.id);
     res.status(204).send();
   }),
 );

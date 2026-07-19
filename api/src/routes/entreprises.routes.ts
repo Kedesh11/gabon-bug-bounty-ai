@@ -1,11 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import { EntrepriseStatus } from "@prisma/client";
-import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import {
+  listEntreprises,
+  getEntrepriseById,
+  updateEntreprise,
+  deleteEntreprise,
+} from "../services/entreprises/entreprisesService.js";
 
 export const entreprisesRouter = Router();
 entreprisesRouter.use(requireAuth);
@@ -13,8 +17,8 @@ entreprisesRouter.use(requireAuth);
 entreprisesRouter.get(
   "/",
   requirePermission("entreprises.manage"),
-  asyncHandler(async (req, res) => {
-    const entreprises = await prisma.entrepriseProfile.findMany({ include: { profile: true } });
+  asyncHandler(async (_req, res) => {
+    const entreprises = await listEntreprises();
     res.json({ entreprises });
   }),
 );
@@ -22,16 +26,7 @@ entreprisesRouter.get(
 entreprisesRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
-    const entreprise = await prisma.entrepriseProfile.findUnique({
-      where: { id: req.params.id },
-      include: { profile: true },
-    });
-    if (!entreprise) throw new HttpError(404, "Entreprise introuvable");
-
-    if (req.user!.role === "entreprise" && entreprise.profileId !== req.user!.id) {
-      throw new HttpError(403, "Accès refusé");
-    }
-
+    const entreprise = await getEntrepriseById(req.params.id, req.user!);
     res.json({ entreprise });
   }),
 );
@@ -44,20 +39,8 @@ const updateEntrepriseSchema = z.object({
 entreprisesRouter.patch(
   "/:id",
   asyncHandler(async (req, res) => {
-    const existing = await prisma.entrepriseProfile.findUnique({ where: { id: req.params.id } });
-    if (!existing) throw new HttpError(404, "Entreprise introuvable");
-
-    const isOwner = req.user!.role === "entreprise" && existing.profileId === req.user!.id;
-    if (!isOwner && req.user!.role !== "admin") {
-      throw new HttpError(403, "Accès refusé");
-    }
-
     const body = updateEntrepriseSchema.parse(req.body);
-    const entreprise = await prisma.entrepriseProfile.update({
-      where: { id: req.params.id },
-      data: body,
-      include: { profile: true },
-    });
+    const entreprise = await updateEntreprise(req.params.id, req.user!, body);
     res.json({ entreprise });
   }),
 );
@@ -66,9 +49,7 @@ entreprisesRouter.delete(
   "/:id",
   requirePermission("entreprises.manage"),
   asyncHandler(async (req, res) => {
-    const existing = await prisma.entrepriseProfile.findUnique({ where: { id: req.params.id } });
-    if (!existing) throw new HttpError(404, "Entreprise introuvable");
-    await prisma.entrepriseProfile.delete({ where: { id: req.params.id } });
+    await deleteEntreprise(req.params.id);
     res.status(204).send();
   }),
 );

@@ -1,22 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import { PasswordComplexity, Prisma } from "@prisma/client";
-import { prisma } from "../prisma.js";
+import { PasswordComplexity } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import { getOrCreateConfig, updateConfig } from "../services/config/configService.js";
 
 export const configRouter = Router();
 configRouter.use(requireAuth);
-
-async function getOrCreateConfig() {
-  return prisma.systemConfig.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
-}
 
 configRouter.get(
   "/",
@@ -49,20 +40,8 @@ configRouter.patch(
   "/",
   requirePermission("config.write"),
   asyncHandler(async (req, res) => {
-    await getOrCreateConfig();
-    const { maintenanceDurationHours, ...body } = updateConfigSchema.parse(req.body);
-    const data: Prisma.SystemConfigUpdateInput = { ...body };
-
-    if (body.maintenanceMode === true) {
-      if (!maintenanceDurationHours) {
-        throw new HttpError(400, "Durée de maintenance requise (1 à 24 heures)");
-      }
-      data.maintenanceUntil = new Date(Date.now() + maintenanceDurationHours * 60 * 60 * 1000);
-    } else if (body.maintenanceMode === false) {
-      data.maintenanceUntil = null;
-    }
-
-    const config = await prisma.systemConfig.update({ where: { id: 1 }, data });
+    const body = updateConfigSchema.parse(req.body);
+    const config = await updateConfig(body);
     res.json({ config });
   }),
 );
