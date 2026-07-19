@@ -20,6 +20,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useContent } from "@/hooks/api/content";
 
 interface Ticket {
   id: string;
@@ -33,6 +34,9 @@ interface Ticket {
 }
 
 export default function AdminTicketDetail() {
+  const caseDetailsHeading = useContent("admin.ticket-detail.case-details-heading", "Détails du Cas");
+  const userContextHeading = useContent("admin.ticket-detail.user-context-heading", "Contexte Utilisateur");
+  const kbHeading = useContent("admin.ticket-detail.kb-heading", "Base de Connaissances");
   const { id } = useParams();
   const navigate = useNavigate();
   const [replyText, setReplyText] = useState("");
@@ -158,7 +162,7 @@ export default function AdminTicketDetail() {
            {/* Info Sidebar Section */}
            <div className="w-full lg:w-[350px] space-y-6 shrink-0">
               <Card className="glass-card p-6 rounded-[32px] border-border space-y-6">
-                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">Détails du Cas</h3>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">{caseDetailsHeading}</h3>
                  <div className="space-y-4">
                     <InfoRow label="Priorité" value={ticket.priority.toUpperCase()} color={ticket.priority === 'critique' ? 'text-destructive' : 'text-blue-500'} />
                     <InfoRow label="Initié" value="Aujourd'hui, 12:45" />
@@ -171,7 +175,7 @@ export default function AdminTicketDetail() {
               </Card>
 
               <Card className="glass-card p-6 rounded-[32px] border-border space-y-4">
-                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">Contexte Utilisateur</h3>
+                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500">{userContextHeading}</h3>
                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-secondary/30 border border-border">
                     <div className="h-10 w-10 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-600 font-black">
                        {ticket.user[0]}
@@ -189,7 +193,7 @@ export default function AdminTicketDetail() {
               <div className="p-6 rounded-[32px] bg-blue-600/5 border border-blue-600/20 space-y-4">
                  <div className="flex items-center gap-2">
                     <ShieldQuestion className="w-5 h-5 text-blue-500" />
-                    <h4 className="text-[10px] font-black uppercase tracking-widest">Base de Connaissances</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest">{kbHeading}</h4>
                  </div>
                  <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
                     "Litige Prime : Toujours vérifier si le PoC a été testé sur le bon environnement avant de trancher."

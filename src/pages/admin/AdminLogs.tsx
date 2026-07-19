@@ -36,6 +36,9 @@ import { useContent } from "@/hooks/api/content";
 export default function AdminLogs() {
   const pageTitle = useContent("admin.logs.title", "Cyber-SIEM™");
   const pageSubtitle = useContent("admin.logs.subtitle", "Système de Gestion des Informations et des Événements de Sécurité.");
+  const eventsStreamTitle = useContent("admin.logs.events-stream.title", "Flux d'Événements Consolidé");
+  const emptyStateTitle = useContent("admin.logs.empty-state.title", "Zero Intelligence Found");
+  const emptyStateResetButton = useContent("admin.logs.empty-state.reset-button", "Réinitialiser l'Audit");
   const logs = MOCK_LOGS;
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("Tous");
@@ -172,7 +175,7 @@ export default function AdminLogs() {
               <div className="p-6 border-b border-border bg-secondary/30 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <h3 className="text-sm font-black uppercase tracking-widest">Flux d'Événements Consolidé</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest">{eventsStreamTitle}</h3>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="text-[10px] font-black border-border px-3 py-1">REAL-TIME INGESTION ON</Badge>
@@ -233,9 +236,9 @@ export default function AdminLogs() {
                   {filteredLogs.length === 0 && (
                     <div className="p-20 text-center space-y-4">
                       <Zap className="w-12 h-12 text-muted-foreground/20 mx-auto" />
-                      <p className="text-lg font-bold text-muted-foreground uppercase tracking-widest">Zero Intelligence Found</p>
+                      <p className="text-lg font-bold text-muted-foreground uppercase tracking-widest">{emptyStateTitle}</p>
                       <Button variant="outline" onClick={() => { setSearchTerm(""); setFilterType("Tous"); }} className="rounded-xl font-black text-[10px] uppercase border-border">
-                        Réinitialiser l'Audit
+                        {emptyStateResetButton}
                       </Button>
                     </div>
                   )}

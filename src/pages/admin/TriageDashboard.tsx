@@ -20,6 +20,8 @@ import { useContent } from "@/hooks/api/content";
 export default function TriageDashboard() {
   const pageTitle = useContent("admin.triage.title", "Triage Control Center");
   const pageSubtitle = useContent("admin.triage.subtitle", "Validation technique et analyse de sévérité des vulnérabilités.");
+  const prioritiesHeading = useContent("admin.triage.priorities-heading", "Priorités de la journée");
+  const queueHeading = useContent("admin.triage.queue-heading", "File d'attente active");
   const { data: reports = [] } = useReports();
   const pendingReports = reports.filter(r => r.status === "soumis" || r.status === "en_analyse");
 
@@ -52,7 +54,7 @@ export default function TriageDashboard() {
             <StatSmall label="Temps Moyen" value="4.2h" color="text-accent" icon={<Zap className="w-4 h-4" />} />
             
             <Card className="glass-card p-5 border-border space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Priorités de la journée</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{prioritiesHeading}</h3>
               <div className="space-y-3">
                 <PriorityItem label="RCE critique (SEEG)" severity="critique" />
                 <PriorityItem label="SQLi potentielle" severity="haute" />
@@ -71,7 +73,7 @@ export default function TriageDashboard() {
             <div className="glass-card rounded-2xl border border-border overflow-hidden">
               <div className="p-4 border-b border-border bg-secondary/30 flex justify-between items-center">
                 <h3 className="text-sm font-bold flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-primary" /> File d'attente active
+                  <Activity className="w-4 h-4 text-primary" /> {queueHeading}
                 </h3>
                 <div className="flex gap-2">
                   <Badge variant="outline" className="text-[10px]">Toutes les sévérités</Badge>

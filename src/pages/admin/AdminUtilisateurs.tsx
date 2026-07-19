@@ -27,6 +27,7 @@ import { useContent } from "@/hooks/api/content";
 export default function AdminUtilisateurs() {
   const pageTitle = useContent("admin.utilisateurs.title", "Gestion des Utilisateurs");
   const pageSubtitle = useContent("admin.utilisateurs.subtitle", "Administration, KYC et contrôle d'accès global.");
+  const kycHeading = useContent("admin.utilisateurs.kyc-heading", "Validation d'Identité (KYC)");
   const { data: hackers = [] } = useHackers();
   const { data: entreprises = [] } = useEntreprises();
   const updateHacker = useUpdateHacker();
@@ -187,7 +188,7 @@ export default function AdminUtilisateurs() {
             <Card className="glass-card rounded-[32px] border-border overflow-hidden shadow-2xl">
               <div className="p-6 border-b border-border bg-secondary/30 flex justify-between items-center">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-blue-500" /> Validation d'Identité (KYC)
+                  <ShieldCheck className="w-4 h-4 text-blue-500" /> {kycHeading}
                 </h3>
                 <Badge className="bg-orange-500/10 text-orange-500 border-none font-black text-[10px]">2 EN ATTENTE</Badge>
               </div>
