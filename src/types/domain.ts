@@ -193,6 +193,10 @@ export interface Report {
 
 export interface HackerProfile {
   id: string;
+  // The underlying Profile.id (auth-linked account) — distinct from `id` above
+  // (HackerProfile.id). Needed to correlate this hacker with PlatformLog.userId,
+  // which references Profile, not HackerProfile.
+  profileId: string;
   name: string;
   email: string;
   reputation: number;
@@ -240,6 +244,8 @@ export interface HackerPaymentConfig {
 
 export interface EntrepriseProfile {
   id: string;
+  // The underlying Profile.id — see the identical comment on HackerProfile.profileId.
+  profileId: string;
   name: string;
   email: string;
   sector: string;

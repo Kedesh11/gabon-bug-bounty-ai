@@ -1,6 +1,7 @@
 import type { FraudSignalStatus, FraudSignalType, Prisma, ReportStatus, Severity } from "@prisma/client";
 import { prisma } from "../../prisma.js";
 import { HttpError } from "../../middleware/errorHandler.js";
+import { createPlatformLog } from "../platformLogs/logsService.js";
 
 // v1, heuristic, human-reviewed — none of the 4 checks below ever block an account,
 // a report, or a payout on their own. They only ever produce a FraudSignal in status
@@ -349,8 +350,18 @@ export async function updateFraudSignalStatus(id: string, reviewerId: string, st
   const existing = await prisma.fraudSignal.findUnique({ where: { id } });
   if (!existing) throw new HttpError(404, "Signal de fraude introuvable");
 
-  return prisma.fraudSignal.update({
+  const updated = await prisma.fraudSignal.update({
     where: { id },
     data: { status, reviewedById: reviewerId, reviewedAt: new Date() },
   });
+
+  await createPlatformLog({
+    type: "security",
+    level: status === "confirmed" ? "warning" : "info",
+    message: `Signal de fraude "${updated.summary}" passé au statut "${status}"`,
+    source: "fraudService",
+    userId: reviewerId,
+  });
+
+  return updated;
 }

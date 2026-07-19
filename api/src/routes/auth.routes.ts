@@ -6,6 +6,7 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { serializeProfile, profileRoleInclude } from "../lib/serializeProfile.js";
+import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 export const authRouter = Router();
 
@@ -58,6 +59,14 @@ authRouter.post(
       throw new HttpError(500, "Compte créé mais échec de connexion automatique");
     }
 
+    await createPlatformLog({
+      type: "security",
+      level: "info",
+      message: `Nouveau compte ${body.role} créé (${body.email})`,
+      source: "auth.routes",
+      userId: profile.id,
+    });
+
     res.status(201).json({ profile: serializeProfile(profile), session: session.session });
   }),
 );
@@ -77,6 +86,13 @@ authRouter.post(
       password: body.password,
     });
     if (error || !data.session) {
+      await createPlatformLog({
+        type: "security",
+        level: "warning",
+        message: "Tentative de connexion échouée",
+        source: "auth.routes",
+        metadata: { email: body.email },
+      });
       throw new HttpError(401, "Email ou mot de passe invalide");
     }
 
@@ -87,6 +103,14 @@ authRouter.post(
     if (!profile) {
       throw new HttpError(401, "Profil introuvable pour cet utilisateur");
     }
+
+    await createPlatformLog({
+      type: "security",
+      level: "info",
+      message: `Connexion réussie (${profile.email})`,
+      source: "auth.routes",
+      userId: profile.id,
+    });
 
     res.json({ profile: serializeProfile(profile), session: data.session });
   }),

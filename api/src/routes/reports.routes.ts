@@ -17,6 +17,7 @@ import {
 } from "../services/reports/reportsService.js";
 import { renderReportPdf } from "../services/reports/reportPdf.js";
 import { runMcpPipeline } from "../services/mcpAgents/orchestrator.js";
+import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 const pdfUpload = multer({
   storage: multer.memoryStorage(),
@@ -87,6 +88,15 @@ reportsRouter.patch(
   asyncHandler(async (req, res) => {
     const body = updateReportSchema.parse(req.body);
     const report = await updateReport(req.params.id, body);
+    if (body.status || body.severity) {
+      await createPlatformLog({
+        type: "user_action",
+        level: "info",
+        message: `Rapport "${report.title}" mis à jour${body.status ? ` (statut: ${body.status})` : ""}${body.severity ? ` (sévérité: ${body.severity})` : ""}`,
+        source: "reports.routes",
+        userId: req.user!.id,
+      });
+    }
     res.json({ report });
   }),
 );
@@ -96,6 +106,13 @@ reportsRouter.delete(
   requirePermission("reports.delete"),
   asyncHandler(async (req, res) => {
     await deleteReport(req.params.id);
+    await createPlatformLog({
+      type: "user_action",
+      level: "warning",
+      message: `Rapport ${req.params.id} supprimé`,
+      source: "reports.routes",
+      userId: req.user!.id,
+    });
     res.status(204).send();
   }),
 );
