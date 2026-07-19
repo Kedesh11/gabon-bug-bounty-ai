@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useData } from "@/contexts/DataContext";
+import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
+import { apiErrorMessage } from "@/lib/apiClient";
 
 export function useSecuritySettings() {
-  const { config, updateConfig, resetPlatform } = useData();
+  const { data: config = DEFAULT_SYSTEM_CONFIG } = useConfig();
+  const updateConfig = useUpdateConfig();
 
   const [securitySettings, setSecuritySettings] = useState({
     require2FA: config.require2FA,
@@ -26,16 +28,11 @@ export function useSecuritySettings() {
       toast.error("Le délai de session doit être compris entre 5 et 1440 minutes");
       return;
     }
-    updateConfig(securitySettings);
-    toast.success("Politiques de sécurité mises à jour");
+    updateConfig.mutate(securitySettings, {
+      onSuccess: () => toast.success("Politiques de sécurité mises à jour"),
+      onError: (err) => toast.error(apiErrorMessage(err)),
+    });
   };
 
-  const handleResetPlatform = () => {
-    toast.loading("Réinitialisation en cours...");
-    setTimeout(() => {
-      resetPlatform();
-    }, 2000);
-  };
-
-  return { securitySettings, setSecuritySettings, handleSaveSecurity, handleResetPlatform };
+  return { securitySettings, setSecuritySettings, handleSaveSecurity };
 }

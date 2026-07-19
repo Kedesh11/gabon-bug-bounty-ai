@@ -1,5 +1,12 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useReports } from "@/hooks/api/reports";
+import { useProgrammes } from "@/hooks/api/programmes";
+import { useHackers } from "@/hooks/api/hackers";
+import { useEntreprises } from "@/hooks/api/entreprises";
+import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
+import { useSystemStatus, type ServiceStatus } from "@/hooks/api/systemStatus";
+import { apiErrorMessage } from "@/lib/apiClient";
+import { buildGrowthSeries } from "@/lib/platformGrowth";
 import {
   Bug,
   Users,
@@ -8,21 +15,18 @@ import {
   DollarSign,
   ShieldCheck,
   Activity,
-  Zap,
   Settings,
   Database,
-  ShieldAlert,
-  ChevronRight,
   Save,
   Globe,
   Bell,
   Cpu
 } from "lucide-react";
 import { CrowdStream } from "@/components/CrowdStream";
-import { Badge } from "@/components/ui/badge";
+import { TriageQueueWidget } from "@/pages/admin/TriageQueueWidget";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { 
   Dialog, 
@@ -38,18 +42,52 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
 export default function AdminDashboard() {
-  const { reports, programmes, hackers, entreprises, config, updateConfig } = useData();
+  const { data: reports = [] } = useReports();
+  const { data: programmes = [] } = useProgrammes();
+  const { data: hackers = [] } = useHackers();
+  const { data: entreprises = [] } = useEntreprises();
+  const { data: config = DEFAULT_SYSTEM_CONFIG } = useConfig();
+  const updateConfig = useUpdateConfig();
+  const { data: systemStatus } = useSystemStatus();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-  
+
   // Local temporary state for the form
   const [tempPlatformName, setTempPlatformName] = useState(config.platformName);
-  const [tempMaintenanceMode, setTempMaintenanceMode] = useState(config.maintenanceMode);
   const [tempAiSensitivity, setTempAiSensitivity] = useState(config.aiSensitivity);
+  const [tempGlobalNotificationsEnabled, setTempGlobalNotificationsEnabled] = useState(config.globalNotificationsEnabled);
+
+  // Maintenance mode is applied immediately (not batched with the form above) since
+  // flipping it has an immediate, site-wide effect that shouldn't wait on unrelated fields.
+  const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
+  const [maintenanceDurationHours, setMaintenanceDurationHours] = useState(1);
 
   const totalBounties = reports.reduce((s, r) => s + r.reward, 0);
   const critiques = reports.filter(r => r.severity === "critique").length;
   const enAttente = reports.filter(r => r.status === "soumis" || r.status === "en_analyse").length;
   const resolutionRate = reports.length ? Math.round((reports.filter(r => r.status === "résolu" || r.status === "accepté").length / reports.length) * 100) : 0;
+
+  const serviceChecks: ServiceStatus[] = systemStatus
+    ? [systemStatus.database, systemStatus.auth, systemStatus.payments]
+    : [];
+  const availabilityPercent = systemStatus
+    ? Math.round((serviceChecks.filter(s => s === "online").length / serviceChecks.length) * 100)
+    : null;
+  const formattedUptime = systemStatus ? formatUptime(systemStatus.uptimeSeconds) : null;
+
+  const growthSeries = useMemo(() => buildGrowthSeries(hackers, entreprises), [hackers, entreprises]);
+  const growthMax = Math.max(1, ...growthSeries.flatMap(p => [p.hackers, p.entreprises]));
+
+  const criticalFixed = reports.filter(r => r.severity === "critique" && (r.status === "résolu" || r.status === "accepté")).length;
+  const criticalFixedRate = critiques ? Math.round((criticalFixed / critiques) * 100) : 0;
+
+  const decidedReports = reports.filter(r => r.status === "accepté" || r.status === "résolu" || r.status === "rejeté");
+  const validityRate = decidedReports.length
+    ? Math.round((decidedReports.filter(r => r.status !== "rejeté").length / decidedReports.length) * 100)
+    : 0;
+
+  const activeProgrammeRate = programmes.length
+    ? Math.round((programmes.filter(p => p.status === "actif").length / programmes.length) * 100)
+    : 0;
 
   const handleExportData = () => {
     const data = {
@@ -73,13 +111,48 @@ export default function AdminDashboard() {
   };
 
   const handleSaveConfig = () => {
-    updateConfig({
-      platformName: tempPlatformName,
-      maintenanceMode: tempMaintenanceMode,
-      aiSensitivity: tempAiSensitivity
-    });
-    toast.success("Configuration mise à jour avec succès");
-    setIsConfigOpen(false);
+    updateConfig.mutate(
+      {
+        platformName: tempPlatformName,
+        aiSensitivity: tempAiSensitivity,
+        globalNotificationsEnabled: tempGlobalNotificationsEnabled,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Configuration mise à jour avec succès");
+          setIsConfigOpen(false);
+        },
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
+  };
+
+  const handleMaintenanceToggle = (checked: boolean) => {
+    if (checked) {
+      setMaintenanceDurationHours(1);
+      setIsMaintenanceModalOpen(true);
+      return;
+    }
+    updateConfig.mutate(
+      { maintenanceMode: false },
+      {
+        onSuccess: () => toast.success("Mode maintenance désactivé"),
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
+  };
+
+  const handleConfirmMaintenance = () => {
+    updateConfig.mutate(
+      { maintenanceMode: true, maintenanceDurationHours },
+      {
+        onSuccess: () => {
+          toast.success(`Mode maintenance activé pour ${maintenanceDurationHours}h`);
+          setIsMaintenanceModalOpen(false);
+        },
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
   };
 
   return (
@@ -89,7 +162,16 @@ export default function AdminDashboard() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              Contrôle Maître <span className="text-primary font-mono text-xs px-2 py-0.5 bg-primary/10 border border-primary/20 rounded uppercase tracking-widest animate-pulse">Système Actif</span>
+              Contrôle Maître
+              <span className={`font-mono text-xs px-2 py-0.5 border rounded uppercase tracking-widest animate-pulse ${
+                availabilityPercent === null
+                  ? "text-muted-foreground bg-secondary border-border"
+                  : availabilityPercent === 100
+                    ? "text-primary bg-primary/10 border-primary/20"
+                    : "text-destructive bg-destructive/10 border-destructive/20"
+              }`}>
+                {availabilityPercent === null ? "Vérification…" : availabilityPercent === 100 ? "Système Actif" : "Système Dégradé"}
+              </span>
             </h1>
             <p className="text-muted-foreground font-medium italic">Vue d'ensemble granulaire de l'écosystème {config.platformName}.</p>
           </div>
@@ -98,8 +180,8 @@ export default function AdminDashboard() {
             <Dialog open={isConfigOpen} onOpenChange={(open) => {
               if (open) {
                 setTempPlatformName(config.platformName);
-                setTempMaintenanceMode(config.maintenanceMode);
                 setTempAiSensitivity(config.aiSensitivity);
+                setTempGlobalNotificationsEnabled(config.globalNotificationsEnabled);
               }
               setIsConfigOpen(open);
             }}>
@@ -135,9 +217,17 @@ export default function AdminDashboard() {
                       <Label className="text-sm font-bold flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-yellow-500" /> Mode Maintenance
                       </Label>
-                      <p className="text-xs text-muted-foreground">Bloque les nouvelles soumissions de rapports.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {config.maintenanceMode && config.maintenanceUntil
+                          ? `Actif — se termine à ${new Date(config.maintenanceUntil).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+                          : "Bloque l'accès à la plateforme pour tous, sauf les administrateurs."}
+                      </p>
                     </div>
-                    <Switch checked={tempMaintenanceMode} onCheckedChange={setTempMaintenanceMode} />
+                    <Switch
+                      checked={config.maintenanceMode}
+                      onCheckedChange={handleMaintenanceToggle}
+                      disabled={updateConfig.isPending}
+                    />
                   </div>
 
                   <div className="space-y-4">
@@ -162,15 +252,56 @@ export default function AdminDashboard() {
                       <Label className="text-sm font-bold flex items-center gap-2">
                         <Bell className="w-4 h-4 text-primary" /> Notifications Globales
                       </Label>
-                      <p className="text-xs text-muted-foreground">Activer les alertes critiques pour les admins.</p>
+                      <p className="text-xs text-muted-foreground">Diffuser les alertes critiques à toute la plateforme.</p>
                     </div>
-                    <Switch defaultChecked />
+                    <Switch checked={tempGlobalNotificationsEnabled} onCheckedChange={setTempGlobalNotificationsEnabled} />
                   </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsConfigOpen(false)} className="font-bold">ANNULER</Button>
                   <Button onClick={handleSaveConfig} className="bg-primary text-primary-foreground font-bold gap-2">
                     <Save className="w-4 h-4" /> SAUVEGARDER
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isMaintenanceModalOpen} onOpenChange={setIsMaintenanceModalOpen}>
+              <DialogContent className="sm:max-w-[420px] glass-card border-border">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-500" /> Activer la maintenance
+                  </DialogTitle>
+                  <DialogDescription className="font-medium">
+                    La plateforme sera inaccessible pour tous les utilisateurs (sauf les administrateurs)
+                    pendant la durée indiquée. Maximum 24 heures.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-2">
+                  <Label className="text-xs font-black uppercase tracking-widest">Durée (heures)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={maintenanceDurationHours}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (Number.isNaN(value)) return;
+                      setMaintenanceDurationHours(Math.min(24, Math.max(1, value)));
+                    }}
+                    className="mt-2 bg-secondary/50"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsMaintenanceModalOpen(false)} className="font-bold">
+                    ANNULER
+                  </Button>
+                  <Button
+                    onClick={handleConfirmMaintenance}
+                    disabled={updateConfig.isPending}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-bold gap-2"
+                  >
+                    <AlertTriangle className="w-4 h-4" /> ACTIVER
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -226,17 +357,25 @@ export default function AdminDashboard() {
                   </h3>
                 </div>
                 <div className="h-48 flex items-end justify-between gap-1 px-2">
-                  {[20, 35, 25, 45, 60, 85, 100].map((h, i) => (
+                  {growthSeries.map((point, i) => (
                     <div key={i} className="w-full flex flex-col items-center gap-2 group">
                       <div className="flex w-full gap-0.5">
-                        <div className="w-1/2 bg-primary/20 group-hover:bg-primary transition-all rounded-t-sm" style={{ height: `${h}%` }} />
-                        <div className="w-1/2 bg-accent/20 group-hover:bg-accent transition-all rounded-t-sm" style={{ height: `${h * 0.7}%` }} />
+                        <div
+                          className="w-1/2 bg-primary/20 group-hover:bg-primary transition-all rounded-t-sm"
+                          style={{ height: `${Math.max(2, (point.hackers / growthMax) * 100)}%` }}
+                          title={`${point.hackers} hackers`}
+                        />
+                        <div
+                          className="w-1/2 bg-accent/20 group-hover:bg-accent transition-all rounded-t-sm"
+                          style={{ height: `${Math.max(2, (point.entreprises / growthMax) * 100)}%` }}
+                          title={`${point.entreprises} entreprises`}
+                        />
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-between text-[9px] font-bold text-muted-foreground uppercase px-2">
-                  <span>Jan</span><span>Fév</span><span>Mar</span><span>Avr</span><span>Mai</span><span>Juin</span><span>Juil</span>
+                  {growthSeries.map((point, i) => <span key={i}>{point.label}</span>)}
                 </div>
                 <div className="flex justify-center gap-6 pt-2">
                   <div className="flex items-center gap-2 text-[10px] font-bold"><span className="w-2 h-2 rounded-full bg-primary" /> Hackers</div>
@@ -246,71 +385,35 @@ export default function AdminDashboard() {
 
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" /> État des Vulnérabilités
+                  <ShieldCheck className="w-4 h-4 text-green-500" /> Santé de la Plateforme
                 </h3>
                 <div className="space-y-5 pt-2">
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-black uppercase">
-                      <span>Bugs Critiques (Corrigés)</span>
-                      <span className="text-destructive">{critiques} détectés</span>
+                      <span>Bugs Critiques Corrigés</span>
+                      <span className="text-destructive">{criticalFixed} / {critiques}</span>
                     </div>
-                    <Progress value={82} className="h-1.5 bg-secondary" />
+                    <Progress value={criticalFixedRate} className="h-1.5 bg-secondary" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-black uppercase">
                       <span>Validité des Rapports</span>
-                      <span className="text-primary">74% Précision</span>
+                      <span className="text-primary">{validityRate}%</span>
                     </div>
-                    <Progress value={74} className="h-1.5 bg-secondary" />
+                    <Progress value={validityRate} className="h-1.5 bg-secondary" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-black uppercase">
-                      <span>Satisfaction Partenaires</span>
-                      <span className="text-accent">9.2 / 10</span>
+                      <span>Programmes Actifs</span>
+                      <span className="text-accent">{activeProgrammeRate}%</span>
                     </div>
-                    <Progress value={92} className="h-1.5 bg-secondary" />
+                    <Progress value={activeProgrammeRate} className="h-1.5 bg-secondary" />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Global Triage Queue */}
-            <div className="glass-card rounded-2xl border border-border overflow-hidden">
-              <div className="p-5 border-b border-border bg-secondary/30 flex items-center justify-between">
-                <h3 className="text-sm font-bold flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-yellow-500" /> File de Triage Global (Priorité IA)
-                </h3>
-                <Button variant="ghost" size="sm" className="text-[10px] font-bold h-7">GÉRER LA FILE</Button>
-              </div>
-              <div className="divide-y divide-border">
-                {reports.filter(r => r.status === "soumis" || r.status === "en_analyse").slice(0, 5).map(r => (
-                  <div key={r.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors group">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        r.severity === "critique" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
-                      }`}>
-                        <ShieldAlert className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{r.title}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-black">{r.hackerName} ➜ {r.programmeName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <Badge className={
-                        r.severity === "critique" ? "bg-destructive text-destructive-foreground" : 
-                        r.severity === "haute" ? "bg-orange-500 text-white" : "bg-yellow-500 text-black"
-                      }>
-                        {r.severity.toUpperCase()}
-                      </Badge>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full border border-border group-hover:border-primary/50 transition-all">
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TriageQueueWidget reports={reports} />
           </div>
 
           {/* Right Sidebar: Platform Health & Feed */}
@@ -321,19 +424,28 @@ export default function AdminDashboard() {
                 <div className="relative h-24 w-24 flex items-center justify-center">
                   <svg className="h-full w-full -rotate-90">
                     <circle cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-secondary" />
-                    <circle cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="6" fill="transparent" strokeDasharray="276" strokeDashoffset={276 * 0.01} strokeLinecap="round" className="text-primary" />
+                    <circle
+                      cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="6" fill="transparent"
+                      strokeDasharray="276"
+                      strokeDashoffset={276 * (1 - (availabilityPercent ?? 0) / 100)}
+                      strokeLinecap="round"
+                      className="text-primary transition-all duration-500"
+                    />
                   </svg>
                   <div className="absolute flex flex-col items-center">
-                    <span className="text-xl font-black">99.9</span>
-                    <span className="text-[8px] font-bold uppercase text-primary">Uptime</span>
+                    <span className="text-xl font-black">{availabilityPercent !== null ? `${availabilityPercent}%` : "…"}</span>
+                    <span className="text-[8px] font-bold uppercase text-primary">Disponible</span>
                   </div>
                 </div>
               </div>
               <div className="space-y-3">
-                <SystemStatus label="Auth Service" status="online" />
-                <SystemStatus label="AI Triage Engine" status="online" />
-                <SystemStatus label="Payment Gateway" status="online" />
+                <SystemStatus label="Base de données" status={systemStatus?.database} />
+                <SystemStatus label="Auth Service" status={systemStatus?.auth} />
+                <SystemStatus label="Passerelle de Paiement" status={systemStatus?.payments} />
               </div>
+              {formattedUptime && (
+                <p className="text-center text-[9px] text-muted-foreground font-mono">API active depuis {formattedUptime}</p>
+              )}
             </div>
 
             <CrowdStream />
@@ -368,14 +480,25 @@ function StatCard({ icon, label, value, subValue, color }: { icon: React.ReactNo
   );
 }
 
-function SystemStatus({ label, status }: { label: string, status: "online" | "warning" | "offline" }) {
+function SystemStatus({ label, status }: { label: string, status?: ServiceStatus }) {
+  const color = status === "online" ? "bg-green-500 animate-pulse" : status === "offline" ? "bg-destructive" : "bg-muted-foreground/40 animate-pulse";
+  const text = status === "online" ? "En Ligne" : status === "offline" ? "Hors Ligne" : "Vérification…";
   return (
     <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/30 border border-border">
       <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
       <div className="flex items-center gap-1.5">
-        <div className={`h-1.5 w-1.5 rounded-full ${status === "online" ? "bg-green-500 animate-pulse" : "bg-destructive"}`} />
-        <span className="text-[9px] font-black uppercase">{status === "online" ? "En Ligne" : "Hors Ligne"}</span>
+        <div className={`h-1.5 w-1.5 rounded-full ${color}`} />
+        <span className="text-[9px] font-black uppercase">{text}</span>
       </div>
     </div>
   );
+}
+
+function formatUptime(totalSeconds: number): string {
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (days > 0) return `${days}j ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}min`;
+  return `${minutes}min`;
 }

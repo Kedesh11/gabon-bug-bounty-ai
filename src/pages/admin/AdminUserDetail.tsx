@@ -1,6 +1,9 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useParams, useNavigate } from "react-router-dom";
-import { useData } from "@/contexts/DataContext";
+import { useHackers, useUpdateHacker } from "@/hooks/api/hackers";
+import { useEntreprises, useUpdateEntreprise } from "@/hooks/api/entreprises";
+import { apiErrorMessage } from "@/lib/apiClient";
+import { MOCK_LOGS } from "@/lib/mockFeed";
 import {
   Mail,
   ShieldCheck,
@@ -29,7 +32,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function AdminUserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { hackers, entreprises, logs, updateHacker, updateEntreprise } = useData();
+  const { data: hackers = [] } = useHackers();
+  const { data: entreprises = [] } = useEntreprises();
+  const updateHacker = useUpdateHacker();
+  const updateEntreprise = useUpdateEntreprise();
+  const logs = MOCK_LOGS;
 
   const hacker = hackers.find(h => h.id === id);
   const entreprise = entreprises.find(e => e.id === id);
@@ -101,9 +108,13 @@ export default function AdminUserDetail() {
                  </Button>
                  <div className="grid grid-cols-2 gap-3">
                     <Button variant="outline" className="h-12 rounded-2xl border-border font-black text-[10px] uppercase" onClick={() => {
-                       if(isHacker) updateHacker(userData.id, { status: userData.status === 'actif' ? 'suspendu' : 'actif' });
-                       else updateEntreprise(userData.id, { status: userData.status === 'actif' ? 'suspendu' : 'actif' });
-                       toast.success("Statut mis à jour");
+                       const newStatus = userData.status === 'actif' ? 'suspendu' : 'actif';
+                       const onSettled = {
+                         onSuccess: () => toast.success("Statut mis à jour"),
+                         onError: (err: unknown) => toast.error(apiErrorMessage(err)),
+                       };
+                       if (isHacker) updateHacker.mutate({ id: userData.id, data: { status: newStatus } }, onSettled);
+                       else updateEntreprise.mutate({ id: userData.id, data: { status: newStatus } }, onSettled);
                     }}>
                        <Ban className="w-4 h-4 mr-2" /> {userData.status === 'actif' ? 'SUSPENDRE' : 'ACTIVER'}
                     </Button>

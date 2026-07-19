@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useData } from "@/contexts/DataContext";
+import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
+import { apiErrorMessage } from "@/lib/apiClient";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function useGeneralSettings() {
-  const { config, updateConfig } = useData();
+  const { data: config = DEFAULT_SYSTEM_CONFIG } = useConfig();
+  const updateConfig = useUpdateConfig();
 
   const [generalSettings, setGeneralSettings] = useState({
     platformName: config.platformName,
@@ -36,8 +38,10 @@ export function useGeneralSettings() {
       toast.error("Format d'email de contact invalide");
       return;
     }
-    updateConfig(generalSettings);
-    toast.success("Paramètres généraux sauvegardés");
+    updateConfig.mutate(generalSettings, {
+      onSuccess: () => toast.success("Paramètres généraux sauvegardés"),
+      onError: (err) => toast.error(apiErrorMessage(err)),
+    });
   };
 
   return { generalSettings, setGeneralSettings, handleSaveGeneral };

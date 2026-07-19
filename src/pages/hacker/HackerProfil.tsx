@@ -1,6 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/contexts/useAuth";
-import { useData } from "@/contexts/DataContext";
+import { useHackers, useUpdateMyHacker } from "@/hooks/api/hackers";
+import { useReports } from "@/hooks/api/reports";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -28,10 +30,11 @@ import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 
 export default function HackerProfil() {
-  const { user } = useAuth();
-  const { hackers, updateHacker, reports } = useData();
-  const profile = hackers.find(h => h.id === user?.id);
-  const myReports = reports.filter(r => r.hackerId === user?.id);
+  const { user, updateProfile } = useAuth();
+  const { data: hackers = [] } = useHackers();
+  const { data: myReports = [] } = useReports();
+  const updateMyHacker = useUpdateMyHacker();
+  const profile = hackers.find(h => h.id === user?.hackerProfileId);
 
   const [editName, setEditName] = useState(profile?.name || user?.name || "");
   const [editSpecialties, setEditSpecialties] = useState(profile?.specialties.join(", ") || "");
@@ -44,7 +47,7 @@ export default function HackerProfil() {
     bio: editBio.length <= 500,
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validations.name) {
       toast.error("Le pseudonyme doit faire entre 3 et 30 caractères");
       return;
@@ -58,16 +61,17 @@ export default function HackerProfil() {
       return;
     }
 
-    if (profile) {
-      setIsSaving(true);
-      setTimeout(() => {
-        updateHacker(profile.id, { 
-          name: editName.trim(), 
-          specialties: editSpecialties.split(",").map(s => s.trim()).filter(Boolean) 
-        });
-        setIsSaving(false);
-        toast.success("Profil mis à jour avec succès");
-      }, 1000);
+    setIsSaving(true);
+    try {
+      await updateProfile({ name: editName.trim() });
+      await updateMyHacker.mutateAsync({
+        specialties: editSpecialties.split(",").map(s => s.trim()).filter(Boolean),
+      });
+      toast.success("Profil mis à jour avec succès");
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    } finally {
+      setIsSaving(false);
     }
   };
 

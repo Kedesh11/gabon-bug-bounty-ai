@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { KeyRound, ArrowRight, ShieldCheck } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
@@ -53,8 +54,7 @@ const ReinitialiserMotDePasse = () => {
 
             <div>
               <label className="text-sm text-muted-foreground font-mono mb-1.5 block">Nouveau mot de passe</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••"
@@ -64,8 +64,7 @@ const ReinitialiserMotDePasse = () => {
 
             <div>
               <label className="text-sm text-muted-foreground font-mono mb-1.5 block">Confirmer le mot de passe</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••••"

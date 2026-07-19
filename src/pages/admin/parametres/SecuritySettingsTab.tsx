@@ -1,10 +1,9 @@
-import { AlertTriangle, Power, Save, ShieldCheck } from "lucide-react";
+import { Save, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SecuritySettings {
@@ -18,18 +17,12 @@ interface SecuritySettingsTabProps {
   securitySettings: SecuritySettings;
   setSecuritySettings: (settings: SecuritySettings) => void;
   onSave: () => void;
-  isResetDialogOpen: boolean;
-  setIsResetDialogOpen: (open: boolean) => void;
-  onResetPlatform: () => void;
 }
 
 export function SecuritySettingsTab({
   securitySettings,
   setSecuritySettings,
   onSave,
-  isResetDialogOpen,
-  setIsResetDialogOpen,
-  onResetPlatform,
 }: SecuritySettingsTabProps) {
   return (
     <TabsContent value="security" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -96,45 +89,6 @@ export function SecuritySettingsTab({
           <Button className="bg-primary text-primary-foreground font-bold gap-2 px-8 h-12" onClick={onSave}>
             <Save className="w-4 h-4" /> APPLIQUER LES POLITIQUES
           </Button>
-        </div>
-      </div>
-
-      <div className="glass-card rounded-2xl border border-destructive/20 p-8 space-y-6 bg-destructive/5">
-        <div className="flex items-center gap-3 text-destructive">
-          <AlertTriangle className="w-6 h-6" />
-          <h3 className="text-lg font-black tracking-tight uppercase">Zone de Danger</h3>
-        </div>
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-sm text-muted-foreground max-w-xl">
-            La réinitialisation supprimera tous les rapports, programmes et comptes utilisateurs enregistrés dans le stockage local. Cette action est irréversible.
-          </p>
-          <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="destructive" className="font-black px-8 h-12 shadow-lg shadow-destructive/20">
-                RÉINITIALISER LA PLATEFORME
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="glass-card border-destructive/20">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-destructive tracking-tighter">Réinitialisation d'Usine</DialogTitle>
-                <DialogDescription className="font-bold text-foreground">
-                  Êtes-vous absolument sûr ? Cette action effacera TOUTES les données (Programmes, Rapports, Utilisateurs) définitivement.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                <p className="text-xs text-destructive font-bold leading-relaxed">
-                  L'application sera rafraîchie et reviendra à son état initial. Toutes vos configurations personnalisées seront perdues.
-                </p>
-              </div>
-              <DialogFooter className="gap-3 mt-4">
-                <Button variant="outline" onClick={() => setIsResetDialogOpen(false)} className="font-bold">ANNULER</Button>
-                <Button variant="destructive" onClick={onResetPlatform} className="font-black gap-2">
-                  <Power className="w-4 h-4" /> CONFIRMER LA RÉINITIALISATION
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
     </TabsContent>

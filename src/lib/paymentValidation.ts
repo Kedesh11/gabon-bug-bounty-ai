@@ -1,4 +1,4 @@
-import type { CardBrand, CryptoType, MobileMoneyProvider } from "@/stores/dataStore";
+import type { CardBrand, CryptoType, MobileMoneyProvider } from "@/types/domain";
 
 export const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const cardExpiryRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;

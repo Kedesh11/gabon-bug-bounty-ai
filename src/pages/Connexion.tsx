@@ -1,31 +1,14 @@
 import Navbar from "@/components/Navbar";
-import {
-  Shield,
-  Terminal,
-  ArrowRight,
-  ShieldCheck,
-  Building2,
-  ShieldAlert,
-  Calculator,
-  LifeBuoy,
-  Search
-} from "lucide-react";
+import { Shield, ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useState } from "react";
 import { useAuth } from "@/contexts/useAuth";
-import { UserRole } from "@/types/auth";
+import { resolveDashboardPath } from "@/lib/roleNav";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-
-const ROLE_REDIRECTS: Record<UserRole, string> = {
-  admin: "/admin",
-  hacker: "/hacker",
-  entreprise: "/entreprise",
-  triage: "/admin/triage",
-  finance: "/admin/finance",
-  support: "/admin/support",
-};
+import { apiErrorMessage } from "@/lib/apiClient";
 
 const Connexion = () => {
   const [email, setEmail] = useState("");
@@ -33,48 +16,29 @@ const Connexion = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const roleParam = searchParams.get("role");
-  const requiredRole: UserRole | null =
-    roleParam === "admin" || roleParam === "hacker" || roleParam === "entreprise" || 
-    roleParam === "triage" || roleParam === "finance" || roleParam === "support" ? roleParam as UserRole : null;
+  const requiredRole = searchParams.get("role");
   const redirectPath = searchParams.get("redirect");
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!email || !password) {
       toast.error("Veuillez remplir tous les champs");
       return;
     }
 
-    const loggedUser = login(email, password);
-    if (!loggedUser) {
-      toast.error("Identifiants invalides ou compte inexistant");
-      return;
-    }
+    try {
+      const loggedUser = await login(email, password);
 
-    if (requiredRole && loggedUser.role !== requiredRole) {
-      toast.error(`Accès refusé. Veuillez vous connecter avec un compte ${requiredRole}.`);
-      return;
-    }
-
-    toast.success(`Bienvenue, ${loggedUser.name} !`);
-    if (redirectPath) {
-      navigate(redirectPath);
-      return;
-    }
-    navigate(ROLE_REDIRECTS[loggedUser.role]);
-  };
-
-  const quickLogin = (userEmail: string) => {
-    setEmail(userEmail);
-    setPassword("demo");
-    setTimeout(() => {
-      const loggedUser = login(userEmail, "demo");
-      if (loggedUser) {
-        toast.success(`Connexion démo : ${loggedUser.name}`);
-        navigate(redirectPath || ROLE_REDIRECTS[loggedUser.role]);
+      if (requiredRole && loggedUser.role !== requiredRole) {
+        toast.error(`Accès refusé. Veuillez vous connecter avec un compte ${requiredRole}.`);
+        return;
       }
-    }, 300);
+
+      toast.success(`Bienvenue, ${loggedUser.name} !`);
+      navigate(redirectPath || resolveDashboardPath(loggedUser));
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
   };
 
   return (
@@ -114,8 +78,7 @@ const Connexion = () => {
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Mot de passe</label>
                     <Link to="/mot-de-passe-oublie" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter">Oublié ?</Link>
                   </div>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
@@ -128,20 +91,6 @@ const Connexion = () => {
                 SE CONNECTER <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </form>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-              <div className="relative flex justify-center text-[10px] uppercase font-black"><span className="bg-background px-4 text-muted-foreground tracking-widest">Accès Rapide (Mode Démo)</span></div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <QuickLoginBtn icon={<ShieldAlert className="w-4 h-4 text-primary" />} label="Admin" sub="Principal" onClick={() => quickLogin("admin@bugbounty.com")} />
-              <QuickLoginBtn icon={<Terminal className="w-4 h-4 text-accent" />} label="Hacker" sub="CyberPanther" onClick={() => quickLogin("hacker@bugbounty.com")} />
-              <QuickLoginBtn icon={<Building2 className="w-4 h-4 text-blue-500" />} label="Entreprise" sub="Ministère" onClick={() => quickLogin("entreprise@bugbounty.com")} />
-              <QuickLoginBtn icon={<Search className="w-4 h-4 text-orange-500" />} label="Triage" sub="Sarah" onClick={() => quickLogin("triage@bugbounty.com")} />
-              <QuickLoginBtn icon={<Calculator className="w-4 h-4 text-green-500" />} label="Finance" sub="Marc" onClick={() => quickLogin("finance@bugbounty.com")} />
-              <QuickLoginBtn icon={<LifeBuoy className="w-4 h-4 text-blue-400" />} label="Support" sub="Paul" onClick={() => quickLogin("support@bugbounty.com")} />
-            </div>
           </div>
 
           <div className="mt-8 text-center space-y-4">
@@ -160,17 +109,5 @@ const Connexion = () => {
     </div>
   );
 };
-
-function QuickLoginBtn({ icon, label, sub, onClick }: { icon: React.ReactNode, label: string, sub: string, onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group text-left">
-      <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">{icon}</div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-black text-foreground truncate">{label}</p>
-        <p className="text-[9px] text-muted-foreground truncate font-mono">{sub}</p>
-      </div>
-    </button>
-  );
-}
 
 export default Connexion;

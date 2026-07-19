@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { MOCK_LOGS } from "@/lib/mockFeed";
 import {
   Search,
   Download,
@@ -29,11 +29,11 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
-import { PlatformLog } from "@/stores/dataStore";
+import { PlatformLog } from "@/types/domain";
 import { toast } from "sonner";
 
 export default function AdminLogs() {
-  const { logs } = useData();
+  const logs = MOCK_LOGS;
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("Tous");
   const [selectedLog, setSelectedLog] = useState<PlatformLog | null>(null);

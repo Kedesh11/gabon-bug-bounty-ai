@@ -1,13 +1,12 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/useAuth";
-import { useData } from "@/contexts/DataContext";
 import { addNotification } from "@/lib/notifications";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { emailRegex, nameRegex, normalizeSpaces } from "@/lib/paymentValidation";
 
 export function useProfileForm() {
   const { user, updateProfile } = useAuth();
-  const { hackers, updateHacker } = useData();
 
   const [profileName, setProfileName] = useState(user?.name || "");
   const [profileEmail, setProfileEmail] = useState(user?.email || "");
@@ -43,7 +42,7 @@ export function useProfileForm() {
     reader.readAsDataURL(file);
   };
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     if (!user) return;
     const normalizedName = normalizeSpaces(profileName);
     const normalizedEmail = profileEmail.trim().toLowerCase();
@@ -57,24 +56,25 @@ export function useProfileForm() {
       return;
     }
 
-    const updated = updateProfile({ name: normalizedName, email: normalizedEmail, avatar: profileAvatar });
-    if (!updated) {
-      toast.error("Impossible de mettre à jour le profil (email déjà utilisé)");
-      return;
+    try {
+      await updateProfile({ name: normalizedName, avatar: profileAvatar });
+
+      addNotification(user.id, {
+        title: "Profil mis à jour",
+        message: "Vos informations d'inscription ont été mises à jour.",
+        type: "success",
+      });
+
+      // Email changes aren't supported yet: it's owned by Supabase Auth and requires a
+      // reconfirmation flow we haven't built — say so instead of silently ignoring it.
+      if (normalizedEmail !== user.email.toLowerCase()) {
+        toast.info("Le nom et la photo ont été mis à jour. Le changement d'email n'est pas encore pris en charge.");
+      } else {
+        toast.success("Informations d'inscription mises à jour");
+      }
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
     }
-
-    const hacker = hackers.find((entry) => entry.id === user.id);
-    if (hacker) {
-      updateHacker(user.id, { name: updated.name, email: updated.email });
-    }
-
-    addNotification(user.id, {
-      title: "Profil mis à jour",
-      message: "Vos informations d'inscription ont été mises à jour.",
-      type: "success",
-    });
-
-    toast.success("Informations d'inscription mises à jour");
   };
 
   return {

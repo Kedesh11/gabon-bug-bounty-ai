@@ -1,14 +1,20 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useProgrammes, useCreateProgramme, useUpdateProgramme, useDeleteProgramme } from "@/hooks/api/programmes";
+import { useEntreprises } from "@/hooks/api/entreprises";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Edit2, Plus, X, Save } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Programme } from "@/stores/dataStore";
+import { Programme } from "@/types/domain";
 
 export default function AdminProgrammes() {
-  const { programmes, addProgramme, updateProgramme, deleteProgramme, entreprises } = useData();
+  const { data: programmes = [] } = useProgrammes();
+  const { data: entreprises = [] } = useEntreprises();
+  const createProgramme = useCreateProgramme();
+  const updateProgramme = useUpdateProgramme();
+  const deleteProgramme = useDeleteProgramme();
   const [editing, setEditing] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", entrepriseId: "", minReward: "", maxReward: "", scope: "" });
@@ -17,14 +23,17 @@ export default function AdminProgrammes() {
 
   const handleAdd = () => {
     if (!form.name || !form.entrepriseId) { toast.error("Remplissez les champs obligatoires"); return; }
-    const ent = entreprises.find(e => e.id === form.entrepriseId);
-    addProgramme({
-      name: form.name, description: form.description, entrepriseId: form.entrepriseId,
-      entrepriseName: ent?.name || "", scope: form.scope.split(",").map(s => s.trim()).filter(Boolean),
-      minReward: parseInt(form.minReward) || 0, maxReward: parseInt(form.maxReward) || 0, status: "actif",
-    });
-    toast.success("Programme créé");
-    resetForm();
+    createProgramme.mutate(
+      {
+        name: form.name, description: form.description, entrepriseId: form.entrepriseId,
+        scope: form.scope.split(",").map(s => s.trim()).filter(Boolean),
+        minReward: parseInt(form.minReward) || 0, maxReward: parseInt(form.maxReward) || 0, status: "actif",
+      },
+      {
+        onSuccess: () => { toast.success("Programme créé"); resetForm(); },
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
   };
 
   const startEdit = (p: Programme) => {
@@ -33,13 +42,34 @@ export default function AdminProgrammes() {
   };
 
   const handleUpdate = (id: string) => {
-    updateProgramme(id, {
-      name: form.name, description: form.description,
-      minReward: parseInt(form.minReward) || 0, maxReward: parseInt(form.maxReward) || 0,
-      scope: form.scope.split(",").map(s => s.trim()).filter(Boolean),
+    updateProgramme.mutate(
+      {
+        id,
+        data: {
+          name: form.name, description: form.description,
+          minReward: parseInt(form.minReward) || 0, maxReward: parseInt(form.maxReward) || 0,
+          scope: form.scope.split(",").map(s => s.trim()).filter(Boolean),
+        },
+      },
+      {
+        onSuccess: () => { toast.success("Programme mis à jour"); resetForm(); },
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
+  };
+
+  const setStatus = (id: string, status: Programme["status"], successMessage: string) => {
+    updateProgramme.mutate(
+      { id, data: { status } },
+      { onSuccess: () => toast.success(successMessage), onError: (err) => toast.error(apiErrorMessage(err)) },
+    );
+  };
+
+  const handleDelete = (id: string) => {
+    deleteProgramme.mutate(id, {
+      onSuccess: () => toast.error("Programme supprimé"),
+      onError: (err) => toast.error(apiErrorMessage(err)),
     });
-    toast.success("Programme mis à jour");
-    resetForm();
   };
 
   return (
@@ -94,12 +124,12 @@ export default function AdminProgrammes() {
               </div>
               <div className="flex items-center gap-2">
                 {p.status === "actif" ? (
-                  <Button variant="outline" size="sm" onClick={() => { updateProgramme(p.id, { status: "pause" }); toast.info("Programme mis en pause"); }}>Pause</Button>
+                  <Button variant="outline" size="sm" onClick={() => setStatus(p.id, "pause", "Programme mis en pause")}>Pause</Button>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={() => { updateProgramme(p.id, { status: "actif" }); toast.success("Programme activé"); }}>Activer</Button>
+                  <Button variant="outline" size="sm" onClick={() => setStatus(p.id, "actif", "Programme activé")}>Activer</Button>
                 )}
                 <Button variant="outline" size="sm" onClick={() => startEdit(p)}><Edit2 className="w-3 h-3" /></Button>
-                <Button variant="destructive" size="sm" onClick={() => { deleteProgramme(p.id); toast.error("Programme supprimé"); }}><Trash2 className="w-3 h-3" /></Button>
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(p.id)}><Trash2 className="w-3 h-3" /></Button>
               </div>
             </div>
           ))}

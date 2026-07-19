@@ -5,9 +5,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext.tsx";
-import { DataProvider } from "@/contexts/DataContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import MaintenanceGate from "@/components/MaintenanceGate";
 
 import Index from "./pages/Index";
 
@@ -39,6 +39,7 @@ const AdminLogs = lazy(() => import("./pages/admin/AdminLogs"));
 const AdminUserDetail = lazy(() => import("./pages/admin/AdminUserDetail"));
 const AdminTicketDetail = lazy(() => import("./pages/admin/AdminTicketDetail"));
 const AdminKnowledgeBase = lazy(() => import("./pages/admin/AdminKnowledgeBase"));
+const AdminRoles = lazy(() => import("./pages/admin/AdminRoles"));
 
 // Hacker
 const HackerDashboard = lazy(() => import("./pages/hacker/HackerDashboard"));
@@ -69,8 +70,8 @@ const App = () => (
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ErrorBoundary>
           <AuthProvider>
-            <DataProvider>
-              <Suspense fallback={<RouteFallback />}>
+            <MaintenanceGate>
+            <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   {/* Public Routes */}
                   <Route path="/" element={<Index />} />
@@ -89,18 +90,19 @@ const App = () => (
                   <Route path="/mentions-legales" element={<MentionsLegales />} />
 
                   {/* Admin Routes */}
-                  <Route path="/admin" element={<ProtectedRoute roles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
-                  <Route path="/admin/utilisateurs" element={<ProtectedRoute roles={["admin", "support"]}><AdminUtilisateurs /></ProtectedRoute>} />
-                  <Route path="/admin/programmes" element={<ProtectedRoute roles={["admin"]}><AdminProgrammes /></ProtectedRoute>} />
-                  <Route path="/admin/rapports" element={<ProtectedRoute roles={["admin", "triage"]}><AdminRapports /></ProtectedRoute>} />
-                  <Route path="/admin/parametres" element={<ProtectedRoute roles={["admin", "triage", "finance", "support"]}><AdminParametres /></ProtectedRoute>} />
-                  <Route path="/admin/triage" element={<ProtectedRoute roles={["admin", "triage"]}><TriageDashboard /></ProtectedRoute>} />
-                  <Route path="/admin/finance" element={<ProtectedRoute roles={["admin", "finance"]}><FinanceDashboard /></ProtectedRoute>} />
-                  <Route path="/admin/support" element={<ProtectedRoute roles={["admin", "support"]}><SupportDashboard /></ProtectedRoute>} />
-                  <Route path="/admin/logs" element={<ProtectedRoute roles={["admin", "support"]}><AdminLogs /></ProtectedRoute>} />
-                  <Route path="/admin/utilisateurs/:id" element={<ProtectedRoute roles={["admin", "support"]}><AdminUserDetail /></ProtectedRoute>} />
-                  <Route path="/admin/support/ticket/:id" element={<ProtectedRoute roles={["admin", "support"]}><AdminTicketDetail /></ProtectedRoute>} />
-                  <Route path="/admin/support/kb" element={<ProtectedRoute roles={["admin", "support"]}><AdminKnowledgeBase /></ProtectedRoute>} />
+                  <Route path="/admin" element={<ProtectedRoute permissions={["dashboard.admin.view"]}><AdminDashboard /></ProtectedRoute>} />
+                  <Route path="/admin/utilisateurs" element={<ProtectedRoute permissions={["users.view"]}><AdminUtilisateurs /></ProtectedRoute>} />
+                  <Route path="/admin/programmes" element={<ProtectedRoute permissions={["programmes.manage.view"]}><AdminProgrammes /></ProtectedRoute>} />
+                  <Route path="/admin/rapports" element={<ProtectedRoute permissions={["reports.manage.view"]}><AdminRapports /></ProtectedRoute>} />
+                  <Route path="/admin/parametres" element={<ProtectedRoute permissions={["settings.view"]}><AdminParametres /></ProtectedRoute>} />
+                  <Route path="/admin/triage" element={<ProtectedRoute permissions={["dashboard.triage.view"]}><TriageDashboard /></ProtectedRoute>} />
+                  <Route path="/admin/finance" element={<ProtectedRoute permissions={["dashboard.finance.view"]}><FinanceDashboard /></ProtectedRoute>} />
+                  <Route path="/admin/support" element={<ProtectedRoute permissions={["dashboard.support.view"]}><SupportDashboard /></ProtectedRoute>} />
+                  <Route path="/admin/logs" element={<ProtectedRoute permissions={["logs.view"]}><AdminLogs /></ProtectedRoute>} />
+                  <Route path="/admin/utilisateurs/:id" element={<ProtectedRoute permissions={["users.view"]}><AdminUserDetail /></ProtectedRoute>} />
+                  <Route path="/admin/support/ticket/:id" element={<ProtectedRoute permissions={["support.tickets.view"]}><AdminTicketDetail /></ProtectedRoute>} />
+                  <Route path="/admin/support/kb" element={<ProtectedRoute permissions={["support.kb.view"]}><AdminKnowledgeBase /></ProtectedRoute>} />
+                  <Route path="/admin/roles" element={<ProtectedRoute permissions={["roles.manage"]}><AdminRoles /></ProtectedRoute>} />
 
                   {/* Hacker Routes */}
                   <Route path="/hacker" element={<ProtectedRoute roles={["hacker"]}><HackerDashboard /></ProtectedRoute>} />
@@ -118,8 +120,8 @@ const App = () => (
                   {/* 404 */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
-              </Suspense>
-            </DataProvider>
+            </Suspense>
+            </MaintenanceGate>
           </AuthProvider>
         </ErrorBoundary>
       </BrowserRouter>

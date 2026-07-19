@@ -1,18 +1,26 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/contexts/useAuth";
-import { useData } from "@/contexts/DataContext";
+import { useEntreprise, useUpdateEntreprise } from "@/hooks/api/entreprises";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function EntrepriseParametres() {
-  const { user } = useAuth();
-  const { entreprises, updateEntreprise } = useData();
-  const profile = entreprises.find(e => e.id === user?.id);
+  const { user, updateProfile } = useAuth();
+  const { data: profile } = useEntreprise(user?.entrepriseProfileId);
+  const updateEntreprise = useUpdateEntreprise();
 
   const [name, setName] = useState(profile?.name || user?.name || "");
   const [sector, setSector] = useState(profile?.sector || "");
+
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name);
+      setSector(profile.sector);
+    }
+  }, [profile]);
 
   return (
     <DashboardLayout>
@@ -35,7 +43,7 @@ export default function EntrepriseParametres() {
               <Input value={sector} onChange={e => setSector(e.target.value)} placeholder="Finance, Gouvernement, Télécoms..." className="bg-secondary border-border" />
             </div>
           </div>
-          <Button size="sm" onClick={() => {
+          <Button size="sm" onClick={async () => {
             if (!name.trim()) {
               toast.error("Le nom de l'organisation est requis");
               return;
@@ -44,8 +52,14 @@ export default function EntrepriseParametres() {
               toast.error("Le nom est trop court");
               return;
             }
-            if (profile) { updateEntreprise(profile.id, { name: name.trim(), sector: sector.trim() }); }
-            toast.success("Paramètres sauvegardés");
+            if (!profile) return;
+            try {
+              await updateProfile({ name: name.trim() });
+              await updateEntreprise.mutateAsync({ id: profile.id, data: { sector: sector.trim() } });
+              toast.success("Paramètres sauvegardés");
+            } catch (err) {
+              toast.error(apiErrorMessage(err));
+            }
           }}>Sauvegarder</Button>
         </div>
       </div>

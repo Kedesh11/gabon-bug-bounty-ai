@@ -2,20 +2,13 @@ import Navbar from "@/components/Navbar";
 import { Building2, ArrowRight, Shield, ShieldCheck, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/useAuth";
-import { UserRole } from "@/types/auth";
+import { resolveDashboardPath } from "@/lib/roleNav";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-
-const ROLE_REDIRECTS: Record<UserRole, string> = {
-  admin: "/admin",
-  hacker: "/hacker",
-  entreprise: "/entreprise",
-  triage: "/admin/triage",
-  finance: "/admin/finance",
-  support: "/admin/support",
-};
+import { apiErrorMessage } from "@/lib/apiClient";
 
 const Inscription = () => {
   const [searchParams] = useSearchParams();
@@ -37,7 +30,7 @@ const Inscription = () => {
     }
   }, [isEntrepriseFlow]);
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!name || !email || !password || !confirmPassword) {
       toast.error("Veuillez remplir tous les champs");
@@ -50,18 +43,18 @@ const Inscription = () => {
 
     const effectiveRole = isEntrepriseFlow ? "entreprise" : role;
 
-    const createdUser = register(name, email, password, effectiveRole);
-    if (!createdUser) {
-      toast.error("Échec de l'inscription");
-      return;
-    }
+    try {
+      const createdUser = await register(name, email, password, effectiveRole);
 
-    toast.success("Bienvenue dans l'aventure !");
-    if (redirectPath && createdUser.role === "entreprise") {
-      navigate(redirectPath);
-      return;
+      toast.success("Bienvenue dans l'aventure !");
+      if (redirectPath && createdUser.role === "entreprise") {
+        navigate(redirectPath);
+        return;
+      }
+      navigate(resolveDashboardPath(createdUser));
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
     }
-    navigate(ROLE_REDIRECTS[createdUser.role]);
   };
 
   return (
@@ -148,8 +141,7 @@ const Inscription = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Mot de passe</label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••"
@@ -158,8 +150,7 @@ const Inscription = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Confirmation</label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••••"

@@ -1,69 +1,56 @@
-import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, DollarSign, Terminal } from "lucide-react";
+import { Shield, LogOut, Home, FileText, Bug, Users, BarChart3, Settings, Menu, X, Bell, CheckCheck, UserCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
-import { UserRole } from "@/types/auth";
+import { getStaffNavItems } from "@/lib/roleNav";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead, notificationsEventName, type NotificationItem } from "@/lib/notifications";
+import {
+  getGlobalNotifications,
+  markAllGlobalNotificationsAsRead,
+  markGlobalNotificationAsRead,
+  globalNotificationsEventName,
+  globalNotificationsStorageKey,
+} from "@/lib/globalNotifications";
+import { useConfig, useUpdateConfig, DEFAULT_SYSTEM_CONFIG } from "@/hooks/api/config";
+import { apiErrorMessage } from "@/lib/apiClient";
+import { toast } from "sonner";
 
-const NAV_ITEMS: Record<UserRole, { label: string; path: string; icon: React.ElementType }[]> = {
-  admin: [
-    { label: "Tableau de bord", path: "/admin", icon: BarChart3 },
-    { label: "Utilisateurs", path: "/admin/utilisateurs", icon: Users },
-    { label: "Programmes", path: "/admin/programmes", icon: FileText },
-    { label: "Rapports", path: "/admin/rapports", icon: Bug },
-    { label: "Logs Système", path: "/admin/logs", icon: Terminal },
-    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
-  ],
-  hacker: [
-    { label: "Tableau de bord", path: "/hacker", icon: BarChart3 },
-    { label: "Programmes", path: "/hacker/programmes", icon: FileText },
-    { label: "Mes rapports", path: "/hacker/rapports", icon: Bug },
-    { label: "Profil", path: "/hacker/profil", icon: Users },
-    { label: "Paramètres", path: "/hacker/parametres", icon: Settings },
-  ],
-  entreprise: [
-    { label: "Tableau de bord", path: "/entreprise", icon: BarChart3 },
-    { label: "Mes programmes", path: "/entreprise/programmes", icon: FileText },
-    { label: "Rapports reçus", path: "/entreprise/rapports", icon: Bug },
-    { label: "Paramètres", path: "/entreprise/parametres", icon: Settings },
-  ],
-  triage: [
-    { label: "Dashboard Triage", path: "/admin/triage", icon: BarChart3 },
-    { label: "Rapports", path: "/admin/rapports", icon: Bug },
-    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
-  ],
-  finance: [
-    { label: "Dashboard Finance", path: "/admin/finance", icon: BarChart3 },
-    { label: "Rapports Financiers", path: "/admin/finance", icon: DollarSign },
-    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
-  ],
-  support: [
-    { label: "Dashboard Support", path: "/admin/support", icon: BarChart3 },
-    { label: "Utilisateurs", path: "/admin/utilisateurs", icon: Users },
-    { label: "Logs Plateforme", path: "/admin/logs", icon: Terminal },
-    { label: "Paramètres", path: "/admin/parametres", icon: Settings },
-  ],
-};
+const HACKER_NAV_ITEMS = [
+  { label: "Tableau de bord", path: "/hacker", icon: BarChart3 },
+  { label: "Programmes", path: "/hacker/programmes", icon: FileText },
+  { label: "Mes rapports", path: "/hacker/rapports", icon: Bug },
+  { label: "Profil", path: "/hacker/profil", icon: Users },
+  { label: "Paramètres", path: "/hacker/parametres", icon: Settings },
+];
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  admin: "Administrateur",
-  hacker: "Chercheur Élite",
-  entreprise: "Partenaire Entreprise",
-  triage: "Responsable Triage",
-  finance: "Gestionnaire Finance",
-  support: "Support Technique",
-};
+const ENTREPRISE_NAV_ITEMS = [
+  { label: "Tableau de bord", path: "/entreprise", icon: BarChart3 },
+  { label: "Mes programmes", path: "/entreprise/programmes", icon: FileText },
+  { label: "Rapports reçus", path: "/entreprise/rapports", icon: Bug },
+  { label: "Paramètres", path: "/entreprise/parametres", icon: Settings },
+];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: config = DEFAULT_SYSTEM_CONFIG } = useConfig();
+  const updateConfig = useUpdateConfig();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const userId = user?.id ?? "";
-  const items = user ? NAV_ITEMS[user.role] : [];
+  const items = !user
+    ? []
+    : user.role === "hacker"
+      ? HACKER_NAV_ITEMS
+      : user.role === "entreprise"
+        ? ENTREPRISE_NAV_ITEMS
+        : getStaffNavItems(user);
+  // Platform-wide alerts, shown to every role, gated by the "Notifications Globales"
+  // toggle in Configuration Système (SystemConfig.globalNotificationsEnabled).
+  const showGlobalNotifications = config.globalNotificationsEnabled;
   const unreadCount = useMemo(() => notifications.filter((entry) => !entry.isRead).length, [notifications]);
 
   const reloadNotifications = useCallback(() => {
@@ -71,8 +58,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setNotifications([]);
       return;
     }
-    setNotifications(getNotifications(userId));
-  }, [userId]);
+    const own = getNotifications(userId);
+    const global = showGlobalNotifications ? getGlobalNotifications() : [];
+    const merged = [...own, ...global].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    setNotifications(merged);
+  }, [userId, showGlobalNotifications]);
 
   useEffect(() => {
     if (!userId) return;
@@ -84,17 +76,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         reloadNotifications();
       }
     };
+    const handleGlobalUpdate = () => reloadNotifications();
 
     const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key === `bb_notifications_${userId}`) {
+      if (!event.key || event.key === `bb_notifications_${userId}` || event.key === globalNotificationsStorageKey) {
         reloadNotifications();
       }
     };
 
     window.addEventListener(notificationsEventName, handleCustomUpdate as EventListener);
+    window.addEventListener(globalNotificationsEventName, handleGlobalUpdate);
     window.addEventListener("storage", handleStorage);
     return () => {
       window.removeEventListener(notificationsEventName, handleCustomUpdate as EventListener);
+      window.removeEventListener(globalNotificationsEventName, handleGlobalUpdate);
       window.removeEventListener("storage", handleStorage);
     };
   }, [reloadNotifications, userId]);
@@ -108,6 +103,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = () => {
     logout();
     navigate("/");
+  };
+
+  const handleDisableMaintenance = () => {
+    updateConfig.mutate(
+      { maintenanceMode: false },
+      {
+        onSuccess: () => toast.success("Mode maintenance désactivé"),
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
   };
 
   const sidebar = (
@@ -130,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground font-mono truncate">{ROLE_LABELS[user.role]}</p>
+            <p className="text-xs text-muted-foreground font-mono truncate">{user.roleLabel}</p>
           </div>
         </div>
       </div>
@@ -227,6 +232,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     className="text-xs"
                     onClick={() => {
                       markAllNotificationsAsRead(user.id);
+                      if (showGlobalNotifications) markAllGlobalNotificationsAsRead();
                       reloadNotifications();
                     }}
                   >
@@ -241,6 +247,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         key={entry.id}
                         onClick={() => {
                           markNotificationAsRead(user.id, entry.id);
+                          if (showGlobalNotifications) markGlobalNotificationAsRead(entry.id);
                           reloadNotifications();
                         }}
                         className={`w-full text-left rounded-lg border p-3 transition-colors ${
@@ -262,6 +269,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
         </header>
+
+        {user.role === "admin" && config.maintenanceMode && (
+          <div className="sticky top-14 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/10 px-4 py-3">
+            <div className="flex items-center gap-3 text-destructive">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <p className="text-sm font-bold">
+                Mode maintenance actif
+                {config.maintenanceUntil &&
+                  ` — se termine à ${new Date(config.maintenanceUntil).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                . La plateforme est inaccessible pour tous les autres utilisateurs.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDisableMaintenance}
+              disabled={updateConfig.isPending}
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 font-bold shrink-0"
+            >
+              DÉSACTIVER
+            </Button>
+          </div>
+        )}
+
         <main className="p-4 md:p-6">{children}</main>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { ArrowDownToLine, Wallet } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import type { HackerPaymentConfig, PaymentMethod } from "@/stores/dataStore";
+import type { HackerPaymentConfig, PaymentMethod } from "@/types/domain";
 import { MobileMoneyFields } from "./fields/MobileMoneyFields";
 import { BankTransferFields } from "./fields/BankTransferFields";
 import { CardFields } from "./fields/CardFields";

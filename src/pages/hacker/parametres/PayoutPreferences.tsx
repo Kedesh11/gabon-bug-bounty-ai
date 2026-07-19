@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import type { HackerPaymentConfig, PreferredCurrency } from "@/stores/dataStore";
+import type { HackerPaymentConfig, PreferredCurrency } from "@/types/domain";
 
 interface PayoutPreferencesProps {
   config: HackerPaymentConfig;

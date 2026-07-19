@@ -1,5 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useReports } from "@/hooks/api/reports";
+import { useHackers } from "@/hooks/api/hackers";
+import { useProgrammes } from "@/hooks/api/programmes";
 import { useAuth } from "@/contexts/useAuth";
 import {
   Bug,
@@ -25,10 +27,11 @@ import { Card } from "@/components/ui/card";
 
 export default function HackerDashboard() {
   const { user } = useAuth();
-  const { reports, hackers, programmes } = useData();
+  const { data: myReports = [] } = useReports();
+  const { data: hackers = [] } = useHackers();
+  const { data: programmes = [] } = useProgrammes();
 
-  const myReports = reports.filter(r => r.hackerId === user?.id);
-  const profile = hackers.find(h => h.id === user?.id);
+  const profile = hackers.find(h => h.id === user?.hackerProfileId);
   const activeProgrammes = programmes.filter(p => p.status === "actif").slice(0, 3);
 
   const totalRewards = myReports.reduce((s, r) => s + r.reward, 0);

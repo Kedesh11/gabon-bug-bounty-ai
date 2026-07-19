@@ -2,7 +2,7 @@ import { CreditCard } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCardNumber, formatExpiryInput } from "@/lib/paymentValidation";
-import type { CardBrand, HackerPaymentConfig } from "@/stores/dataStore";
+import type { CardBrand, HackerPaymentConfig } from "@/types/domain";
 import { ValidationIndicator } from "../ValidationIndicator";
 
 interface CardFieldsProps {

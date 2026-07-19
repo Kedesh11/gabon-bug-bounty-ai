@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useData } from "@/contexts/DataContext";
+import { useReports } from "@/hooks/api/reports";
 import {
   DollarSign,
   CreditCard,
@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 export default function FinanceDashboard() {
-  const { reports } = useData();
+  const { data: reports = [] } = useReports();
   const paidReports = reports.filter(r => r.reward > 0);
   const totalBounties = paidReports.reduce((s, r) => s + r.reward, 0);
 
