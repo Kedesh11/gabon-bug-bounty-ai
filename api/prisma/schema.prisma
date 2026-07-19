@@ -70,6 +70,7 @@ model Profile {
   hackerProfile     HackerProfile?
   entrepriseProfile EntrepriseProfile?
   logs              PlatformLog[]
+  reviewedFraudSignals FraudSignal[] @relation("FraudSignalReviewedBy")
 
   @@map("profiles")
 }
@@ -188,6 +189,10 @@ model HackerPaymentConfig {
   preferredCurrency        PreferredCurrency @default(USD)
   autoWithdrawal            Boolean          @default(false)
   minimumPayoutThreshold    String           @default("50")
+
+  // Drives the payment_anomaly heuristic (fraudService.ts): a config edited right
+  // before a payout request is a signal, not provable fraud on its own.
+  updatedAt DateTime @updatedAt
 
   @@map("hacker_payment_configs")
 }
@@ -491,6 +496,7 @@ model Report {
   // Inverse side of AiAnalysis.duplicateOfId: other reports whose AiAnalysis points
   // back at this one as the earlier/original submission on the same vulnerability.
   duplicateFlags AiAnalysis[] @relation("ReportDuplicateOf")
+  fraudSignals   FraudSignal[]
 
   @@map("reports")
 }
@@ -631,6 +637,8 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  fraudSignals FraudSignal[]
+
   @@map("payments")
 }
 
@@ -653,5 +661,56 @@ model Payout {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  fraudSignals FraudSignal[]
+
   @@map("payouts")
+}
+
+// ---------------------------------------------------------------------------
+// Fraud detection (Phase 5) — heuristic signals for human review, never an
+// automatic block. See api/src/services/fraud/fraudService.ts for the 4 checks.
+// ---------------------------------------------------------------------------
+
+enum FraudSignalType {
+  duplicate_account
+  hacker_entreprise_collusion
+  plagiarized_report
+  payment_anomaly
+}
+
+enum FraudSignalStatus {
+  open
+  reviewing
+  confirmed
+  dismissed
+}
+
+model FraudSignal {
+  id       String             @id @default(uuid()) @db.Uuid
+  type     FraudSignalType
+  status   FraudSignalStatus  @default(open)
+  severity Severity
+  summary  String
+  // Heuristic-specific evidence (matched field, computed rates, thresholds used) —
+  // free-form by design since each of the 4 heuristics captures different evidence.
+  details  Json
+
+  relatedProfileIds String[] @default([])
+
+  relatedReportId String? @db.Uuid
+  relatedReport   Report? @relation(fields: [relatedReportId], references: [id], onDelete: Cascade)
+
+  relatedPaymentId String?  @db.Uuid
+  relatedPayment   Payment? @relation(fields: [relatedPaymentId], references: [id], onDelete: Cascade)
+
+  relatedPayoutId String? @db.Uuid
+  relatedPayout   Payout? @relation(fields: [relatedPayoutId], references: [id], onDelete: Cascade)
+
+  reviewedById String?   @db.Uuid
+  reviewedBy   Profile?  @relation("FraudSignalReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@map("fraud_signals")
 }

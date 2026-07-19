@@ -1,4 +1,4 @@
-import { BarChart3, Users, FileText, Bug, Terminal, Settings, type LucideIcon } from "lucide-react";
+import { BarChart3, Users, FileText, Bug, Terminal, Settings, ShieldAlert, type LucideIcon } from "lucide-react";
 import { User } from "@/types/auth";
 
 export interface NavItem {
@@ -23,6 +23,7 @@ export const STAFF_NAV_ITEMS: NavItem[] = [
   { label: "Rapports", path: "/admin/rapports", icon: Bug, permission: "reports.manage.view" },
   { label: "Logs Système", path: "/admin/logs", icon: Terminal, permission: "logs.view" },
   { label: "Rôles & Permissions", path: "/admin/roles", icon: Users, permission: "roles.manage" },
+  { label: "Détection de fraude", path: "/admin/fraude", icon: ShieldAlert, permission: "fraud.review" },
   { label: "Paramètres", path: "/admin/parametres", icon: Settings, permission: "settings.view" },
 ];
 
