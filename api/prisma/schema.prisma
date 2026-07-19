@@ -71,6 +71,7 @@ model Profile {
   entrepriseProfile EntrepriseProfile?
   logs              PlatformLog[]
   reviewedFraudSignals FraudSignal[] @relation("FraudSignalReviewedBy")
+  editedContentEntries ContentEntry[]
 
   @@map("profiles")
 }
@@ -792,4 +793,66 @@ model McpAgentOutput {
 
   @@unique([runId, agentType])
   @@map("mcp_agent_outputs")
+}
+
+// ---------------------------------------------------------------------------
+// Content management (Phase 1 of the platform-wide CMS) — see
+// api/src/services/content/contentService.ts. Public GETs are unauthenticated
+// (same posture as programmes/taxonomy); writes require permission content.manage.
+// ---------------------------------------------------------------------------
+
+enum ContentValueType {
+  text
+  json
+}
+
+// Generic key -> value content store, namespaced by page ("documentation.sections",
+// "contact.hero.title"). type=json holds a JSON-serialized structure (arrays of
+// objects) for pages whose current hardcoded content is list-shaped, not flat text.
+model ContentEntry {
+  id          String           @id @default(uuid()) @db.Uuid
+  key         String           @unique
+  type        ContentValueType
+  value       String
+  updatedAt   DateTime         @updatedAt
+  updatedById String?          @db.Uuid
+  updatedBy   Profile?         @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("content_entries")
+}
+
+model NavbarItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  label      String
+  url        String
+  order      Int
+  isExternal Boolean  @default(false)
+  visible    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@map("navbar_items")
+}
+
+// The current footer (FooterSection.tsx) has no column concept at all — this
+// introduces it for the first time so the footer can grow structurally (the
+// user's explicit "navbar to footer" requirement), seeded with a single default
+// column holding today's 2 links so the first deploy looks identical.
+model FooterColumn {
+  id    String       @id @default(uuid()) @db.Uuid
+  title String
+  order Int
+  links FooterLink[]
+
+  @@map("footer_columns")
+}
+
+model FooterLink {
+  id       String       @id @default(uuid()) @db.Uuid
+  columnId String       @db.Uuid
+  column   FooterColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  label    String
+  url      String
+  order    Int
+
+  @@map("footer_links")
 }

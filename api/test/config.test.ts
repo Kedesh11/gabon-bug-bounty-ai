@@ -8,6 +8,14 @@ afterEach(async () => {
   await prisma.systemConfig.update({ where: { id: 1 }, data: { maintenanceMode: false, maintenanceUntil: null } });
 });
 
+describe("GET /api/config/public", () => {
+  it("returns only the platform name, no auth required", async () => {
+    const res = await request(app).get("/api/config/public");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ platformName: expect.any(String) });
+  });
+});
+
 describe("PATCH /api/config — maintenance mode", () => {
   it("rejects a non-admin", async () => {
     const hacker = await createTestUser("hacker");
