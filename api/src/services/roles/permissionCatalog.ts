@@ -38,6 +38,7 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: "fraud.review", label: "Examiner les signaux de fraude", description: "Lister/traiter les signaux, lancer une analyse (POST /api/fraud/*)" },
   { key: "taxonomy.manage", label: "Administrer la taxonomie des vulnérabilités", description: "Créer/modifier/supprimer des catégories, compléter celles proposées par des hackers (CWE, sévérité, hiérarchie)" },
   { key: "content.manage", label: "Administrer le contenu du site", description: "CRUD navbar/footer/contenu de page (POST/PATCH/DELETE /api/content/*)" },
+  { key: "tickets.manage", label: "Gérer les tickets support", description: "Répondre, résoudre ou supprimer un ticket support (POST/PATCH/DELETE /api/tickets/*)" },
 
   // View permissions (frontend pages/nav — admin side only)
   { key: "dashboard.admin.view", label: "Voir le tableau de bord admin", description: "/admin" },
@@ -66,7 +67,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   finance: ["payouts.create", "reports.triage", "reports.view.all", "dashboard.finance.view", "settings.view"],
   // Support had no reports.* action permission before, but canView() let it read any
   // report via the API (role === "support" was in its hardcoded allow-list) — preserved.
-  support: ["reports.view.all", "dashboard.support.view", "users.view", "logs.view", "support.tickets.view", "support.kb.view", "settings.view"],
+  support: ["reports.view.all", "dashboard.support.view", "users.view", "logs.view", "support.tickets.view", "support.kb.view", "settings.view", "tickets.manage", "fraud.review"],
 };
 
 export const SYSTEM_ROLE_KEYS = Object.keys(DEFAULT_ROLE_PERMISSIONS);

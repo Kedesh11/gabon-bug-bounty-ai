@@ -320,6 +320,52 @@ async function main() {
   await prisma.programme.update({ where: { id: progGouv.id }, data: { reportsCount: 1 } });
   await prisma.programme.update({ where: { id: progPortail.id }, data: { reportsCount: 1 } });
 
+  console.log("Seeding support tickets...");
+  await prisma.ticket.create({
+    data: {
+      subject: "Appel sur rapport de vulnérabilité",
+      category: "Litige Prime",
+      status: "ouvert",
+      priority: "critique",
+      authorId: ids["hacker@bugbounty.com"],
+      messages: {
+        create: [
+          { authorId: ids["hacker@bugbounty.com"], text: "Je ne suis pas d'accord avec la décision de tri. C'est bien une RCE. J'ai fourni un PoC fonctionnel qui permet l'exécution de code à distance via l'injection de paramètres non filtrés." },
+        ],
+      },
+    },
+  });
+  await prisma.ticket.create({
+    data: {
+      subject: "Instabilité de l'endpoint d'authentification",
+      category: "Technique",
+      status: "en_cours",
+      priority: "haute",
+      authorId: ids["security@seeg.ga"],
+      messages: {
+        create: [
+          { authorId: ids["security@seeg.ga"], text: "Notre endpoint /auth renvoie des 500 intermittents depuis ce matin, avant même le début d'un test." },
+          { authorId: ids["support@bugbounty.com"], text: "Bonjour, nous transmettons à l'équipe technique de la plateforme. Pouvez-vous confirmer l'horodatage exact des erreurs ?" },
+        ],
+      },
+    },
+  });
+  await prisma.ticket.create({
+    data: {
+      subject: "Délai de versement Mobile Money Moov",
+      category: "Finance",
+      status: "resolu",
+      priority: "moyenne",
+      authorId: ids["ghost@mail.com"],
+      messages: {
+        create: [
+          { authorId: ids["ghost@mail.com"], text: "Mon versement de la semaine dernière n'est toujours pas arrivé sur Moov Money." },
+          { authorId: ids["support@bugbounty.com"], text: "Versement confirmé et renvoyé, le délai était dû à une maintenance côté opérateur. Désolé pour le désagrément." },
+        ],
+      },
+    },
+  });
+
   console.log("Seeding system config...");
   await prisma.systemConfig.create({
     data: {
