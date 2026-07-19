@@ -31,6 +31,14 @@ import { useContent } from "@/hooks/api/content";
 export default function SupportDashboard() {
   const pageTitle = useContent("admin.support.title", "Support Desk");
   const pageSubtitle = useContent("admin.support.subtitle", "Centre d'opérations : Tickets, Utilisateurs et Modération.");
+  const tabTickets = useContent("admin.support.tabs.tickets", "File de Tickets");
+  const tabUsers = useContent("admin.support.tabs.users", "Utilisateurs & KYC");
+  const tabModeration = useContent("admin.support.tabs.moderation", "Modération");
+  const ticketsHeading = useContent("admin.support.tickets-heading", "File Prioritaire");
+  const moderationHeading = useContent("admin.support.moderation-heading", "Vigilance");
+  const kbCardHeading = useContent("admin.support.kb-card.heading", "Base de Connaissances");
+  const kbCardText = useContent("admin.support.kb-card.text", "Accédez aux protocoles de résolution et aux guides de médiation officiels.");
+  const performanceHeading = useContent("admin.support.performance-heading", "Performance Support");
   const { data: hackers = [] } = useHackers();
   const { data: entreprises = [] } = useEntreprises();
   const updateHacker = useUpdateHacker();
@@ -79,13 +87,13 @@ export default function SupportDashboard() {
         <Tabs defaultValue="tickets" value={activeTab} onValueChange={(v) => setActiveTab(v as "tickets" | "moderation" | "users")} className="space-y-8">
           <TabsList className="bg-secondary/30 p-1 rounded-2xl border border-border h-14 w-full justify-start gap-2 overflow-x-auto">
             <TabsTrigger value="tickets" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white shrink-0">
-              <MessageSquare className="w-4 h-4 mr-2" /> File de Tickets
+              <MessageSquare className="w-4 h-4 mr-2" /> {tabTickets}
             </TabsTrigger>
             <TabsTrigger value="users" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white shrink-0">
-              <Users className="w-4 h-4 mr-2" /> Utilisateurs & KYC
+              <Users className="w-4 h-4 mr-2" /> {tabUsers}
             </TabsTrigger>
             <TabsTrigger value="moderation" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white shrink-0">
-              <ShieldAlert className="w-4 h-4 mr-2" /> Modération
+              <ShieldAlert className="w-4 h-4 mr-2" /> {tabModeration}
             </TabsTrigger>
           </TabsList>
 
@@ -104,7 +112,7 @@ export default function SupportDashboard() {
 
               <Card className="glass-card rounded-[32px] border-border overflow-hidden shadow-2xl">
                 <div className="p-6 border-b border-border bg-secondary/30 flex justify-between items-center">
-                   <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Clock className="w-4 h-4" /> File Prioritaire</h3>
+                   <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Clock className="w-4 h-4" /> {ticketsHeading}</h3>
                    <Badge className="bg-blue-500/10 text-blue-500 border-none font-black">{tickets.length} TICKETS</Badge>
                 </div>
                 <div className="divide-y divide-border">
@@ -218,7 +226,7 @@ export default function SupportDashboard() {
           {/* Moderation Tab */}
           <TabsContent value="moderation" className="animate-in fade-in slide-in-from-bottom-4 duration-300 outline-none">
             <Card className="glass-card p-8 rounded-[32px] border-border shadow-2xl">
-              <h3 className="text-xl font-black mb-6 flex items-center gap-3"><Users className="w-6 h-6 text-blue-500" /> Vigilance</h3>
+              <h3 className="text-xl font-black mb-6 flex items-center gap-3"><Users className="w-6 h-6 text-blue-500" /> {moderationHeading}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[
                   { user: "Hacker_Shadow", reason: "Brute force détecté", risk: "Critique" },
@@ -241,13 +249,13 @@ export default function SupportDashboard() {
         {/* Support Tools Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <Card className="glass-card p-8 rounded-[32px] border-border space-y-6 shadow-2xl bg-gradient-to-br from-blue-600/10 to-transparent">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500 flex items-center gap-2"><ShieldQuestion className="w-4 h-4" /> Base de Connaissances</h3>
-              <p className="text-[11px] text-muted-foreground font-medium italic">Accédez aux protocoles de résolution et aux guides de médiation officiels.</p>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500 flex items-center gap-2"><ShieldQuestion className="w-4 h-4" /> {kbCardHeading}</h3>
+              <p className="text-[11px] text-muted-foreground font-medium italic">{kbCardText}</p>
               <Button className="w-full h-12 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-600/20 uppercase text-[10px]" onClick={() => navigate("/admin/support/kb")}>CONSULTER LA KB</Button>
             </Card>
 
             <Card className="glass-card p-8 rounded-[32px] border-border space-y-6 shadow-2xl">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500 flex items-center gap-2"><BarChart2 className="w-4 h-4" /> Performance Support</h3>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-blue-500 flex items-center gap-2"><BarChart2 className="w-4 h-4" /> {performanceHeading}</h3>
               <div className="flex justify-between items-end h-24 gap-1">
                  {[40, 70, 45, 90, 65, 80, 55].map((h, i) => <div key={i} style={{ height: `${h}%` }} className="flex-1 bg-blue-500/20 rounded-t-sm" />)}
               </div>

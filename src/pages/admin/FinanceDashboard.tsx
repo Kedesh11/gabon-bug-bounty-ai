@@ -19,6 +19,9 @@ import { useContent } from "@/hooks/api/content";
 export default function FinanceDashboard() {
   const pageTitle = useContent("admin.finance.title", "Finance Hub");
   const pageSubtitle = useContent("admin.finance.subtitle", "Gestion des flux financiers, budgets et versements de primes.");
+  const transactionsHeading = useContent("admin.finance.transactions-heading", "Dernières Transactions");
+  const topProgrammesHeading = useContent("admin.finance.top-programmes-heading", "Top Programmes (Coût)");
+  const complianceHeading = useContent("admin.finance.compliance-heading", "Compliance Status");
   const { data: reports = [] } = useReports();
   const paidReports = reports.filter(r => r.reward > 0);
   const totalBounties = paidReports.reduce((s, r) => s + r.reward, 0);
@@ -77,7 +80,7 @@ export default function FinanceDashboard() {
           <div className="xl:col-span-2 glass-card rounded-2xl border border-border overflow-hidden">
             <div className="p-5 border-b border-border bg-secondary/30 flex justify-between items-center">
               <h3 className="text-sm font-bold flex items-center gap-2">
-                <History className="w-4 h-4 text-primary" /> Dernières Transactions
+                <History className="w-4 h-4 text-primary" /> {transactionsHeading}
               </h3>
               <Badge variant="outline">VOIR TOUT</Badge>
             </div>
@@ -105,7 +108,7 @@ export default function FinanceDashboard() {
           <div className="space-y-6">
             <Card className="glass-card p-6 border-border space-y-6">
               <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-accent" /> Top Programmes (Coût)
+                <PieChart className="w-4 h-4 text-accent" /> {topProgrammesHeading}
               </h3>
               <div className="space-y-4">
                 <BudgetUsage label="SEEG Gabon" spent="12.5M" progress={75} />
@@ -117,7 +120,7 @@ export default function FinanceDashboard() {
             <Card className="glass-card p-6 border-border bg-primary/5 border-primary/20">
               <div className="flex items-center gap-3 mb-4">
                 <ShieldCheck className="w-6 h-6 text-primary" />
-                <h3 className="text-sm font-black uppercase tracking-widest">Compliance Status</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest">{complianceHeading}</h3>
               </div>
               <ul className="space-y-3">
                 <li className="flex items-center gap-2 text-xs font-medium"><div className="h-1.5 w-1.5 rounded-full bg-green-500" /> Vérification KYC terminée</li>

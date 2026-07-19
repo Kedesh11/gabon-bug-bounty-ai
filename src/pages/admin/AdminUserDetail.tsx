@@ -28,8 +28,15 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useContent } from "@/hooks/api/content";
 
 export default function AdminUserDetail() {
+  const notFoundText = useContent("admin.user-detail.not-found", "Utilisateur Introuvable");
+  const tabActivity = useContent("admin.user-detail.tabs.activity", "Activité");
+  const tabKyc = useContent("admin.user-detail.tabs.kyc", "Documents KYC");
+  const tabSecurity = useContent("admin.user-detail.tabs.security", "Sécurité & Logs");
+  const recentReportsHeading = useContent("admin.user-detail.recent-reports-heading", "Rapports Récents");
+  const auditLogsHeading = useContent("admin.user-detail.audit-logs-heading", "Logs d'audit spécifique");
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: hackers = [] } = useHackers();
@@ -49,7 +56,7 @@ export default function AdminUserDetail() {
           <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
             <ShieldAlert className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-black">Utilisateur Introuvable</h2>
+          <h2 className="text-2xl font-black">{notFoundText}</h2>
           <Button onClick={() => navigate(-1)}>Retour</Button>
         </div>
       </DashboardLayout>
@@ -136,19 +143,19 @@ export default function AdminUserDetail() {
               <Tabs defaultValue="activity" className="space-y-6">
                  <TabsList className="bg-secondary/30 p-1 rounded-2xl border border-border h-14 w-full justify-start gap-2">
                     <TabsTrigger value="activity" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                       <History className="w-4 h-4 mr-2" /> Activité
+                       <History className="w-4 h-4 mr-2" /> {tabActivity}
                     </TabsTrigger>
                     <TabsTrigger value="kyc" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                       <ShieldCheck className="w-4 h-4 mr-2" /> Documents KYC
+                       <ShieldCheck className="w-4 h-4 mr-2" /> {tabKyc}
                     </TabsTrigger>
                     <TabsTrigger value="security" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                       <Lock className="w-4 h-4 mr-2" /> Sécurité & Logs
+                       <Lock className="w-4 h-4 mr-2" /> {tabSecurity}
                     </TabsTrigger>
                  </TabsList>
 
                  <TabsContent value="activity">
                     <Card className="glass-card rounded-[32px] border-border overflow-hidden p-8 space-y-6">
-                       <h3 className="text-xl font-black tracking-tight">Rapports Récents</h3>
+                       <h3 className="text-xl font-black tracking-tight">{recentReportsHeading}</h3>
                        <div className="space-y-4">
                           {[1, 2, 3].map(i => (
                              <div key={i} className="p-5 rounded-3xl bg-secondary/20 border border-border flex items-center justify-between group hover:border-blue-500/30 transition-all">
@@ -181,7 +188,7 @@ export default function AdminUserDetail() {
                  <TabsContent value="security">
                     <Card className="glass-card rounded-[32px] border-border overflow-hidden">
                        <div className="p-6 border-b border-border bg-secondary/30 flex justify-between items-center">
-                          <h3 className="text-sm font-black uppercase tracking-widest">Logs d'audit spécifique</h3>
+                          <h3 className="text-sm font-black uppercase tracking-widest">{auditLogsHeading}</h3>
                           <Badge variant="outline" className="text-[10px] font-black border-border">FILTRÉ PAR USER_ID</Badge>
                        </div>
                        <ScrollArea className="h-[400px]">

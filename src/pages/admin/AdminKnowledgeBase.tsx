@@ -23,6 +23,13 @@ import { useContent } from "@/hooks/api/content";
 export default function AdminKnowledgeBase() {
   const pageTitle = useContent("admin.knowledge-base.title", "Base de Connaissances");
   const pageSubtitle = useContent("admin.knowledge-base.subtitle", "Protocoles officiels et guides de résolution pour le Support.");
+  const trendingHeading = useContent("admin.knowledge-base.trending-heading", "Articles Tendances");
+  const quickHelpTitle = useContent("admin.knowledge-base.quick-help.title", "Aide Rapide");
+  const quickHelpText = useContent(
+    "admin.knowledge-base.quick-help.text",
+    "Vous ne trouvez pas la réponse à un cas spécifique ? Contactez l'administrateur principal ou utilisez le canal de triage Slack.",
+  );
+  const linksHeading = useContent("admin.knowledge-base.links-heading", "Liens Externes");
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
 
@@ -87,7 +94,7 @@ export default function AdminKnowledgeBase() {
            <div className="lg:col-span-2 space-y-6">
               <div className="flex items-center justify-between">
                  <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                    <Star className="w-4 h-4 text-yellow-500" /> Articles Tendances
+                    <Star className="w-4 h-4 text-yellow-500" /> {trendingHeading}
                  </h2>
                  <Button variant="link" className="text-blue-500 text-[10px] font-black uppercase">Tout voir</Button>
               </div>
@@ -119,10 +126,10 @@ export default function AdminKnowledgeBase() {
               <Card className="p-8 rounded-[40px] border-blue-500/20 bg-blue-600/5 space-y-6">
                  <div className="flex items-center gap-3">
                     <HelpCircle className="w-6 h-6 text-blue-500" />
-                    <h3 className="text-sm font-black uppercase tracking-widest">Aide Rapide</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest">{quickHelpTitle}</h3>
                  </div>
                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                    Vous ne trouvez pas la réponse à un cas spécifique ? Contactez l'administrateur principal ou utilisez le canal de triage Slack.
+                    {quickHelpText}
                  </p>
                  <Button className="w-full h-12 rounded-2xl bg-blue-600 text-white font-black text-[10px] uppercase shadow-xl shadow-blue-600/20">
                     CONTACTER ADMIN
@@ -130,7 +137,7 @@ export default function AdminKnowledgeBase() {
               </Card>
 
               <Card className="p-8 rounded-[40px] border-border bg-secondary/10 space-y-4">
-                 <h3 className="text-xs font-black uppercase tracking-widest">Liens Externes</h3>
+                 <h3 className="text-xs font-black uppercase tracking-widest">{linksHeading}</h3>
                  <div className="space-y-2">
                     <ExternalLinkItem label="Documentation CVSS v3.1" />
                     <ExternalLinkItem label="Gabon Digital Policy" />
