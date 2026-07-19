@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { McpAgentType, Report } from "@/types/domain";
+import { useContent } from "@/hooks/api/content";
 
 const MCP_AGENT_LABELS: Record<McpAgentType, string> = {
   vulnerability_analysis: "Analyse de vulnérabilité",
@@ -38,6 +39,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminRapports() {
+  const pageTitle = useContent("admin.rapports.title", "Gestion des rapports");
   const { user } = useAuth();
   const [detail, setDetail] = useState<Report | null>(null);
   // Poll while this report's MCP analysis is still running, so the "Analyse
@@ -90,7 +92,7 @@ export default function AdminRapports() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-black text-foreground">Gestion des rapports</h1>
+          <h1 className="text-2xl font-black text-foreground">{pageTitle}</h1>
           <Badge variant="outline" className="gap-1.5 py-1.5 px-3 bg-primary/5 text-primary border-primary/20">
             <BrainCircuit className="w-3.5 h-3.5" />
             AI Triage Actif

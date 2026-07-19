@@ -26,8 +26,11 @@ import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useContent } from "@/hooks/api/content";
 
 export default function SupportDashboard() {
+  const pageTitle = useContent("admin.support.title", "Support Desk");
+  const pageSubtitle = useContent("admin.support.subtitle", "Centre d'opérations : Tickets, Utilisateurs et Modération.");
   const { data: hackers = [] } = useHackers();
   const { data: entreprises = [] } = useEntreprises();
   const updateHacker = useUpdateHacker();
@@ -56,9 +59,9 @@ export default function SupportDashboard() {
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-2">
-              <LifeBuoy className="w-8 h-8 text-blue-500" /> Support Desk
+              <LifeBuoy className="w-8 h-8 text-blue-500" /> {pageTitle}
             </h1>
-            <p className="text-muted-foreground font-medium">Centre d'opérations : Tickets, Utilisateurs et Modération.</p>
+            <p className="text-muted-foreground font-medium">{pageSubtitle}</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-green-500/10 border border-green-500/20">

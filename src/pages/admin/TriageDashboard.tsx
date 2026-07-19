@@ -15,8 +15,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { useContent } from "@/hooks/api/content";
 
 export default function TriageDashboard() {
+  const pageTitle = useContent("admin.triage.title", "Triage Control Center");
+  const pageSubtitle = useContent("admin.triage.subtitle", "Validation technique et analyse de sévérité des vulnérabilités.");
   const { data: reports = [] } = useReports();
   const pendingReports = reports.filter(r => r.status === "soumis" || r.status === "en_analyse");
 
@@ -26,9 +29,9 @@ export default function TriageDashboard() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-2">
-              <Terminal className="w-8 h-8 text-primary" /> Triage Control Center
+              <Terminal className="w-8 h-8 text-primary" /> {pageTitle}
             </h1>
-            <p className="text-muted-foreground">Validation technique et analyse de sévérité des vulnérabilités.</p>
+            <p className="text-muted-foreground">{pageSubtitle}</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">

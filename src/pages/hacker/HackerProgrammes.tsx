@@ -18,8 +18,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useContent, useJsonContent } from "@/hooks/api/content";
 
-const FILTERS = ["Tous", "Web", "API", "Mobile", "Infrastructure", "Public", "Privé", "VDP"] as const;
+const DEFAULT_FILTERS = ["Tous", "Web", "API", "Mobile", "Infrastructure", "Public", "Privé", "VDP"];
 
 const severityColor = (maxReward: number) => {
   if (maxReward >= 5000000) return "text-destructive border-destructive/20 bg-destructive/10";
@@ -28,6 +29,9 @@ const severityColor = (maxReward: number) => {
 };
 
 export default function HackerProgrammes() {
+  const pageTitle = useContent("hacker.programmes.title", "Exploration des Cibles");
+  const pageSubtitle = useContent("hacker.programmes.subtitle", "Découvrez de nouveaux programmes et commencez vos recherches.");
+  const FILTERS = useJsonContent<string[]>("hacker.programmes.filters", DEFAULT_FILTERS);
   const { data: programmes = [] } = useProgrammes();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<string>("Tous");
@@ -53,8 +57,8 @@ export default function HackerProgrammes() {
         {/* Header with Search */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <h1 className="text-3xl font-black text-foreground tracking-tighter">Exploration des Cibles</h1>
-            <p className="text-muted-foreground font-medium">Découvrez de nouveaux programmes et commencez vos recherches.</p>
+            <h1 className="text-3xl font-black text-foreground tracking-tighter">{pageTitle}</h1>
+            <p className="text-muted-foreground font-medium">{pageSubtitle}</p>
           </div>
           
           <div className="flex items-center gap-3">

@@ -22,8 +22,11 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useContent } from "@/hooks/api/content";
 
 export default function AdminUtilisateurs() {
+  const pageTitle = useContent("admin.utilisateurs.title", "Gestion des Utilisateurs");
+  const pageSubtitle = useContent("admin.utilisateurs.subtitle", "Administration, KYC et contrôle d'accès global.");
   const { data: hackers = [] } = useHackers();
   const { data: entreprises = [] } = useEntreprises();
   const updateHacker = useUpdateHacker();
@@ -50,9 +53,9 @@ export default function AdminUtilisateurs() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              <User className="w-8 h-8 text-blue-500" /> Gestion des Utilisateurs
+              <User className="w-8 h-8 text-blue-500" /> {pageTitle}
             </h1>
-            <p className="text-muted-foreground font-medium italic">Administration, KYC et contrôle d'accès global.</p>
+            <p className="text-muted-foreground font-medium italic">{pageSubtitle}</p>
           </div>
           <div className="relative w-full md:w-80 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />

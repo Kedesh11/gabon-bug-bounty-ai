@@ -20,8 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useContent } from "@/hooks/api/content";
 
 export default function EntrepriseDashboard() {
+  const pageTitle = useContent("entreprise.dashboard.title", "Corporate Shield");
   const { user } = useAuth();
   const { data: programmes = [] } = useProgrammes();
   const { data: myReports = [] } = useReports();
@@ -45,7 +47,7 @@ export default function EntrepriseDashboard() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              Corporate Shield <span className="text-green-500 font-mono text-sm px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded uppercase tracking-widest italic">Monitoring Active</span>
+              {pageTitle} <span className="text-green-500 font-mono text-sm px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded uppercase tracking-widest italic">Monitoring Active</span>
             </h1>
             <p className="text-muted-foreground font-medium">Dashboard de pilotage pour <span className="text-foreground font-bold">{user?.name}</span>.</p>
           </div>

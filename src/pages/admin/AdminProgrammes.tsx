@@ -8,8 +8,10 @@ import { Trash2, Edit2, Plus, X, Save } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Programme } from "@/types/domain";
+import { useContent } from "@/hooks/api/content";
 
 export default function AdminProgrammes() {
+  const pageTitle = useContent("admin.programmes.title", "Gestion des programmes");
   const { data: programmes = [] } = useProgrammes();
   const { data: entreprises = [] } = useEntreprises();
   const createProgramme = useCreateProgramme();
@@ -76,7 +78,7 @@ export default function AdminProgrammes() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-black text-foreground">Gestion des programmes</h1>
+          <h1 className="text-2xl font-black text-foreground">{pageTitle}</h1>
           <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }}>
             <Plus className="w-4 h-4 mr-1" /> Ajouter
           </Button>

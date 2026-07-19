@@ -24,8 +24,10 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
+import { useContent } from "@/hooks/api/content";
 
 export default function HackerDashboard() {
+  const pageTitle = useContent("hacker.dashboard.title", "Centre d'Élite");
   const { user } = useAuth();
   const { data: myReports = [] } = useReports();
   const { data: hackers = [] } = useHackers();
@@ -54,7 +56,7 @@ export default function HackerDashboard() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              Centre d'Élite <span className="text-primary font-mono text-sm px-2 py-0.5 bg-primary/10 border border-primary/20 rounded uppercase tracking-widest">Actif</span>
+              {pageTitle} <span className="text-primary font-mono text-sm px-2 py-0.5 bg-primary/10 border border-primary/20 rounded uppercase tracking-widest">Actif</span>
             </h1>
             <p className="text-muted-foreground font-medium">Bon retour, <span className="text-foreground font-bold">{user?.name}</span>. Votre statut de recherche est optimal.</p>
           </div>

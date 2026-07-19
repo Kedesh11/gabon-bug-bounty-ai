@@ -6,6 +6,7 @@ import { Eye, CheckCircle, XCircle, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Report } from "@/types/domain";
+import { useContent } from "@/hooks/api/content";
 
 const SEVERITY_COLORS: Record<string, string> = {
   critique: "bg-destructive/20 text-destructive",
@@ -16,6 +17,7 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 export default function EntrepriseRapports() {
+  const pageTitle = useContent("entreprise.rapports.title", "Rapports reçus");
   const { data: myReports = [] } = useReports();
   const updateReport = useUpdateReport();
   const [detail, setDetail] = useState<Report | null>(null);
@@ -24,7 +26,7 @@ export default function EntrepriseRapports() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-black text-foreground">Rapports reçus</h1>
+        <h1 className="text-2xl font-black text-foreground">{pageTitle}</h1>
 
         {detail && (
           <div className="glass-card rounded-xl p-5 border-glow space-y-4">
