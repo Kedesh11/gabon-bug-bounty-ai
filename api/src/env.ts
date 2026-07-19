@@ -22,6 +22,12 @@ const envSchema = z.object({
   CINETPAY_SITE_ID: z.string().optional().default(""),
   CINETPAY_TRANSFER_LOGIN: z.string().optional().default(""),
   CINETPAY_TRANSFER_PASSWORD: z.string().optional().default(""),
+
+  // Optional until a real OpenRouter account is available; the MCP agents pipeline
+  // throws a clear error at call time if this is missing (see mcpAgents/openRouterClient.ts).
+  OPENROUTER_API_KEY: z.string().optional().default(""),
+  // Sent as the HTTP-Referer header OpenRouter recommends for analytics/rate-limit attribution.
+  OPENROUTER_SITE_URL: z.string().optional().default("http://localhost:8080"),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -5,12 +5,16 @@ import type { AuthenticatedUser } from "../../middleware/auth.js";
 import { findEarlierDuplicate } from "./duplicateDetection.js";
 import { uploadReportPdf } from "./reportStorage.js";
 import type { ReportPdfData } from "./reportPdf.js";
+import { runMcpPipeline } from "../mcpAgents/orchestrator.js";
 
 export const reportInclude = {
   hacker: { include: { profile: true } },
   programme: true,
   aiAnalysis: true,
   vulnerabilityCategory: true,
+  // Most recent run first — the MCP agents pipeline (services/mcpAgents) that
+  // populates this runs asynchronously after creation, see createReport() below.
+  mcpAgentRuns: { include: { outputs: true }, orderBy: { createdAt: "desc" as const } },
 };
 
 // Not real AI: a deterministic placeholder mirroring the frontend mock in
@@ -131,6 +135,12 @@ export async function createReport(userId: string, input: CreateReportInput) {
   });
 
   await prisma.programme.update({ where: { id: programme.id }, data: { reportsCount: { increment: 1 } } });
+
+  // Fire-and-forget: the real multi-agent analysis (services/mcpAgents) takes several
+  // seconds across 7 LLM calls — never block the submission response on it. Failures
+  // are handled entirely inside runMcpPipeline (it never throws), this catch is just
+  // a last-resort net so a truly unexpected rejection can't produce an unhandled one.
+  runMcpPipeline(report.id).catch((err) => console.error(`[mcpAgents] fire-and-forget trigger failed for report ${report.id}:`, err));
 
   return report;
 }

@@ -16,6 +16,7 @@ import {
   toReportPdfData,
 } from "../services/reports/reportsService.js";
 import { renderReportPdf } from "../services/reports/reportPdf.js";
+import { runMcpPipeline } from "../services/mcpAgents/orchestrator.js";
 
 const pdfUpload = multer({
   storage: multer.memoryStorage(),
@@ -107,6 +108,21 @@ reportsRouter.post(
     if (!req.file) throw new HttpError(400, "Fichier PDF manquant ou invalide (10MB max, application/pdf uniquement)");
     const report = await attachReportPdf(req.params.id, req.user!.id, req.file);
     res.json({ report });
+  }),
+);
+
+// Re-runs the 7-agent MCP pipeline (suggestion-only — see services/mcpAgents) on an
+// already-submitted report, e.g. after a failed run or a report edit. Reuses
+// reports.triage: the same permission that gates manual triage already implies
+// "can act on this report's analysis". Fire-and-forget like the automatic trigger
+// in createReport() — 7 LLM calls can take 10-30s, never worth holding the request.
+reportsRouter.post(
+  "/:id/mcp-analysis",
+  requirePermission("reports.triage"),
+  asyncHandler(async (req, res) => {
+    await getReportById(req.params.id, req.user!);
+    runMcpPipeline(req.params.id).catch((err) => console.error(`[mcpAgents] manual trigger failed for report ${req.params.id}:`, err));
+    res.status(202).json({ started: true });
   }),
 );
 

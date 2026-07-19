@@ -127,6 +127,38 @@ export interface AIAnalysis {
   reproductionLikelihood: number;
 }
 
+export type McpAgentType =
+  | "vulnerability_analysis"
+  | "severity_assessment"
+  | "false_positive_detection"
+  | "anti_fraud"
+  | "recommendation"
+  | "decision"
+  | "reward";
+
+export type McpAgentRunStatus = "pending" | "running" | "completed" | "failed";
+
+// The 7-agent MCP pipeline (services/mcpAgents) — suggestion-only real analysis,
+// distinct from the placeholder-ish AIAnalysis above. See src/pages/admin/AdminRapports.tsx.
+export interface McpAgentOutput {
+  id: string;
+  agentType: McpAgentType;
+  model: string;
+  status: McpAgentRunStatus;
+  output: Record<string, unknown> | null;
+  errorMessage?: string;
+  createdAt: string;
+}
+
+export interface McpAgentRun {
+  id: string;
+  status: McpAgentRunStatus;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  outputs: McpAgentOutput[];
+}
+
 export interface Report {
   id: string;
   title: string;
@@ -155,6 +187,8 @@ export interface Report {
   cvssScore?: number;
   analysisStatus?: "en_attente" | "en_cours" | "terminee";
   aiAnalysis?: AIAnalysis;
+  // Most recent run first, matching the API's ordering.
+  mcpAgentRuns?: McpAgentRun[];
 }
 
 export interface HackerProfile {

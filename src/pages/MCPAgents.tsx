@@ -1,49 +1,57 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
-import { Brain, AlertTriangle, ShieldCheck, Lightbulb, Coins, SearchCheck, ArrowRight, Zap, Activity, Network } from "lucide-react";
+import { Brain, AlertTriangle, ShieldCheck, Lightbulb, Coins, SearchCheck, ArrowRight, Zap, Activity, Network, Sparkles } from "lucide-react";
+import { useMcpAgentStats } from "@/hooks/api/mcpAgents";
 
 const agents = [
   {
     icon: SearchCheck,
     name: "Agent d'Analyse des Vulnérabilités",
-    description: "Comprend le contenu des rapports soumis et identifie le type de vulnérabilité.",
-    capabilities: ["Classification automatique (XSS, SQLi, RCE, IDOR...)", "Analyse contextuelle du rapport", "Extraction des indicateurs techniques", "Corrélation avec la base de connaissances"],
-    metrics: { precision: "97.3%", temps: "< 2s", rapports: "1,284" },
+    model: "DeepSeek",
+    description: "Classe chaque rapport dans la taxonomie VRT de la plateforme et identifie le CWE correspondant.",
+    capabilities: ["Classification dans le catalogue VRT existant", "Identification du CWE", "Analyse fondée strictement sur le rapport soumis", "Propose une nouvelle catégorie si aucune ne correspond"],
   },
   {
     icon: AlertTriangle,
     name: "Agent d'Évaluation de la Sévérité",
-    description: "Évalue l'impact réel d'une vulnérabilité selon les standards internationaux.",
-    capabilities: ["Scoring CVSS v3.1 automatisé", "Évaluation de l'impact métier", "Analyse du vecteur d'attaque", "Prise en compte du contexte organisationnel"],
-    metrics: { precision: "95.8%", temps: "< 1s", rapports: "1,284" },
+    model: "DeepSeek",
+    description: "Score CVSS v3.1 (vecteur et note) et sévérité suggérée, à partir de la classification établie.",
+    capabilities: ["Scoring CVSS v3.1", "Vérifie la cohérence avec un CVSS déjà fourni par le hacker", "Prise en compte de la catégorie de vulnérabilité identifiée"],
   },
   {
     icon: ShieldCheck,
     name: "Agent de Détection de Faux Positifs",
-    description: "Identifie les rapports non valides, les doublons et le spam.",
-    capabilities: ["Détection de rapports dupliqués", "Analyse de cohérence des preuves", "Vérification de la reproductibilité", "Identification de spam automatisé"],
-    metrics: { precision: "99.1%", temps: "< 3s", rapports: "342" },
+    model: "Qwen",
+    description: "Évalue la plausibilité et la reproductibilité du rapport à partir des preuves fournies.",
+    capabilities: ["Analyse de cohérence des preuves", "Évaluation de la reproductibilité décrite", "Tient compte du contrôle de doublon exact déjà effectué par la plateforme"],
   },
   {
-    icon: Brain,
-    name: "Agent de Décision",
-    description: "Détermine l'action optimale à entreprendre pour chaque rapport.",
-    capabilities: ["Acceptation automatique des cas clairs", "Rejet motivé avec explications", "Demande d'informations complémentaires", "Escalade vers supervision humaine"],
-    metrics: { precision: "93.5%", temps: "< 1s", rapports: "1,284" },
+    icon: Sparkles,
+    name: "Agent Anti-Fraude",
+    model: "Qwen",
+    description: "Détection sémantique — paraphrase, incohérences internes, signes de copie d'un write-up public. Complète le contrôle de similarité textuelle déjà en place.",
+    capabilities: ["Détection de paraphrase (au-delà du copier-coller exact)", "Recherche d'incohérences internes au rapport", "Génère un signal de fraude réservé à la revue humaine — aucun blocage automatique"],
   },
   {
     icon: Lightbulb,
     name: "Agent de Recommandation",
-    description: "Propose des solutions de correction adaptées à chaque vulnérabilité.",
-    capabilities: ["Suggestions de patchs spécifiques", "Bonnes pratiques de sécurisation", "Références aux guides OWASP", "Plans de remédiation priorisés"],
-    metrics: { precision: "91.2%", temps: "< 5s", rapports: "856" },
+    model: "Kimi",
+    description: "Complète la remédiation seulement si celle du hacker est absente ou insuffisante — ne la remplace jamais.",
+    capabilities: ["Respecte la remédiation déjà proposée par le hacker si elle est suffisante", "Suggestions ancrées dans la catégorie de vulnérabilité identifiée", "N'invente rien qui ne découle pas du rapport"],
+  },
+  {
+    icon: Brain,
+    name: "Agent de Décision",
+    model: "ChatGPT",
+    description: "Synthétise les analyses des agents précédents en une décision suggérée — jamais appliquée automatiquement.",
+    capabilities: ["Synthèse de toutes les analyses en amont", "Suggestion : accepter / rejeter / demander des informations", "Toujours soumise à la validation de la triage humaine"],
   },
   {
     icon: Coins,
     name: "Agent de Gestion des Récompenses",
-    description: "Calcule la récompense appropriée selon des critères objectifs.",
-    capabilities: ["Évaluation basée sur la gravité", "Pondération par complexité de découverte", "Ajustement selon l'impact réel", "Historique et cohérence des récompenses"],
-    metrics: { precision: "98.7%", temps: "< 1s", rapports: "623" },
+    model: "ChatGPT",
+    description: "Montant suggéré, ancré dans les tiers de récompense réels du programme concerné — jamais versé automatiquement.",
+    capabilities: ["Respecte les tiers min/max définis par le programme", "Cohérent avec la sévérité retenue", "Suggestion pré-remplie, validée manuellement par la finance"],
   },
 ];
 
@@ -51,12 +59,14 @@ const workflow = [
   { step: "1", label: "Soumission", desc: "Le hacker soumet son rapport" },
   { step: "2", label: "Analyse", desc: "Classification automatique" },
   { step: "3", label: "Évaluation", desc: "Scoring de sévérité" },
-  { step: "4", label: "Vérification", desc: "Détection de faux positifs" },
-  { step: "5", label: "Décision", desc: "Action automatisée" },
-  { step: "6", label: "Notification", desc: "Alerte à l'organisation" },
+  { step: "4", label: "Vérification", desc: "Faux positifs & anti-fraude" },
+  { step: "5", label: "Recommandation", desc: "Enrichissement si nécessaire" },
+  { step: "6", label: "Décision", desc: "Suggestion soumise à la triage" },
 ];
 
 const MCPAgents = () => {
+  const { data: stats } = useMcpAgentStats();
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -71,18 +81,18 @@ const MCPAgents = () => {
               <span className="text-gradient-cyber">MCP</span>
             </h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Un système d'intelligence composé de plusieurs agents spécialisés capables d'analyser,
-              décider et s'adapter en temps réel.
+              Un système de 7 agents spécialisés, chacun porté par un modèle différent (DeepSeek, Qwen, Kimi, ChatGPT via OpenRouter),
+              qui analysent chaque rapport en s'appuyant strictement sur son contenu — leurs suggestions sont toujours validées par un humain.
             </p>
           </div>
 
           {/* Key metrics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
             {[
-              { icon: Zap, label: "Temps moyen", value: "< 2s" },
-              { icon: Activity, label: "Précision globale", value: "96.1%" },
-              { icon: Network, label: "Agents actifs", value: "6" },
-              { icon: Brain, label: "Décisions/jour", value: "450+" },
+              { icon: Network, label: "Agents actifs", value: "7" },
+              { icon: Brain, label: "Rapports analysés", value: stats ? stats.totalRuns.toLocaleString("fr-FR") : "—" },
+              { icon: Activity, label: "Taux de complétion", value: stats?.completionRate != null ? `${(stats.completionRate * 100).toFixed(0)}%` : "—" },
+              { icon: Zap, label: "Modèles distincts", value: "4" },
             ].map((m, i) => (
               <div key={i} className="glass-card rounded-xl p-5 border-glow text-center">
                 <m.icon className="w-6 h-6 text-primary mx-auto mb-2" />
@@ -117,13 +127,16 @@ const MCPAgents = () => {
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
                     <agent.icon className="w-6 h-6 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">{agent.name}</h3>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-lg font-bold text-foreground">{agent.name}</h3>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-primary/30 text-primary shrink-0">{agent.model}</span>
+                    </div>
                     <p className="text-sm text-muted-foreground">{agent.description}</p>
                   </div>
                 </div>
 
-                <div className="mb-4">
+                <div>
                   <p className="text-xs font-mono text-primary uppercase mb-2">Capacités</p>
                   <ul className="space-y-1">
                     {agent.capabilities.map((cap, j) => (
@@ -132,21 +145,6 @@ const MCPAgents = () => {
                       </li>
                     ))}
                   </ul>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-secondary rounded-lg p-2 text-center">
-                    <p className="text-xs text-muted-foreground font-mono">Précision</p>
-                    <p className="font-bold text-primary text-sm">{agent.metrics.precision}</p>
-                  </div>
-                  <div className="bg-secondary rounded-lg p-2 text-center">
-                    <p className="text-xs text-muted-foreground font-mono">Temps</p>
-                    <p className="font-bold text-foreground text-sm">{agent.metrics.temps}</p>
-                  </div>
-                  <div className="bg-secondary rounded-lg p-2 text-center">
-                    <p className="text-xs text-muted-foreground font-mono">Traités</p>
-                    <p className="font-bold text-foreground text-sm">{agent.metrics.rapports}</p>
-                  </div>
                 </div>
               </div>
             ))}

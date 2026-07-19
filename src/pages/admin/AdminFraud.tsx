@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldAlert, RefreshCw, Users, Handshake, Copy, CreditCard, Check, X, Eye } from "lucide-react";
+import { ShieldAlert, RefreshCw, Users, Handshake, Copy, CreditCard, Sparkles, Check, X, Eye } from "lucide-react";
 import { useFraudSignals, useRunFraudScan, useUpdateFraudSignalStatus, type FraudSignal, type FraudSignalStatus, type FraudSignalType } from "@/hooks/api/fraud";
 import { apiErrorMessage } from "@/lib/apiClient";
 
@@ -12,6 +12,7 @@ const TYPE_LABELS: Record<FraudSignalType, string> = {
   hacker_entreprise_collusion: "Collusion hacker-entreprise",
   plagiarized_report: "Rapport plagié",
   payment_anomaly: "Anomalie de paiement",
+  llm_semantic_anomaly: "Anomalie sémantique (IA)",
 };
 
 const TYPE_ICONS: Record<FraudSignalType, typeof Users> = {
@@ -19,6 +20,7 @@ const TYPE_ICONS: Record<FraudSignalType, typeof Users> = {
   hacker_entreprise_collusion: Handshake,
   plagiarized_report: Copy,
   payment_anomaly: CreditCard,
+  llm_semantic_anomaly: Sparkles,
 };
 
 const STATUS_LABELS: Record<FraudSignalStatus, string> = {

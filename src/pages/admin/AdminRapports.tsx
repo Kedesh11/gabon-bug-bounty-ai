@@ -1,14 +1,25 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { useReports, useUpdateReport, useDeleteReport } from "@/hooks/api/reports";
+import { useReports, useUpdateReport, useDeleteReport, useRunMcpAnalysis } from "@/hooks/api/reports";
 import { apiErrorMessage } from "@/lib/apiClient";
+import { useAuth } from "@/contexts/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, CheckCircle, XCircle, Eye, Search, DollarSign, BrainCircuit, ShieldAlert, AlertTriangle, Info } from "lucide-react";
+import { Trash2, CheckCircle, XCircle, Eye, Search, DollarSign, BrainCircuit, ShieldAlert, AlertTriangle, Info, RefreshCw, Sparkles, Wand2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Report } from "@/types/domain";
+import { McpAgentType, Report } from "@/types/domain";
+
+const MCP_AGENT_LABELS: Record<McpAgentType, string> = {
+  vulnerability_analysis: "Analyse de vulnérabilité",
+  severity_assessment: "Évaluation de sévérité",
+  false_positive_detection: "Détection de faux positifs",
+  anti_fraud: "Anti-fraude",
+  recommendation: "Recommandation",
+  decision: "Décision",
+  reward: "Récompense",
+};
 
 const SEVERITY_COLORS: Record<string, string> = {
   critique: "bg-destructive/20 text-destructive border-destructive/20",
@@ -27,11 +38,19 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminRapports() {
-  const { data: reports = [], isLoading: reportsLoading } = useReports();
+  const { user } = useAuth();
+  const [detail, setDetail] = useState<Report | null>(null);
+  // Poll while this report's MCP analysis is still running, so the "Analyse
+  // multi-agents" panel updates on its own once the background pipeline finishes —
+  // scoped to this one observer, doesn't turn on polling for other useReports() callers.
+  const { data: reports = [], isLoading: reportsLoading } = useReports({
+    refetchInterval: detail?.analysisStatus === "en_cours" ? 3000 : false,
+  });
   const updateReport = useUpdateReport();
   const deleteReport = useDeleteReport();
+  const runMcpAnalysis = useRunMcpAnalysis();
+  const canTriage = user?.permissions.includes("reports.triage") ?? false;
   const [search, setSearch] = useState("");
-  const [detail, setDetail] = useState<Report | null>(null);
   const [rewardInput, setRewardInput] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -53,6 +72,15 @@ export default function AdminRapports() {
     }, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, reportsLoading]);
+
+  // Keeps the open detail panel in sync whenever `reports` refetches (polling above,
+  // or any other mutation-triggered invalidation) instead of going stale after selection.
+  useEffect(() => {
+    if (!detail) return;
+    const fresh = reports.find(r => r.id === detail.id);
+    if (fresh) setDetail(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reports]);
 
   const filtered = reports
     .filter(r => filterStatus === "all" || r.status === filterStatus)
@@ -212,6 +240,110 @@ export default function AdminRapports() {
                     <p className="text-[10px] text-muted-foreground italic text-center">L'IA analyse les vecteurs d'attaque...</p>
                   </div>
                 )}
+              </div>
+
+              {/* MCP Multi-Agent Analysis Card — real, model-backed analysis (see
+                  api/src/services/mcpAgents), distinct from the instant placeholder
+                  check above. Suggestion-only: nothing here submits on its own. */}
+              <div className="glass-card rounded-xl p-5 border-border space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Sparkles className="w-5 h-5" />
+                    <h4 className="font-bold text-sm">Analyse multi-agents (MCP)</h4>
+                  </div>
+                  {canTriage && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-[10px]"
+                      disabled={runMcpAnalysis.isPending || detail.analysisStatus === "en_cours"}
+                      onClick={() =>
+                        runMcpAnalysis.mutate(detail.id, {
+                          onSuccess: () => toast.success("Analyse relancée"),
+                          onError: (err) => toast.error(apiErrorMessage(err)),
+                        })
+                      }
+                    >
+                      <RefreshCw className={`w-3 h-3 mr-1 ${detail.analysisStatus === "en_cours" ? "animate-spin" : ""}`} />
+                      Relancer
+                    </Button>
+                  )}
+                </div>
+
+                {(() => {
+                  const run = detail.mcpAgentRuns?.[0];
+                  if (detail.analysisStatus === "en_cours" || run?.status === "running") {
+                    return (
+                      <div className="py-4 flex flex-col items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-[10px] text-muted-foreground italic text-center">7 agents analysent le rapport...</p>
+                      </div>
+                    );
+                  }
+                  if (!run || run.outputs.length === 0) {
+                    return (
+                      <p className="text-[11px] text-muted-foreground italic text-center py-4">
+                        Aucune analyse multi-agents pour ce rapport pour le moment.
+                      </p>
+                    );
+                  }
+
+                  const decisionOutput = run.outputs.find((o) => o.agentType === "decision" && o.status === "completed");
+                  const decision = decisionOutput?.output as { suggestedStatus?: string; confidence?: number } | undefined;
+                  const rewardOutput = run.outputs.find((o) => o.agentType === "reward" && o.status === "completed");
+                  const reward = rewardOutput?.output as { suggestedReward?: number | null } | undefined;
+
+                  return (
+                    <div className="space-y-3">
+                      {decision?.suggestedStatus && (
+                        <div className="p-3 rounded bg-primary/5 border border-primary/20 flex items-center justify-between">
+                          <span className="text-[11px] text-muted-foreground">Décision suggérée</span>
+                          <span className="text-xs font-black text-primary uppercase">
+                            {decision.suggestedStatus} {decision.confidence != null && `(${(decision.confidence * 100).toFixed(0)}%)`}
+                          </span>
+                        </div>
+                      )}
+
+                      {canTriage && reward?.suggestedReward != null && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full border-primary/30 text-primary hover:bg-primary/10 gap-2 text-[11px]"
+                          onClick={() => {
+                            setRewardInput(String(reward.suggestedReward));
+                            toast.success("Récompense suggérée pré-remplie — cliquez sur Payer pour confirmer.");
+                          }}
+                        >
+                          <Wand2 className="w-3.5 h-3.5" /> Pré-remplir la récompense suggérée ({reward.suggestedReward!.toLocaleString("fr-FR")} XAF)
+                        </Button>
+                      )}
+
+                      <div className="space-y-2">
+                        {run.outputs.map((output) => (
+                          <details key={output.id} className="border border-border/50 rounded-lg p-2 bg-background/40">
+                            <summary className="cursor-pointer flex items-center justify-between font-bold text-foreground text-[11px]">
+                              <span>{MCP_AGENT_LABELS[output.agentType]}</span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] ${output.status === "completed" ? "border-primary/30 text-primary" : "border-destructive/30 text-destructive"}`}
+                              >
+                                {output.status === "completed" ? "OK" : "ÉCHEC"}
+                              </Badge>
+                            </summary>
+                            <div className="mt-2 text-[10px] text-muted-foreground font-mono">
+                              {output.status === "completed" && output.output ? (
+                                <pre className="whitespace-pre-wrap break-words">{JSON.stringify(output.output, null, 2)}</pre>
+                              ) : (
+                                <p>{output.errorMessage ?? "Échec de l'analyse."}</p>
+                              )}
+                            </div>
+                            <p className="mt-1 text-[9px] text-muted-foreground/70">{output.model}</p>
+                          </details>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* History/Quick Stats Card */}

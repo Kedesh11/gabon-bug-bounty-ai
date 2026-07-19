@@ -499,6 +499,7 @@ model Report {
   // back at this one as the earlier/original submission on the same vulnerability.
   duplicateFlags AiAnalysis[] @relation("ReportDuplicateOf")
   fraudSignals   FraudSignal[]
+  mcpAgentRuns   McpAgentRun[]
 
   @@map("reports")
 }
@@ -685,6 +686,10 @@ enum FraudSignalType {
   hacker_entreprise_collusion
   plagiarized_report
   payment_anomaly
+  // Semantic fraud signal from the MCP anti-fraud agent (services/mcpAgents) —
+  // complements plagiarized_report's exact/near-exact Jaccard check with real
+  // LLM-based semantic analysis (paraphrase, inconsistencies, copied write-ups).
+  llm_semantic_anomaly
 }
 
 enum FraudSignalStatus {
@@ -722,4 +727,69 @@ model FraudSignal {
   createdAt DateTime @default(now())
 
   @@map("fraud_signals")
+}
+
+// ---------------------------------------------------------------------------
+// MCP agents — real multi-model (OpenRouter) report analysis pipeline. See
+// api/src/services/mcpAgents/. Suggestion-only: nothing here ever mutates a
+// Report's status/severity/reward directly — triage/finance apply suggestions
+// manually through the existing PATCH /api/reports/:id.
+// ---------------------------------------------------------------------------
+
+enum McpAgentType {
+  vulnerability_analysis
+  severity_assessment
+  false_positive_detection
+  anti_fraud
+  recommendation
+  decision
+  reward
+}
+
+enum McpAgentRunStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+model McpAgentRun {
+  id          String            @id @default(uuid()) @db.Uuid
+  reportId    String            @db.Uuid
+  report      Report            @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  status      McpAgentRunStatus @default(pending)
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime          @default(now())
+
+  outputs McpAgentOutput[]
+
+  @@map("mcp_agent_runs")
+}
+
+model McpAgentOutput {
+  id        String            @id @default(uuid()) @db.Uuid
+  runId     String            @db.Uuid
+  run       McpAgentRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  agentType McpAgentType
+  // Real OpenRouter model id actually used, e.g. "deepseek/deepseek-chat" — not an
+  // enum, since model choice/availability may shift without a schema migration.
+  model     String
+  status    McpAgentRunStatus @default(pending)
+
+  // Constructed prompt (audit trail / prompt-injection review), zod-validated
+  // structured result, and the raw LLM text (kept even on parse failure, for debugging).
+  input       Json
+  output      Json?
+  rawResponse String?
+
+  errorMessage     String?
+  latencyMs        Int?
+  promptTokens     Int?
+  completionTokens Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([runId, agentType])
+  @@map("mcp_agent_outputs")
 }
