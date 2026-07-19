@@ -1,19 +1,8 @@
 import Navbar from "@/components/Navbar";
 import FooterSection from "@/components/FooterSection";
 import { Trophy, Bug, Star, TrendingUp, Medal } from "lucide-react";
-
-const hackers = [
-  { rank: 1, name: "CyberPanther_GA", reputation: 4850, bugs: 67, critical: 12, badge: "Élite" },
-  { rank: 2, name: "NightOwl_Hack", reputation: 4200, bugs: 54, critical: 9, badge: "Élite" },
-  { rank: 3, name: "ZeroDay_LBV", reputation: 3780, bugs: 41, critical: 8, badge: "Expert" },
-  { rank: 4, name: "GhostNet_241", reputation: 3100, bugs: 38, critical: 6, badge: "Expert" },
-  { rank: 5, name: "BinaryStorm", reputation: 2900, bugs: 35, critical: 5, badge: "Expert" },
-  { rank: 6, name: "HexHunter_GA", reputation: 2650, bugs: 29, critical: 4, badge: "Avancé" },
-  { rank: 7, name: "ByteBreaker", reputation: 2400, bugs: 26, critical: 4, badge: "Avancé" },
-  { rank: 8, name: "SecuRaptor", reputation: 2100, bugs: 22, critical: 3, badge: "Avancé" },
-  { rank: 9, name: "PacketStorm_LBV", reputation: 1850, bugs: 19, critical: 2, badge: "Intermédiaire" },
-  { rank: 10, name: "ShadowByte_GA", reputation: 1600, bugs: 15, critical: 2, badge: "Intermédiaire" },
-];
+import { useHackerLeaderboard } from "@/hooks/api/hackers";
+import { HackerLeaderboardEntry } from "@/lib/api/mappers";
 
 const getRankColor = (rank: number) => {
   if (rank === 1) return "text-yellow-400";
@@ -21,6 +10,15 @@ const getRankColor = (rank: number) => {
   if (rank === 3) return "text-amber-600";
   return "text-muted-foreground";
 };
+
+// No stored "level" concept on HackerProfile — derived client-side from reputation,
+// same tiers the mock data used to hardcode per row.
+function reputationTier(reputation: number): string {
+  if (reputation >= 4000) return "Élite";
+  if (reputation >= 3000) return "Expert";
+  if (reputation >= 2000) return "Avancé";
+  return "Intermédiaire";
+}
 
 const getBadgeClass = (badge: string) => {
   switch (badge) {
@@ -31,7 +29,19 @@ const getBadgeClass = (badge: string) => {
   }
 };
 
+function computeStats(hackers: HackerLeaderboardEntry[]) {
+  return {
+    activeHackers: hackers.length,
+    totalBugs: hackers.reduce((sum, h) => sum + h.bugsFound, 0),
+    totalCritical: hackers.reduce((sum, h) => sum + h.criticalBugsCount, 0),
+    totalRewards: hackers.reduce((sum, h) => sum + h.totalRewards, 0),
+  };
+}
+
 const Hackers = () => {
+  const { data: hackers = [], isLoading } = useHackerLeaderboard();
+  const stats = computeStats(hackers);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -52,10 +62,10 @@ const Hackers = () => {
           {/* Stats row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
             {[
-              { icon: Trophy, label: "Hackers actifs", value: "247" },
-              { icon: Bug, label: "Bugs trouvés", value: "1,284" },
-              { icon: Star, label: "Critiques résolus", value: "89" },
-              { icon: TrendingUp, label: "Récompenses versées", value: "48M FCFA" },
+              { icon: Trophy, label: "Hackers actifs", value: stats.activeHackers.toLocaleString("fr-FR") },
+              { icon: Bug, label: "Bugs trouvés", value: stats.totalBugs.toLocaleString("fr-FR") },
+              { icon: Star, label: "Critiques résolus", value: stats.totalCritical.toLocaleString("fr-FR") },
+              { icon: TrendingUp, label: "Récompenses versées", value: `${stats.totalRewards.toLocaleString("fr-FR")} FCFA` },
             ].map((stat, i) => (
               <div key={i} className="glass-card rounded-xl p-4 border-glow text-center">
                 <stat.icon className="w-5 h-5 text-primary mx-auto mb-2" />
@@ -75,32 +85,41 @@ const Hackers = () => {
               <div className="col-span-1">Critiques</div>
               <div className="col-span-2">Niveau</div>
             </div>
-            {hackers.map((hacker) => (
-              <div
-                key={hacker.rank}
-                className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-border/50 hover:bg-primary/5 transition-colors items-center"
-              >
-                <div className="col-span-1">
-                  <span className={`font-mono font-bold text-lg ${getRankColor(hacker.rank)}`}>
-                    {hacker.rank <= 3 ? <Medal className={`w-5 h-5 inline ${getRankColor(hacker.rank)}`} /> : `#${hacker.rank}`}
-                  </span>
-                </div>
-                <div className="col-span-4 flex items-center gap-2">
-                  <span className="font-semibold text-foreground">{hacker.name}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="font-mono text-primary font-bold">{hacker.reputation.toLocaleString()}</span>
-                  <span className="text-xs text-muted-foreground ml-1">pts</span>
-                </div>
-                <div className="col-span-2 font-mono text-foreground">{hacker.bugs}</div>
-                <div className="col-span-1 font-mono text-destructive font-bold">{hacker.critical}</div>
-                <div className="col-span-2">
-                  <span className={`text-xs font-mono px-2 py-1 rounded border ${getBadgeClass(hacker.badge)}`}>
-                    {hacker.badge}
-                  </span>
-                </div>
-              </div>
-            ))}
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-10">Chargement du classement…</p>
+            ) : hackers.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-10">Aucun chercheur classé pour le moment.</p>
+            ) : (
+              hackers.map((hacker) => {
+                const tier = reputationTier(hacker.reputation);
+                return (
+                  <div
+                    key={hacker.id}
+                    className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-border/50 hover:bg-primary/5 transition-colors items-center"
+                  >
+                    <div className="col-span-1">
+                      <span className={`font-mono font-bold text-lg ${getRankColor(hacker.rank)}`}>
+                        {hacker.rank <= 3 ? <Medal className={`w-5 h-5 inline ${getRankColor(hacker.rank)}`} /> : `#${hacker.rank}`}
+                      </span>
+                    </div>
+                    <div className="col-span-4 flex items-center gap-2">
+                      <span className="font-semibold text-foreground">{hacker.name}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-mono text-primary font-bold">{hacker.reputation.toLocaleString("fr-FR")}</span>
+                      <span className="text-xs text-muted-foreground ml-1">pts</span>
+                    </div>
+                    <div className="col-span-2 font-mono text-foreground">{hacker.bugsFound}</div>
+                    <div className="col-span-1 font-mono text-destructive font-bold">{hacker.criticalBugsCount}</div>
+                    <div className="col-span-2">
+                      <span className={`text-xs font-mono px-2 py-1 rounded border ${getBadgeClass(tier)}`}>
+                        {tier}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </section>

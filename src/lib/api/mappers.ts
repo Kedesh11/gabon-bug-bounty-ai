@@ -283,6 +283,48 @@ export function mapHacker(api: ApiHackerProfile): HackerProfile {
   };
 }
 
+// Public leaderboard projection — deliberately PII-free (no email), unlike
+// ApiHackerProfile above which staff-only endpoints return.
+export interface ApiHackerLeaderboardEntry {
+  id: string;
+  reputation: number;
+  bugsFound: number;
+  totalRewards: number;
+  rank: number;
+  criticalBugsCount: number;
+  joinedAt: string;
+  profile: { name: string; avatar: string | null };
+  badges: ApiBadge[];
+}
+
+export interface HackerLeaderboardEntry {
+  id: string;
+  name: string;
+  avatar: string | null;
+  reputation: number;
+  bugsFound: number;
+  totalRewards: number;
+  rank: number;
+  criticalBugsCount: number;
+  joinedAt: string;
+  badges: { name: string; icon: string; description: string }[];
+}
+
+export function mapHackerLeaderboardEntry(api: ApiHackerLeaderboardEntry): HackerLeaderboardEntry {
+  return {
+    id: api.id,
+    name: api.profile.name,
+    avatar: api.profile.avatar,
+    reputation: api.reputation,
+    bugsFound: api.bugsFound,
+    totalRewards: api.totalRewards,
+    rank: api.rank,
+    criticalBugsCount: api.criticalBugsCount,
+    joinedAt: api.joinedAt,
+    badges: api.badges,
+  };
+}
+
 export interface ApiEntrepriseProfile {
   id: string;
   sector: string;
