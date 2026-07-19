@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TEAM_MEMBERS } from "./useTeamMembers";
 import type { useTeamMembers } from "./useTeamMembers";
+import { useContent } from "@/hooks/api/content";
 
 type TeamMembersState = ReturnType<typeof useTeamMembers>;
 
@@ -22,11 +23,18 @@ export function TeamTab({
   setNewMemberRole,
   handleAddMember,
 }: TeamMembersState) {
+  const heading = useContent("admin.parametres.team.heading", "Administrateurs du Système");
+  const inviteDialogTitle = useContent("admin.parametres.team.invite-dialog.title", "Nouveau Membre");
+  const inviteDialogDescription = useContent("admin.parametres.team.invite-dialog.description", "Invitez un nouvel administrateur à rejoindre l'équipe de gestion.");
+  const invite2faHelp = useContent(
+    "admin.parametres.team.invite-2fa-help",
+    "Le nouveau membre recevra une invitation par email pour configurer son mot de passe et son authentification 2FA.",
+  );
   return (
     <TabsContent value="team" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="glass-card rounded-2xl border border-border overflow-hidden">
         <div className="p-6 border-b border-border bg-secondary/30 flex justify-between items-center">
-          <h3 className="text-lg font-black tracking-tight">Administrateurs du Système</h3>
+          <h3 className="text-lg font-black tracking-tight">{heading}</h3>
           <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground font-bold h-10 px-6 gap-2">
@@ -36,10 +44,10 @@ export function TeamTab({
             <DialogContent className="sm:max-w-[450px] glass-card border-border">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                  <UserPlus className="w-6 h-6 text-primary" /> Nouveau Membre
+                  <UserPlus className="w-6 h-6 text-primary" /> {inviteDialogTitle}
                 </DialogTitle>
                 <DialogDescription className="font-medium">
-                  Invitez un nouvel administrateur à rejoindre l'équipe de gestion.
+                  {inviteDialogDescription}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-5 py-4">
@@ -82,7 +90,7 @@ export function TeamTab({
                 <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-start gap-3">
                   <Shield className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Le nouveau membre recevra une invitation par email pour configurer son mot de passe et son authentification 2FA.
+                    {invite2faHelp}
                   </p>
                 </div>
               </div>

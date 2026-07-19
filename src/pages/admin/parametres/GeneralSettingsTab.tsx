@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
+import { useContent } from "@/hooks/api/content";
 
 interface GeneralSettings {
   platformName: string;
@@ -21,11 +22,15 @@ interface GeneralSettingsTabProps {
 }
 
 export function GeneralSettingsTab({ generalSettings, setGeneralSettings, onSave }: GeneralSettingsTabProps) {
+  const identityHeading = useContent("admin.parametres.general.identity-heading", "Identité de la Plateforme");
+  const triageHeading = useContent("admin.parametres.general.triage-heading", "Paramètres de Triage");
+  const autoTriageHelp = useContent("admin.parametres.general.auto-triage-help", "Utiliser Smart-Triage™ pour pré-valider les rapports.");
+  const enterpriseValidationHelp = useContent("admin.parametres.general.enterprise-validation-help", "L'entreprise doit valider avant tout paiement.");
   return (
     <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="glass-card rounded-2xl border border-border p-8 space-y-6">
-          <h3 className="text-lg font-black tracking-tight">Identité de la Plateforme</h3>
+          <h3 className="text-lg font-black tracking-tight">{identityHeading}</h3>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nom Public</Label>
@@ -55,12 +60,12 @@ export function GeneralSettingsTab({ generalSettings, setGeneralSettings, onSave
         </div>
 
         <div className="glass-card rounded-2xl border border-border p-8 space-y-6">
-          <h3 className="text-lg font-black tracking-tight">Paramètres de Triage</h3>
+          <h3 className="text-lg font-black tracking-tight">{triageHeading}</h3>
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label className="text-sm font-bold">Auto-Triage IA</Label>
-                <p className="text-[10px] text-muted-foreground">Utiliser Smart-Triage™ pour pré-valider les rapports.</p>
+                <p className="text-[10px] text-muted-foreground">{autoTriageHelp}</p>
               </div>
               <Switch
                 checked={generalSettings.autoTriage}
@@ -70,7 +75,7 @@ export function GeneralSettingsTab({ generalSettings, setGeneralSettings, onSave
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label className="text-sm font-bold">Validation d'Entreprise Obligatoire</Label>
-                <p className="text-[10px] text-muted-foreground">L'entreprise doit valider avant tout paiement.</p>
+                <p className="text-[10px] text-muted-foreground">{enterpriseValidationHelp}</p>
               </div>
               <Switch
                 checked={generalSettings.enterpriseValidation}

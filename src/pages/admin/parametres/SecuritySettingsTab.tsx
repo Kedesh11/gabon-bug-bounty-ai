@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useContent } from "@/hooks/api/content";
 
 interface SecuritySettings {
   require2FA: boolean;
@@ -24,12 +25,15 @@ export function SecuritySettingsTab({
   setSecuritySettings,
   onSave,
 }: SecuritySettingsTabProps) {
+  const heading = useContent("admin.parametres.security.heading", "Politiques de Sécurité Globale");
+  const twoFaHelp = useContent("admin.parametres.security.2fa-help", "Pour tous les comptes administrateurs et entreprises.");
+  const ipWhitelistHelp = useContent("admin.parametres.security.ip-whitelist-help", "Restreindre l'accès à certaines adresses IP.");
   return (
     <TabsContent value="security" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="glass-card rounded-2xl border border-border p-8 space-y-8">
         <div className="flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-green-500" />
-          <h3 className="text-xl font-black tracking-tight">Politiques de Sécurité Globale</h3>
+          <h3 className="text-xl font-black tracking-tight">{heading}</h3>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
@@ -37,7 +41,7 @@ export function SecuritySettingsTab({
             <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/20 border border-border">
               <div className="space-y-0.5">
                 <Label className="text-sm font-bold">Authentification 2FA Obligatoire</Label>
-                <p className="text-[10px] text-muted-foreground">Pour tous les comptes administrateurs et entreprises.</p>
+                <p className="text-[10px] text-muted-foreground">{twoFaHelp}</p>
               </div>
               <Switch
                 checked={securitySettings.require2FA}
@@ -47,7 +51,7 @@ export function SecuritySettingsTab({
             <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/20 border border-border">
               <div className="space-y-0.5">
                 <Label className="text-sm font-bold">Whitelisting IP (Admin)</Label>
-                <p className="text-[10px] text-muted-foreground">Restreindre l'accès à certaines adresses IP.</p>
+                <p className="text-[10px] text-muted-foreground">{ipWhitelistHelp}</p>
               </div>
               <Switch
                 checked={securitySettings.ipWhitelisting}
