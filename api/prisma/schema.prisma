@@ -126,7 +126,9 @@ model HackerProfile {
   reputation   Int          @default(0)
   bugsFound    Int          @default(0)
   totalRewards Int          @default(0)
-  rank         Int          @default(0)
+  // No stored rank column: leaderboard position is always computed from reputation
+  // at read time (hackersService.ts computeRanks) so it can never drift out of sync
+  // or be hand-edited into an inconsistent value.
   specialties  String[]     @default([])
   status       HackerStatus @default(actif)
   joinedAt     DateTime     @default(now())

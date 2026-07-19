@@ -12,9 +12,23 @@ import {
   getHackerById,
   updateHacker,
   deleteHacker,
+  listHackerLeaderboard,
 } from "../services/hackers/hackersService.js";
 
 export const hackersRouter = Router();
+
+// Public: no auth needed to browse the leaderboard (mirrors public programme
+// listing) — registered before requireAuth below, and deliberately a minimal,
+// PII-free projection (see listHackerLeaderboard), unlike the authenticated routes
+// below which include the full profile relation (name AND email).
+hackersRouter.get(
+  "/leaderboard",
+  asyncHandler(async (_req, res) => {
+    const hackers = await listHackerLeaderboard();
+    res.json({ hackers });
+  }),
+);
+
 hackersRouter.use(requireAuth);
 
 hackersRouter.get(
@@ -97,7 +111,6 @@ const updateHackerSchema = z.object({
   reputation: z.number().int().optional(),
   bugsFound: z.number().int().optional(),
   totalRewards: z.number().int().optional(),
-  rank: z.number().int().optional(),
   specialties: z.array(z.string()).optional(),
   status: z.nativeEnum(HackerStatus).optional(),
 });

@@ -1,9 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiClient";
-import { ApiHackerPaymentConfig, ApiHackerProfile, mapHacker, mapPaymentConfig } from "@/lib/api/mappers";
+import {
+  ApiHackerPaymentConfig,
+  ApiHackerProfile,
+  ApiHackerLeaderboardEntry,
+  mapHacker,
+  mapHackerLeaderboardEntry,
+  mapPaymentConfig,
+} from "@/lib/api/mappers";
 import { HackerProfile, HackerPaymentConfig } from "@/types/domain";
 
 const KEY = ["hackers"] as const;
+const LEADERBOARD_KEY = ["hackers-leaderboard"] as const;
 const PAYMENT_CONFIG_KEY = ["hacker-payment-config"] as const;
 
 export function useHackers() {
@@ -12,6 +20,18 @@ export function useHackers() {
     queryFn: async () => {
       const { hackers } = await apiFetch<{ hackers: ApiHackerProfile[] }>("/api/hackers");
       return hackers.map(mapHacker);
+    },
+  });
+}
+
+// Public, no auth required — rank is always computed server-side from reputation
+// (see api/src/services/hackers/hackersService.ts), never hand-edited.
+export function useHackerLeaderboard() {
+  return useQuery({
+    queryKey: LEADERBOARD_KEY,
+    queryFn: async () => {
+      const { hackers } = await apiFetch<{ hackers: ApiHackerLeaderboardEntry[] }>("/api/hackers/leaderboard");
+      return hackers.map(mapHackerLeaderboardEntry);
     },
   });
 }
