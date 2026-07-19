@@ -301,13 +301,14 @@ export interface ApiHackerProfile {
   specialties: string[];
   status: string;
   joinedAt: string;
-  profile: { name: string; email: string };
+  profile: { id: string; name: string; email: string };
   badges?: ApiBadge[];
 }
 
 export function mapHacker(api: ApiHackerProfile): HackerProfile {
   return {
     id: api.id,
+    profileId: api.profile.id,
     name: api.profile.name,
     email: api.profile.email,
     reputation: api.reputation,
@@ -370,12 +371,13 @@ export interface ApiEntrepriseProfile {
   totalPaid: number;
   status: string;
   joinedAt: string;
-  profile: { name: string; email: string };
+  profile: { id: string; name: string; email: string };
 }
 
 export function mapEntreprise(api: ApiEntrepriseProfile): EntrepriseProfile {
   return {
     id: api.id,
+    profileId: api.profile.id,
     name: api.profile.name,
     email: api.profile.email,
     sector: api.sector,

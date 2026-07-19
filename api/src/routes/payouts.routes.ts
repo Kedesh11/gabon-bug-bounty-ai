@@ -5,6 +5,7 @@ import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { createPayout } from "../services/payments/paymentService.js";
+import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 export const payoutsRouter = Router();
 payoutsRouter.use(requireAuth);
@@ -51,9 +52,24 @@ payoutsRouter.post(
         data: { status: "succeeded", provider: result.provider, providerRef: result.providerRef },
       });
 
+      await createPlatformLog({
+        type: "system",
+        level: "info",
+        message: `Versement de ${report.reward} XAF effectué pour le rapport "${report.title}"`,
+        source: "payouts.routes",
+        userId: req.user!.id,
+      });
+
       res.status(201).json({ payout: updated });
     } catch (err) {
       await prisma.payout.update({ where: { id: payout.id }, data: { status: "failed" } });
+      await createPlatformLog({
+        type: "system",
+        level: "error",
+        message: `Échec du versement pour le rapport "${report.title}": ${err instanceof Error ? err.message : String(err)}`,
+        source: "payouts.routes",
+        userId: req.user!.id,
+      });
       throw err;
     }
   }),

@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { MOCK_LOGS } from "@/lib/mockFeed";
+import { useLogs } from "@/hooks/api/logs";
 import {
   Search,
   Download,
@@ -39,7 +39,7 @@ export default function AdminLogs() {
   const eventsStreamTitle = useContent("admin.logs.events-stream.title", "Flux d'Événements Consolidé");
   const emptyStateTitle = useContent("admin.logs.empty-state.title", "Zero Intelligence Found");
   const emptyStateResetButton = useContent("admin.logs.empty-state.reset-button", "Réinitialiser l'Audit");
-  const logs = MOCK_LOGS;
+  const { data: logs = [] } = useLogs();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("Tous");
   const [selectedLog, setSelectedLog] = useState<PlatformLog | null>(null);

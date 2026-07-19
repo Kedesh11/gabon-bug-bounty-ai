@@ -10,6 +10,7 @@ import {
   updateEntreprise,
   deleteEntreprise,
 } from "../services/entreprises/entreprisesService.js";
+import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 export const entreprisesRouter = Router();
 entreprisesRouter.use(requireAuth);
@@ -41,6 +42,15 @@ entreprisesRouter.patch(
   asyncHandler(async (req, res) => {
     const body = updateEntrepriseSchema.parse(req.body);
     const entreprise = await updateEntreprise(req.params.id, req.user!, body);
+    if (body.status) {
+      await createPlatformLog({
+        type: "security",
+        level: body.status === "suspendu" ? "warning" : "info",
+        message: `Statut de l'entreprise "${entreprise.profile.name}" changé à "${body.status}"`,
+        source: "entreprises.routes",
+        userId: req.user!.id,
+      });
+    }
     res.json({ entreprise });
   }),
 );

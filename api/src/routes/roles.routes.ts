@@ -4,6 +4,7 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { listPermissions, listRoles, createRole, updateRolePermissions, deleteRole } from "../services/roles/rolesService.js";
+import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 export const rolesRouter = Router();
 rolesRouter.use(requireAuth, requirePermission("roles.manage"));
@@ -33,6 +34,13 @@ rolesRouter.post(
   asyncHandler(async (req, res) => {
     const body = createRoleSchema.parse(req.body);
     const role = await createRole(body);
+    await createPlatformLog({
+      type: "security",
+      level: "info",
+      message: `Rôle "${role.label}" créé`,
+      source: "roles.routes",
+      userId: req.user!.id,
+    });
     res.status(201).json({ role });
   }),
 );
@@ -46,6 +54,13 @@ rolesRouter.patch(
   asyncHandler(async (req, res) => {
     const body = updatePermissionsSchema.parse(req.body);
     const role = await updateRolePermissions(req.params.id, body.permissionKeys);
+    await createPlatformLog({
+      type: "security",
+      level: "info",
+      message: `Permissions du rôle "${role.label}" modifiées`,
+      source: "roles.routes",
+      userId: req.user!.id,
+    });
     res.json({ role });
   }),
 );
@@ -54,6 +69,13 @@ rolesRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
     await deleteRole(req.params.id);
+    await createPlatformLog({
+      type: "security",
+      level: "warning",
+      message: `Rôle ${req.params.id} supprimé`,
+      source: "roles.routes",
+      userId: req.user!.id,
+    });
     res.status(204).send();
   }),
 );

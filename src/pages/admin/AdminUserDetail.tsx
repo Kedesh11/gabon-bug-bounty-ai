@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useHackers, useUpdateHacker } from "@/hooks/api/hackers";
 import { useEntreprises, useUpdateEntreprise } from "@/hooks/api/entreprises";
 import { apiErrorMessage } from "@/lib/apiClient";
-import { MOCK_LOGS } from "@/lib/mockFeed";
+import { useLogs } from "@/hooks/api/logs";
 import {
   Mail,
   ShieldCheck,
@@ -43,11 +43,14 @@ export default function AdminUserDetail() {
   const { data: entreprises = [] } = useEntreprises();
   const updateHacker = useUpdateHacker();
   const updateEntreprise = useUpdateEntreprise();
-  const logs = MOCK_LOGS;
 
   const hacker = hackers.find(h => h.id === id);
   const entreprise = entreprises.find(e => e.id === id);
   const userData = hacker || entreprise;
+  // userLogs filtered by Profile.id (userData.profileId), not the HackerProfile/
+  // EntrepriseProfile id in the route param — PlatformLog.userId always references
+  // Profile. Called before the early return below to respect the rules of hooks.
+  const { data: logs = [] } = useLogs({ userId: userData?.profileId });
 
   if (!userData) {
     return (

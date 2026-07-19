@@ -8,6 +8,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { createCollection } from "../services/payments/paymentService.js";
 import { createRecipientAccount, createOnboardingLink } from "../services/payments/stripe/connect.js";
+import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 export const paymentsRouter = Router();
 paymentsRouter.use(requireAuth);
@@ -65,9 +66,24 @@ paymentsRouter.post(
         data: { providerRef: collection.providerRef },
       });
 
+      await createPlatformLog({
+        type: "system",
+        level: "info",
+        message: `Financement de ${body.amount} ${body.currency} initié pour le programme "${programme.name}"`,
+        source: "payments.routes",
+        userId: req.user!.id,
+      });
+
       res.status(201).json({ payment: { ...payment, providerRef: collection.providerRef }, redirectUrl: collection.redirectUrl });
     } catch (err) {
       await prisma.payment.update({ where: { id: payment.id }, data: { status: "failed" } });
+      await createPlatformLog({
+        type: "system",
+        level: "error",
+        message: `Échec du financement du programme "${programme.name}": ${err instanceof Error ? err.message : String(err)}`,
+        source: "payments.routes",
+        userId: req.user!.id,
+      });
       throw err;
     }
   }),

@@ -14,6 +14,7 @@ import {
   deleteHacker,
   listHackerLeaderboard,
 } from "../services/hackers/hackersService.js";
+import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 export const hackersRouter = Router();
 
@@ -121,6 +122,15 @@ hackersRouter.patch(
   asyncHandler(async (req, res) => {
     const body = updateHackerSchema.parse(req.body);
     const hacker = await updateHacker(req.params.id, body);
+    if (body.status) {
+      await createPlatformLog({
+        type: "security",
+        level: body.status === "banni" ? "warning" : "info",
+        message: `Statut du hacker "${hacker.profile.name}" changé à "${body.status}"`,
+        source: "hackers.routes",
+        userId: req.user!.id,
+      });
+    }
     res.json({ hacker });
   }),
 );
