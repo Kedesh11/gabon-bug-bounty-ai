@@ -40,6 +40,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminRapports() {
   const pageTitle = useContent("admin.rapports.title", "Gestion des rapports");
+  const emptyStateText = useContent("admin.rapports.empty-state", "Aucun rapport trouvé pour votre recherche.");
   const { user } = useAuth();
   const [detail, setDetail] = useState<Report | null>(null);
   // Poll while this report's MCP analysis is still running, so the "Analyse
@@ -415,7 +416,7 @@ export default function AdminRapports() {
           </div>
           {filtered.length === 0 && (
             <div className="text-center py-12 glass-card rounded-xl border-dashed">
-              <p className="text-muted-foreground">Aucun rapport trouvé pour votre recherche.</p>
+              <p className="text-muted-foreground">{emptyStateText}</p>
             </div>
           )}
         </div>

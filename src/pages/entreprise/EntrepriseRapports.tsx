@@ -18,6 +18,7 @@ const SEVERITY_COLORS: Record<string, string> = {
 
 export default function EntrepriseRapports() {
   const pageTitle = useContent("entreprise.rapports.title", "Rapports reçus");
+  const emptyStateText = useContent("entreprise.rapports.empty-state", "Aucun rapport reçu");
   const { data: myReports = [] } = useReports();
   const updateReport = useUpdateReport();
   const [detail, setDetail] = useState<Report | null>(null);
@@ -80,7 +81,7 @@ export default function EntrepriseRapports() {
               </div>
             </div>
           ))}
-          {myReports.length === 0 && <p className="text-center text-muted-foreground py-8">Aucun rapport reçu</p>}
+          {myReports.length === 0 && <p className="text-center text-muted-foreground py-8">{emptyStateText}</p>}
         </div>
       </div>
     </DashboardLayout>
