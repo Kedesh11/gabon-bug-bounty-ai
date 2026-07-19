@@ -9,13 +9,16 @@ const KEY = ["reports"] as const;
 // GET /api/reports is already scoped server-side by role (a hacker only sees their own,
 // an entreprise only sees reports on their programmes, admin/triage/finance/support see all)
 // so this single hook is correct for every dashboard without any client-side filtering.
-export function useReports() {
+// refetchInterval lets a caller (AdminRapports.tsx) poll while a report's MCP analysis
+// is still running, without turning on polling for every other consumer of this hook.
+export function useReports(options: { refetchInterval?: number | false } = {}) {
   return useQuery({
     queryKey: KEY,
     queryFn: async () => {
       const { reports } = await apiFetch<{ reports: ApiReport[] }>("/api/reports");
       return reports.map(mapReport);
     },
+    refetchInterval: options.refetchInterval,
   });
 }
 
@@ -81,6 +84,20 @@ export function useUploadReportPdf() {
       formData.append("file", file);
       const { report } = await apiUpload<{ report: ApiReport }>(`/api/reports/${reportId}/pdf`, formData);
       return mapReport(report);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+// Suggestion-only, human-triggered re-run of the 7-agent MCP pipeline (see
+// api/src/services/mcpAgents) — e.g. after a failed run or a report edit. Fires
+// fire-and-forget server-side (202 response), so this just kicks it off; the caller
+// polls via useReports({ refetchInterval }) to see results land.
+export function useRunMcpAnalysis() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (reportId: string) => {
+      await apiFetch<{ started: boolean }>(`/api/reports/${reportId}/mcp-analysis`, { method: "POST" });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
   });

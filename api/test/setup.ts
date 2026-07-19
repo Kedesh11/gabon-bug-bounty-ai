@@ -99,6 +99,20 @@ vi.mock("../src/services/payments/stripe/client.js", () => ({
   },
 }));
 
+// MCP agents: never hit real OpenRouter from tests. Default resolves to `parsed:
+// null`, which fails every agent's zod validation deterministically and fast — so
+// createReport()'s fire-and-forget pipeline trigger (which fires on every report
+// creation across the whole suite, not just mcpAgents tests) completes quickly with
+// every agent recorded "failed" instead of racing a real network call. Individual
+// mcpAgents tests override this per-call via mockResolvedValueOnce/mockImplementation.
+export const openRouterMocks = {
+  callOpenRouter: vi.fn().mockResolvedValue({ raw: "", parsed: null, promptTokens: null, completionTokens: null, latencyMs: 0 }),
+};
+
+vi.mock("../src/services/mcpAgents/openRouterClient.js", () => ({
+  callOpenRouter: openRouterMocks.callOpenRouter,
+}));
+
 // Defaults to the real fetch so unrelated code that happens to call fetch (e.g.
 // @react-pdf/renderer's yoga-layout WASM loader) keeps working; CinetPay tests
 // override this explicitly per-call via mockResolvedValue(Once), which still wins.

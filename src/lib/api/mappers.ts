@@ -9,6 +9,8 @@ import {
   SystemConfig,
   HackerPaymentConfig,
   ProgrammeActivity,
+  McpAgentType,
+  McpAgentRunStatus,
 } from "@/types/domain";
 import { PROGRAMME_STATUS_FROM_API, REPORT_STATUS_FROM_API } from "./enumMaps";
 
@@ -177,6 +179,25 @@ export interface ApiAiAnalysis {
   reproductionLikelihood: number;
 }
 
+export interface ApiMcpAgentOutput {
+  id: string;
+  agentType: string;
+  model: string;
+  status: string;
+  output: Record<string, unknown> | null;
+  errorMessage?: string | null;
+  createdAt: string;
+}
+
+export interface ApiMcpAgentRun {
+  id: string;
+  status: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  outputs: ApiMcpAgentOutput[];
+}
+
 export interface ApiReport {
   id: string;
   title: string;
@@ -205,6 +226,7 @@ export interface ApiReport {
   cvssScore?: number | null;
   analysisStatus?: string | null;
   aiAnalysis?: ApiAiAnalysis | null;
+  mcpAgentRuns?: ApiMcpAgentRun[];
 }
 
 export function mapReport(api: ApiReport): Report {
@@ -245,6 +267,22 @@ export function mapReport(api: ApiReport): Report {
           reproductionLikelihood: api.aiAnalysis.reproductionLikelihood,
         }
       : undefined,
+    mcpAgentRuns: api.mcpAgentRuns?.map((run) => ({
+      id: run.id,
+      status: run.status as McpAgentRunStatus,
+      startedAt: run.startedAt ?? undefined,
+      completedAt: run.completedAt ?? undefined,
+      createdAt: run.createdAt,
+      outputs: run.outputs.map((o) => ({
+        id: o.id,
+        agentType: o.agentType as McpAgentType,
+        model: o.model,
+        status: o.status as McpAgentRunStatus,
+        output: o.output,
+        errorMessage: o.errorMessage ?? undefined,
+        createdAt: o.createdAt,
+      })),
+    })),
   };
 }
 

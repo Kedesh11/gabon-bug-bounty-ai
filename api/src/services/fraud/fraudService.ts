@@ -6,7 +6,7 @@ import { HttpError } from "../../middleware/errorHandler.js";
 // a report, or a payout on their own. They only ever produce a FraudSignal in status
 // "open" for a human (permission fraud.review) to confirm or dismiss.
 
-interface SignalInput {
+export interface SignalInput {
   type: FraudSignalType;
   severity: Severity;
   summary: string;
@@ -20,7 +20,9 @@ interface SignalInput {
 // Dedup: if an open/reviewing signal already exists for the exact same evidence, don't
 // create a second one every time the scan re-runs. relatedProfileIds must be pre-sorted
 // by callers — Prisma's `equals` on a scalar list is order-sensitive.
-async function upsertSignal(input: SignalInput) {
+// Exported so the MCP anti-fraud agent (services/mcpAgents) can raise a
+// llm_semantic_anomaly signal through the same dedup path as the 4 heuristics below.
+export async function upsertSignal(input: SignalInput) {
   const existing = await prisma.fraudSignal.findFirst({
     where: {
       type: input.type,

@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiClient";
 
-export type FraudSignalType = "duplicate_account" | "hacker_entreprise_collusion" | "plagiarized_report" | "payment_anomaly";
+export type FraudSignalType =
+  | "duplicate_account"
+  | "hacker_entreprise_collusion"
+  | "plagiarized_report"
+  | "payment_anomaly"
+  // Raised by the MCP anti-fraud agent (services/mcpAgents) — semantic detection,
+  // complements plagiarized_report's exact/near-exact Jaccard check.
+  | "llm_semantic_anomaly";
 export type FraudSignalStatus = "open" | "reviewing" | "confirmed" | "dismissed";
 
 export interface FraudSignal {
