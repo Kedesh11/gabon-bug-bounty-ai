@@ -10,8 +10,8 @@ export async function seedVulnerabilityTaxonomy(prisma: PrismaClient): Promise<R
   for (const cat of VULNERABILITY_CATEGORIES) {
     const row = await prisma.vulnerabilityCategory.upsert({
       where: { key: cat.key },
-      update: { name: cat.name, cweId: cat.cweId, defaultSeverity: cat.defaultSeverity, description: cat.description },
-      create: { key: cat.key, name: cat.name, cweId: cat.cweId, defaultSeverity: cat.defaultSeverity, description: cat.description },
+      update: { name: cat.name, cweId: cat.cweId, defaultSeverity: cat.defaultSeverity, description: cat.description, isSystem: true },
+      create: { key: cat.key, name: cat.name, cweId: cat.cweId, defaultSeverity: cat.defaultSeverity, description: cat.description, isSystem: true },
     });
     idByKey[cat.key] = row.id;
   }

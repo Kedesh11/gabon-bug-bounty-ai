@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProgrammes } from "@/hooks/api/programmes";
 import { useCreateReport, useUploadReportPdf } from "@/hooks/api/reports";
-import { useVulnerabilityCategories } from "@/hooks/api/taxonomy";
+import { useVulnerabilityCategories, useProposeVulnerabilityCategory } from "@/hooks/api/taxonomy";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { broadcastGlobalNotification } from "@/lib/globalNotifications";
 import { useAuth } from "@/contexts/useAuth";
@@ -44,6 +44,7 @@ const SoumettreRapport = () => {
   const { data: vulnerabilityCategories = [] } = useVulnerabilityCategories();
   const createReport = useCreateReport();
   const uploadReportPdf = useUploadReportPdf();
+  const proposeCategory = useProposeVulnerabilityCategory();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -357,6 +358,34 @@ const SoumettreRapport = () => {
                                 <div className="p-4 text-center text-xs text-muted-foreground">
                                   Aucune catégorie correspondante
                                 </div>
+                              )}
+                              {vrtSearch.trim().length >= 2 && (
+                                <button
+                                  disabled={proposeCategory.isPending}
+                                  onClick={() => {
+                                    const name = vrtSearch.trim();
+                                    proposeCategory.mutate(name, {
+                                      onSuccess: (result) => {
+                                        setVrtSearch(result.category.name);
+                                        setShowVrtSuggestions(false);
+                                        setForm(prev => ({
+                                          ...prev,
+                                          vulnerabilityCategoryId: result.category.id,
+                                          vulnerability: prev.vulnerability || (result.category.cweId ? `${result.category.name} (${result.category.cweId})` : result.category.name),
+                                        }));
+                                        toast.success(
+                                          result.reused
+                                            ? `Catégorie proche existante réutilisée : « ${result.category.name} »`
+                                            : `Nouvelle catégorie ajoutée : « ${result.category.name} »`
+                                        );
+                                      },
+                                      onError: (err) => toast.error(apiErrorMessage(err)),
+                                    });
+                                  }}
+                                  className="w-full text-left px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-colors border-t border-border disabled:opacity-50"
+                                >
+                                  + Proposer « {vrtSearch.trim()} » comme catégorie
+                                </button>
                               )}
                             </div>
                           )}
