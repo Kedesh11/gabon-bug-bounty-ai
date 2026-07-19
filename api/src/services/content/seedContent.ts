@@ -263,6 +263,7 @@ const DEFAULT_TEXT_ENTRIES: Record<string, string> = {
   "admin.ticket-detail.case-details-heading": "Détails du Cas",
   "admin.ticket-detail.user-context-heading": "Contexte Utilisateur",
   "admin.ticket-detail.kb-heading": "Base de Connaissances",
+  "admin.ticket-detail.kb-tip": "Consultez la base de connaissances pour les protocoles de résolution par catégorie.",
   "admin.support.tabs.tickets": "File de Tickets",
   "admin.support.tabs.users": "Utilisateurs & KYC",
   "admin.support.tabs.moderation": "Modération",

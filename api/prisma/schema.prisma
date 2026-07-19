@@ -72,6 +72,8 @@ model Profile {
   logs              PlatformLog[]
   reviewedFraudSignals FraudSignal[] @relation("FraudSignalReviewedBy")
   editedContentEntries ContentEntry[]
+  tickets              Ticket[]        @relation("TicketAuthor")
+  ticketMessages       TicketMessage[] @relation("TicketMessageAuthor")
 
   @@map("profiles")
 }
@@ -855,4 +857,61 @@ model FooterLink {
   order    Int
 
   @@map("footer_links")
+}
+
+// ---------------------------------------------------------------------------
+// Support tickets — real replacement for the SupportDashboard.tsx/
+// AdminTicketDetail.tsx mock data (Phase B of the mock-data-to-real effort).
+// Any authenticated user can open one (authorId = the customer); staff replies
+// require permission tickets.manage. See api/src/services/tickets/ticketsService.ts.
+// ---------------------------------------------------------------------------
+
+enum TicketStatus {
+  ouvert
+  en_cours
+  resolu
+}
+
+enum TicketPriority {
+  critique
+  haute
+  moyenne
+  basse
+}
+
+model Ticket {
+  id       String         @id @default(uuid()) @db.Uuid
+  subject  String
+  // Free-text, not an enum: the categories in use ("Litige Prime", "Technique"...)
+  // are informal groupings, not a closed taxonomy that needs curation like VRT.
+  category String
+  status   TicketStatus   @default(ouvert)
+  priority TicketPriority @default(moyenne)
+
+  authorId String  @db.Uuid
+  author   Profile @relation("TicketAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages TicketMessage[]
+
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id       String @id @default(uuid()) @db.Uuid
+  ticketId String @db.Uuid
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  authorId String  @db.Uuid
+  author   Profile @relation("TicketMessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Whether this message came from the ticket's own author or from staff is derived
+  // by comparing authorId to the parent Ticket.authorId — no separate "sender" field,
+  // so it can never drift out of sync with who actually posted it.
+  text      String
+  createdAt DateTime @default(now())
+
+  @@map("ticket_messages")
 }

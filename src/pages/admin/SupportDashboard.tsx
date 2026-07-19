@@ -1,6 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useHackers, useUpdateHacker } from "@/hooks/api/hackers";
 import { useEntreprises, useUpdateEntreprise } from "@/hooks/api/entreprises";
+import { useTickets, useCreateTicket, type TicketPriority } from "@/hooks/api/tickets";
+import { useFraudSignals } from "@/hooks/api/fraud";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useNavigate } from "react-router-dom";
 import {
@@ -23,10 +25,96 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useContent } from "@/hooks/api/content";
+
+function NewTicketDialog() {
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [category, setCategory] = useState("");
+  const [priority, setPriority] = useState<TicketPriority>("moyenne");
+  const [message, setMessage] = useState("");
+  const createTicket = useCreateTicket();
+
+  const reset = () => { setSubject(""); setCategory(""); setPriority("moyenne"); setMessage(""); };
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
+      <DialogTrigger asChild>
+        <Button className="h-12 px-6 bg-blue-600 text-white hover:bg-blue-700 font-black rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95 gap-2">
+          <MessageSquare className="w-4 h-4" /> NOUVEAU TICKET
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[480px] glass-card border-border">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black tracking-tighter">Nouveau ticket</DialogTitle>
+          <DialogDescription>Ouvert au nom de votre compte support.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label className="text-xs font-black uppercase tracking-widest">Sujet</Label>
+            <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="bg-secondary/50" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase tracking-widest">Catégorie</Label>
+              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Technique, Finance..." className="bg-secondary/50" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase tracking-widest">Priorité</Label>
+              <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
+                <SelectTrigger className="bg-secondary/50 border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="glass-card border-border">
+                  {(["critique", "haute", "moyenne", "basse"] as const).map((p) => (
+                    <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-black uppercase tracking-widest">Message</Label>
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} className="bg-secondary/50 min-h-24" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} className="font-bold">ANNULER</Button>
+          <Button
+            disabled={subject.trim().length < 3 || category.trim().length < 1 || message.trim().length < 1 || createTicket.isPending}
+            onClick={() => {
+              createTicket.mutate(
+                { subject: subject.trim(), category: category.trim(), priority, message: message.trim() },
+                {
+                  onSuccess: () => { toast.success("Ticket créé"); setOpen(false); reset(); },
+                  onError: (err) => toast.error(apiErrorMessage(err)),
+                },
+              );
+            }}
+            className="bg-primary text-primary-foreground font-bold"
+          >
+            CRÉER
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function SupportDashboard() {
   const pageTitle = useContent("admin.support.title", "Support Desk");
@@ -45,14 +133,13 @@ export default function SupportDashboard() {
   const updateEntreprise = useUpdateEntreprise();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"tickets" | "moderation" | "users">("tickets");
-  
-  // Mock Tickets for display
-  const tickets = [
-    { id: "TK-402", user: "Hacker_X", subject: "Appel sur rapport de vulnérabilité #902", category: "Litige Prime", status: "ouvert", priority: "critique", time: "12m" },
-    { id: "TK-403", user: "SEEG Gabon", subject: "Instabilité de l'endpoint d'authentification", category: "Technique", status: "en_cours", priority: "haute", time: "45m" },
-    { id: "TK-404", user: "Hacker_Y", subject: "Délai de versement Mobile Money Moov", category: "Finance", status: "résolu", priority: "moyenne", time: "2h" },
-    { id: "TK-405", user: "BGFIBank", subject: "Mise à jour du périmètre de sécurité", category: "Programme", status: "ouvert", priority: "basse", time: "3h" },
-  ];
+  const { data: tickets = [] } = useTickets();
+  const { data: openSignals = [] } = useFraudSignals({ status: "open" });
+  const [ticketSearch, setTicketSearch] = useState("");
+  const filteredTickets = useMemo(
+    () => tickets.filter((tk) => tk.subject.toLowerCase().includes(ticketSearch.toLowerCase()) || tk.author.name.toLowerCase().includes(ticketSearch.toLowerCase())),
+    [tickets, ticketSearch],
+  );
 
   const [userSearch, setUserSearch] = useState("");
   const [kycFilter, setKycFilter] = useState(false);
@@ -77,9 +164,7 @@ export default function SupportDashboard() {
               <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Système Opérationnel</span>
             </div>
             <div className="h-10 w-[1px] bg-border hidden md:block" />
-            <Button className="h-12 px-6 bg-blue-600 text-white hover:bg-blue-700 font-black rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95 gap-2">
-              <MessageSquare className="w-4 h-4" /> NOUVEAU TICKET
-            </Button>
+            <NewTicketDialog />
           </div>
         </div>
 
@@ -103,9 +188,11 @@ export default function SupportDashboard() {
               <div className="flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative flex-1 group w-full">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
-                  <Input 
-                    placeholder="Rechercher un ticket..." 
-                    className="pl-12 h-14 bg-secondary/30 border-border rounded-[20px] font-bold" 
+                  <Input
+                    placeholder="Rechercher un ticket..."
+                    className="pl-12 h-14 bg-secondary/30 border-border rounded-[20px] font-bold"
+                    value={ticketSearch}
+                    onChange={(e) => setTicketSearch(e.target.value)}
                   />
                 </div>
               </div>
@@ -113,12 +200,12 @@ export default function SupportDashboard() {
               <Card className="glass-card rounded-[32px] border-border overflow-hidden shadow-2xl">
                 <div className="p-6 border-b border-border bg-secondary/30 flex justify-between items-center">
                    <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2"><Clock className="w-4 h-4" /> {ticketsHeading}</h3>
-                   <Badge className="bg-blue-500/10 text-blue-500 border-none font-black">{tickets.length} TICKETS</Badge>
+                   <Badge className="bg-blue-500/10 text-blue-500 border-none font-black">{filteredTickets.length} TICKETS</Badge>
                 </div>
                 <div className="divide-y divide-border">
-                  {tickets.map((tk) => (
-                    <div 
-                      key={tk.id} 
+                  {filteredTickets.map((tk) => (
+                    <div
+                      key={tk.id}
                       className="p-6 flex items-center justify-between hover:bg-secondary/40 transition-all group cursor-pointer border-l-4 border-l-transparent hover:border-l-blue-500"
                       onClick={() => navigate(`/admin/support/ticket/${tk.id}`)}
                     >
@@ -130,7 +217,7 @@ export default function SupportDashboard() {
                         </div>
                         <div className="min-w-0 space-y-1">
                           <p className="text-sm font-black truncate group-hover:text-blue-500 transition-colors">{tk.subject}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{tk.id} • {tk.user}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{tk.author.name}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -228,19 +315,19 @@ export default function SupportDashboard() {
             <Card className="glass-card p-8 rounded-[32px] border-border shadow-2xl">
               <h3 className="text-xl font-black mb-6 flex items-center gap-3"><Users className="w-6 h-6 text-blue-500" /> {moderationHeading}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[
-                  { user: "Hacker_Shadow", reason: "Brute force détecté", risk: "Critique" },
-                  { user: "Cyber_G", reason: "Multi-comptes suspectés", risk: "Haut" },
-                ].map((report, i) => (
-                  <div key={i} className="p-6 rounded-3xl bg-secondary/30 border border-border space-y-4">
+                {openSignals.map((signal) => (
+                  <div key={signal.id} className="p-6 rounded-3xl bg-secondary/30 border border-border space-y-4">
                     <div className="flex justify-between items-center">
-                       <p className="text-sm font-black">{report.user}</p>
-                       <Badge className="bg-destructive text-white text-[8px] font-black">{report.risk}</Badge>
+                       <p className="text-sm font-black capitalize">{signal.type.replace(/_/g, " ")}</p>
+                       <Badge className="bg-destructive text-white text-[8px] font-black capitalize">{signal.severity}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground font-medium">{report.reason}</p>
-                    <Button variant="outline" className="w-full rounded-xl text-[10px] font-black uppercase border-border">ENQUÊTER</Button>
+                    <p className="text-xs text-muted-foreground font-medium">{signal.summary}</p>
+                    <Button variant="outline" className="w-full rounded-xl text-[10px] font-black uppercase border-border" onClick={() => navigate("/admin/fraude")}>ENQUÊTER</Button>
                   </div>
                 ))}
+                {openSignals.length === 0 && (
+                  <p className="text-sm text-muted-foreground col-span-full text-center py-8">Aucun signal de fraude ouvert.</p>
+                )}
               </div>
             </Card>
           </TabsContent>
