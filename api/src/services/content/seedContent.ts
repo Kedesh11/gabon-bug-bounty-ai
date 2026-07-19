@@ -212,6 +212,40 @@ const DEFAULT_TEXT_ENTRIES: Record<string, string> = {
   "hacker.rapports.empty-state": "Aucun rapport trouvé",
   "entreprise.programmes.empty-state": "Aucun programme créé",
   "entreprise.rapports.empty-state": "Aucun rapport reçu",
+
+  // Phase 3 batch 3: admin dashboard dialogs (config/maintenance), the four
+  // admin/parametres tabs (General/Security/Integrations/Team), and AdminRoles's
+  // dialog copy — the cohesive "admin settings & dialogs" slice of the
+  // Explore-agent survey.
+  "admin.dashboard.config-dialog.title": "Configuration Système",
+  "admin.dashboard.config-dialog.description": "Pilotez les paramètres globaux de la plateforme",
+  "admin.dashboard.maintenance-toggle.help": "Bloque l'accès à la plateforme pour tous, sauf les administrateurs.",
+  "admin.dashboard.notifications-toggle.help": "Diffuser les alertes critiques à toute la plateforme.",
+  "admin.dashboard.maintenance-dialog.title": "Activer la maintenance",
+  "admin.dashboard.maintenance-dialog.description": "La plateforme sera inaccessible pour tous les utilisateurs (sauf les administrateurs) pendant la durée indiquée. Maximum 24 heures.",
+  "admin.dashboard.growth-card.title": "Croissance Plateforme",
+  "admin.dashboard.health-card.title": "Santé de la Plateforme",
+  "admin.dashboard.availability-card.title": "Disponibilité Système",
+  "admin.parametres.general.identity-heading": "Identité de la Plateforme",
+  "admin.parametres.general.triage-heading": "Paramètres de Triage",
+  "admin.parametres.general.auto-triage-help": "Utiliser Smart-Triage™ pour pré-valider les rapports.",
+  "admin.parametres.general.enterprise-validation-help": "L'entreprise doit valider avant tout paiement.",
+  "admin.parametres.security.heading": "Politiques de Sécurité Globale",
+  "admin.parametres.security.2fa-help": "Pour tous les comptes administrateurs et entreprises.",
+  "admin.parametres.security.ip-whitelist-help": "Restreindre l'accès à certaines adresses IP.",
+  "admin.parametres.integrations.dialog-description": "Configurez vos paramètres de connexion.",
+  "admin.parametres.integrations.slack-help": "Créez une application Slack et activez les \"Incoming Webhooks\" pour obtenir cette URL.",
+  "admin.parametres.integrations.discord-help": "Dans les paramètres de votre salon Discord, allez dans Intégrations > Webhooks pour créer un connecteur.",
+  "admin.parametres.integrations.smtp-help": "Utilisez le service SMTP de Google Workspace pour une délivrabilité maximale. Assurez-vous d'avoir configuré le SPF et DKIM sur votre domaine.",
+  "admin.parametres.integrations.api-empty": "Aucune clé active. Générez-en une pour commencer.",
+  "admin.parametres.integrations.api-help": "Les clés API permettent d'accéder aux rapports et statistiques via notre SDK ou API REST. Ne partagez jamais ces clés.",
+  "admin.parametres.team.heading": "Administrateurs du Système",
+  "admin.parametres.team.invite-dialog.title": "Nouveau Membre",
+  "admin.parametres.team.invite-dialog.description": "Invitez un nouvel administrateur à rejoindre l'équipe de gestion.",
+  "admin.parametres.team.invite-2fa-help": "Le nouveau membre recevra une invitation par email pour configurer son mot de passe et son authentification 2FA.",
+  "admin.roles.create-dialog.title": "Créer un rôle",
+  "admin.roles.create-dialog.description": "Un nouveau rôle peut recevoir n'importe quelle combinaison des permissions existantes — aucun déploiement requis.",
+  "admin.roles.edit-dialog.description": "Les comptes ayant ce rôle voient l'effet immédiatement, sans redémarrage.",
 };
 
 export async function seedContentDefaults(prisma: PrismaClient) {

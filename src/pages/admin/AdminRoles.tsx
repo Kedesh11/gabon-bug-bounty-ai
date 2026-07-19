@@ -47,6 +47,11 @@ function PermissionChecklist({
 }
 
 function CreateRoleDialog() {
+  const dialogTitle = useContent("admin.roles.create-dialog.title", "Créer un rôle");
+  const dialogDescription = useContent(
+    "admin.roles.create-dialog.description",
+    "Un nouveau rôle peut recevoir n'importe quelle combinaison des permissions existantes — aucun déploiement requis.",
+  );
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
@@ -73,10 +78,10 @@ function CreateRoleDialog() {
       <DialogContent className="sm:max-w-[560px] glass-card border-border">
         <DialogHeader>
           <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" /> Créer un rôle
+            <Shield className="w-5 h-5 text-primary" /> {dialogTitle}
           </DialogTitle>
           <DialogDescription>
-            Un nouveau rôle peut recevoir n'importe quelle combinaison des permissions existantes — aucun déploiement requis.
+            {dialogDescription}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -121,6 +126,7 @@ function CreateRoleDialog() {
 }
 
 function EditPermissionsDialog({ role, open, onOpenChange }: { role: RoleDef; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const editDialogDescription = useContent("admin.roles.edit-dialog.description", "Les comptes ayant ce rôle voient l'effet immédiatement, sans redémarrage.");
   const [permissionKeys, setPermissionKeys] = useState<string[]>(role.permissions);
   const updatePermissions = useUpdateRolePermissions();
 
@@ -139,7 +145,7 @@ function EditPermissionsDialog({ role, open, onOpenChange }: { role: RoleDef; op
       <DialogContent className="sm:max-w-[560px] glass-card border-border">
         <DialogHeader>
           <DialogTitle className="text-xl font-black tracking-tighter">Permissions — {role.label}</DialogTitle>
-          <DialogDescription>Les comptes ayant ce rôle voient l'effet immédiatement, sans redémarrage.</DialogDescription>
+          <DialogDescription>{editDialogDescription}</DialogDescription>
         </DialogHeader>
         <div className="py-2">
           <PermissionChecklist selected={permissionKeys} onToggle={togglePermission} />

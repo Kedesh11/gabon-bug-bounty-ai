@@ -44,6 +44,18 @@ import { useContent } from "@/hooks/api/content";
 
 export default function AdminDashboard() {
   const pageTitle = useContent("admin.dashboard.title", "Contrôle Maître");
+  const configDialogTitle = useContent("admin.dashboard.config-dialog.title", "Configuration Système");
+  const configDialogDescription = useContent("admin.dashboard.config-dialog.description", "Pilotez les paramètres globaux de la plateforme");
+  const maintenanceToggleHelp = useContent("admin.dashboard.maintenance-toggle.help", "Bloque l'accès à la plateforme pour tous, sauf les administrateurs.");
+  const notificationsToggleHelp = useContent("admin.dashboard.notifications-toggle.help", "Diffuser les alertes critiques à toute la plateforme.");
+  const maintenanceDialogTitle = useContent("admin.dashboard.maintenance-dialog.title", "Activer la maintenance");
+  const maintenanceDialogDescription = useContent(
+    "admin.dashboard.maintenance-dialog.description",
+    "La plateforme sera inaccessible pour tous les utilisateurs (sauf les administrateurs) pendant la durée indiquée. Maximum 24 heures.",
+  );
+  const growthCardTitle = useContent("admin.dashboard.growth-card.title", "Croissance Plateforme");
+  const healthCardTitle = useContent("admin.dashboard.health-card.title", "Santé de la Plateforme");
+  const availabilityCardTitle = useContent("admin.dashboard.availability-card.title", "Disponibilité Système");
   const { data: reports = [] } = useReports();
   const { data: programmes = [] } = useProgrammes();
   const { data: hackers = [] } = useHackers();
@@ -195,10 +207,10 @@ export default function AdminDashboard() {
               <DialogContent className="sm:max-w-[500px] glass-card border-border">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black tracking-tighter flex items-center gap-2">
-                    <Settings className="w-6 h-6 text-primary" /> Configuration Système
+                    <Settings className="w-6 h-6 text-primary" /> {configDialogTitle}
                   </DialogTitle>
                   <DialogDescription className="font-medium">
-                    Pilotez les paramètres globaux de la plateforme {config.platformName}.
+                    {configDialogDescription} {config.platformName}.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 py-4">
@@ -222,7 +234,7 @@ export default function AdminDashboard() {
                       <p className="text-xs text-muted-foreground">
                         {config.maintenanceMode && config.maintenanceUntil
                           ? `Actif — se termine à ${new Date(config.maintenanceUntil).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-                          : "Bloque l'accès à la plateforme pour tous, sauf les administrateurs."}
+                          : maintenanceToggleHelp}
                       </p>
                     </div>
                     <Switch
@@ -254,7 +266,7 @@ export default function AdminDashboard() {
                       <Label className="text-sm font-bold flex items-center gap-2">
                         <Bell className="w-4 h-4 text-primary" /> Notifications Globales
                       </Label>
-                      <p className="text-xs text-muted-foreground">Diffuser les alertes critiques à toute la plateforme.</p>
+                      <p className="text-xs text-muted-foreground">{notificationsToggleHelp}</p>
                     </div>
                     <Switch checked={tempGlobalNotificationsEnabled} onCheckedChange={setTempGlobalNotificationsEnabled} />
                   </div>
@@ -272,11 +284,10 @@ export default function AdminDashboard() {
               <DialogContent className="sm:max-w-[420px] glass-card border-border">
                 <DialogHeader>
                   <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-yellow-500" /> Activer la maintenance
+                    <AlertTriangle className="w-5 h-5 text-yellow-500" /> {maintenanceDialogTitle}
                   </DialogTitle>
                   <DialogDescription className="font-medium">
-                    La plateforme sera inaccessible pour tous les utilisateurs (sauf les administrateurs)
-                    pendant la durée indiquée. Maximum 24 heures.
+                    {maintenanceDialogDescription}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="py-2">
@@ -355,7 +366,7 @@ export default function AdminDashboard() {
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-primary" /> Croissance Plateforme
+                    <TrendingUp className="w-4 h-4 text-primary" /> {growthCardTitle}
                   </h3>
                 </div>
                 <div className="h-48 flex items-end justify-between gap-1 px-2">
@@ -387,7 +398,7 @@ export default function AdminDashboard() {
 
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-green-500" /> Santé de la Plateforme
+                  <ShieldCheck className="w-4 h-4 text-green-500" /> {healthCardTitle}
                 </h3>
                 <div className="space-y-5 pt-2">
                   <div className="space-y-2">
@@ -421,7 +432,7 @@ export default function AdminDashboard() {
           {/* Right Sidebar: Platform Health & Feed */}
           <div className="xl:col-span-1 space-y-6">
             <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Disponibilité Système</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">{availabilityCardTitle}</h3>
               <div className="flex justify-center">
                 <div className="relative h-24 w-24 flex items-center justify-center">
                   <svg className="h-full w-full -rotate-90">

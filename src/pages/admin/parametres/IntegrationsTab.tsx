@@ -9,6 +9,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Integration } from "./types";
 import type { useIntegrations } from "./useIntegrations";
+import { useContent } from "@/hooks/api/content";
 
 type IntegrationsState = ReturnType<typeof useIntegrations>;
 
@@ -32,6 +33,19 @@ export function IntegrationsTab(props: IntegrationsState) {
     apiKey,
     generateApiKey,
   } = props;
+
+  const dialogDescription = useContent("admin.parametres.integrations.dialog-description", "Configurez vos paramètres de connexion.");
+  const slackHelp = useContent("admin.parametres.integrations.slack-help", "Créez une application Slack et activez les \"Incoming Webhooks\" pour obtenir cette URL.");
+  const discordHelp = useContent("admin.parametres.integrations.discord-help", "Dans les paramètres de votre salon Discord, allez dans Intégrations > Webhooks pour créer un connecteur.");
+  const smtpHelp = useContent(
+    "admin.parametres.integrations.smtp-help",
+    "Utilisez le service SMTP de Google Workspace pour une délivrabilité maximale. Assurez-vous d'avoir configuré le SPF et DKIM sur votre domaine.",
+  );
+  const apiEmptyText = useContent("admin.parametres.integrations.api-empty", "Aucune clé active. Générez-en une pour commencer.");
+  const apiHelp = useContent(
+    "admin.parametres.integrations.api-help",
+    "Les clés API permettent d'accéder aux rapports et statistiques via notre SDK ou API REST. Ne partagez jamais ces clés.",
+  );
 
   return (
     <TabsContent value="integrations" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -57,7 +71,7 @@ export function IntegrationsTab(props: IntegrationsState) {
                   {selectedIntegration?.title}
                 </DialogTitle>
                 <DialogDescription className="font-medium">
-                  Configurez vos paramètres de connexion.
+                  {dialogDescription}
                 </DialogDescription>
               </div>
             </div>
@@ -78,7 +92,7 @@ export function IntegrationsTab(props: IntegrationsState) {
                 <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">
                   <Slack className="w-4 h-4 text-[#4A154B] shrink-0 mt-0.5" />
                   <p className="text-[10px] text-muted-foreground">
-                    Créez une application Slack et activez les "Incoming Webhooks" pour obtenir cette URL.
+                    {slackHelp}
                   </p>
                 </div>
               </div>
@@ -98,7 +112,7 @@ export function IntegrationsTab(props: IntegrationsState) {
                 <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">
                   <MessageSquare className="w-4 h-4 text-[#5865F2] shrink-0 mt-0.5" />
                   <p className="text-[10px] text-muted-foreground">
-                    Dans les paramètres de votre salon Discord, allez dans Intégrations &gt; Webhooks pour créer un connecteur.
+                    {discordHelp}
                   </p>
                 </div>
               </div>
@@ -137,7 +151,7 @@ export function IntegrationsTab(props: IntegrationsState) {
                 <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">
                   <Globe className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <p className="text-[10px] text-muted-foreground">
-                    Utilisez le service SMTP de Google Workspace pour une délivrabilité maximale. Assurez-vous d'avoir configuré le SPF et DKIM sur votre domaine.
+                    {smtpHelp}
                   </p>
                 </div>
               </div>
@@ -170,13 +184,13 @@ export function IntegrationsTab(props: IntegrationsState) {
                     </div>
                   ) : (
                     <div className="p-8 border-2 border-dashed border-border rounded-xl text-center">
-                      <p className="text-xs text-muted-foreground">Aucune clé active. Générez-en une pour commencer.</p>
+                      <p className="text-xs text-muted-foreground">{apiEmptyText}</p>
                     </div>
                   )}
                 </div>
                 <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
                   <p className="text-[10px] text-muted-foreground">
-                    Les clés API permettent d'accéder aux rapports et statistiques via notre SDK ou API REST. Ne partagez jamais ces clés.
+                    {apiHelp}
                   </p>
                 </div>
               </div>
