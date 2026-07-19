@@ -26,6 +26,7 @@ import {
   type AdminCategoryInput,
 } from "@/hooks/api/taxonomy";
 import { apiErrorMessage } from "@/lib/apiClient";
+import { useContent } from "@/hooks/api/content";
 
 const SEVERITY_OPTIONS = ["critique", "haute", "moyenne", "faible", "info"];
 const NONE_VALUE = "__none__";
@@ -124,6 +125,11 @@ function toInput(value: CategoryFormValue): AdminCategoryInput {
 }
 
 function CreateCategoryDialog({ categories }: { categories: VulnerabilityCategory[] }) {
+  const dialogTitle = useContent("admin.taxonomy.create-dialog.title", "Créer une catégorie");
+  const dialogDescription = useContent(
+    "admin.taxonomy.create-dialog.description",
+    "Contrôle total, sans fusion automatique — contrairement à la proposition depuis le formulaire hacker.",
+  );
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState<CategoryFormValue>(emptyForm());
   const createCategory = useCreateVulnerabilityCategory();
@@ -138,9 +144,9 @@ function CreateCategoryDialog({ categories }: { categories: VulnerabilityCategor
       <DialogContent className="sm:max-w-[560px] glass-card border-border">
         <DialogHeader>
           <DialogTitle className="text-xl font-black tracking-tighter flex items-center gap-2">
-            <Tag className="w-5 h-5 text-primary" /> Créer une catégorie
+            <Tag className="w-5 h-5 text-primary" /> {dialogTitle}
           </DialogTitle>
-          <DialogDescription>Contrôle total, sans fusion automatique — contrairement à la proposition depuis le formulaire hacker.</DialogDescription>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
         <CategoryFormFields value={value} onChange={setValue} categories={categories} />
         <DialogFooter>
@@ -178,6 +184,11 @@ function EditCategoryDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const descriptionSystem = useContent("admin.taxonomy.edit-dialog.description-system", "Catégorie du catalogue de base.");
+  const descriptionProposed = useContent(
+    "admin.taxonomy.edit-dialog.description-proposed",
+    "Catégorie proposée par un hacker ou créée manuellement — complétez le CWE, la sévérité et la hiérarchie.",
+  );
   const [value, setValue] = useState<CategoryFormValue>(toFormValue(category));
   const updateCategory = useUpdateVulnerabilityCategory();
 
@@ -187,9 +198,7 @@ function EditCategoryDialog({
         <DialogHeader>
           <DialogTitle className="text-xl font-black tracking-tighter">Modifier — {category.name}</DialogTitle>
           <DialogDescription>
-            {category.isSystem
-              ? "Catégorie du catalogue de base."
-              : "Catégorie proposée par un hacker ou créée manuellement — complétez le CWE, la sévérité et la hiérarchie."}
+            {category.isSystem ? descriptionSystem : descriptionProposed}
           </DialogDescription>
         </DialogHeader>
         <CategoryFormFields value={value} onChange={setValue} categories={categories} excludeId={category.id} />
@@ -229,6 +238,11 @@ function EditCategoryDialog({
 }
 
 export default function AdminTaxonomy() {
+  const pageTitle = useContent("admin.taxonomy.title", "Taxonomie des vulnérabilités");
+  const pageSubtitle = useContent(
+    "admin.taxonomy.subtitle",
+    "Catalogue de base + catégories proposées par les hackers — complétez-les avec un CWE et une sévérité.",
+  );
   const { data: categories = [] } = useVulnerabilityCategories();
   const deleteCategory = useDeleteVulnerabilityCategory();
   const [editingCategory, setEditingCategory] = useState<VulnerabilityCategory | null>(null);
@@ -242,10 +256,10 @@ export default function AdminTaxonomy() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
-              <Tag className="w-6 h-6 text-primary" /> Taxonomie des vulnérabilités
+              <Tag className="w-6 h-6 text-primary" /> {pageTitle}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Catalogue de base + catégories proposées par les hackers — complétez-les avec un CWE et une sévérité.
+              {pageSubtitle}
             </p>
           </div>
           <CreateCategoryDialog categories={categories} />

@@ -32,6 +32,7 @@ export default function HackerProgrammes() {
   const pageTitle = useContent("hacker.programmes.title", "Exploration des Cibles");
   const pageSubtitle = useContent("hacker.programmes.subtitle", "Découvrez de nouveaux programmes et commencez vos recherches.");
   const FILTERS = useJsonContent<string[]>("hacker.programmes.filters", DEFAULT_FILTERS);
+  const emptyStateText = useContent("hacker.programmes.empty-state", "Aucun programme trouvé");
   const { data: programmes = [] } = useProgrammes();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<string>("Tous");
@@ -235,7 +236,7 @@ export default function HackerProgrammes() {
         {filteredProgrammes.length === 0 && (
           <div className="text-center py-20 bg-secondary/10 rounded-3xl border-2 border-dashed border-border">
             <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-lg font-bold text-muted-foreground">Aucun programme trouvé</p>
+            <p className="text-lg font-bold text-muted-foreground">{emptyStateText}</p>
             <Button variant="link" className="text-primary mt-2" onClick={() => { setSearch(""); setActiveFilter("Tous"); }}>
               Réinitialiser les filtres
             </Button>

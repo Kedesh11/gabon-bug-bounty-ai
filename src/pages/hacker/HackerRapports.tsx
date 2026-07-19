@@ -46,6 +46,7 @@ const STATUS_CONFIG: Record<string, { label: string, color: string, icon: Lucide
 export default function HackerRapports() {
   const pageTitle = useContent("hacker.rapports.title", "Mes Rapports de Sécurité");
   const pageSubtitle = useContent("hacker.rapports.subtitle", "Suivi en temps réel de vos soumissions et de l'analyse IA.");
+  const emptyStateText = useContent("hacker.rapports.empty-state", "Aucun rapport trouvé");
   const { data: myReports = [] } = useReports();
   const deleteReport = useDeleteReport();
   const [detail, setDetail] = useState<Report | null>(null);
@@ -168,7 +169,7 @@ export default function HackerRapports() {
             {filteredReports.length === 0 && (
               <div className="text-center py-24 bg-secondary/10 rounded-[32px] border-2 border-dashed border-border">
                 <Bug className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-                <p className="text-lg font-bold text-muted-foreground">Aucun rapport trouvé</p>
+                <p className="text-lg font-bold text-muted-foreground">{emptyStateText}</p>
                 <Button variant="link" onClick={() => { setSearchTerm(""); setFilterStatus("Tous"); }} className="text-primary mt-2">
                   Réinitialiser les filtres
                 </Button>

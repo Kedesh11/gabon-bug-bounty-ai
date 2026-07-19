@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TriageQueueWidget } from "./TriageQueueWidget";
 import { Report } from "@/types/domain";
 
@@ -25,14 +26,21 @@ function makeReport(overrides: Partial<Report>): Report {
   };
 }
 
+// useContent() (src/hooks/api/content.ts) queries the API via react-query — no
+// QueryClientProvider in this tree would throw synchronously. retry: false so a
+// failed fetch (no API server in this unit test) fails fast instead of retrying;
+// either way useContent() falls back to its default text, same as before.
 function renderWidget(reports: Report[]) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={["/admin"]}>
-      <Routes>
-        <Route path="/admin" element={<TriageQueueWidget reports={reports} />} />
-        <Route path="/admin/rapports" element={<div>Page rapports</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/admin"]}>
+        <Routes>
+          <Route path="/admin" element={<TriageQueueWidget reports={reports} />} />
+          <Route path="/admin/rapports" element={<div>Page rapports</div>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

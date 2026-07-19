@@ -186,6 +186,32 @@ const DEFAULT_TEXT_ENTRIES: Record<string, string> = {
   "entreprise.rapports.title": "Rapports reçus",
   "entreprise.programmes.title": "Mes programmes",
   "entreprise.parametres.title": "Paramètres",
+
+  // Phase 3 batch 2: closes the header gap left by batch 1 (AdminParametres,
+  // AdminTaxonomy weren't in that pass), plus empty-state messages — the highest
+  // value, lowest-risk slice of what's below the headers (tables/dialogs/help
+  // text are a much larger, not-yet-scoped remainder of Phase 3).
+  "admin.parametres.title": "Configuration Système",
+  "admin.parametres.subtitle": "Gérez les politiques globales et les intégrations de la plateforme.",
+  "admin.parametres.tabs.general": "Général",
+  "admin.parametres.tabs.security": "Sécurité",
+  "admin.parametres.tabs.integrations": "Intégrations",
+  "admin.parametres.tabs.team": "Équipe",
+  "admin.taxonomy.title": "Taxonomie des vulnérabilités",
+  "admin.taxonomy.subtitle": "Catalogue de base + catégories proposées par les hackers — complétez-les avec un CWE et une sévérité.",
+  "admin.taxonomy.create-dialog.title": "Créer une catégorie",
+  "admin.taxonomy.create-dialog.description": "Contrôle total, sans fusion automatique — contrairement à la proposition depuis le formulaire hacker.",
+  "admin.taxonomy.edit-dialog.description-system": "Catégorie du catalogue de base.",
+  "admin.taxonomy.edit-dialog.description-proposed": "Catégorie proposée par un hacker ou créée manuellement — complétez le CWE, la sévérité et la hiérarchie.",
+  "admin.rapports.empty-state": "Aucun rapport trouvé pour votre recherche.",
+  "admin.fraud.empty-state.title": "Aucun signal",
+  "admin.fraud.empty-state.help": "Lancez une analyse pour examiner les comptes, rapports et versements récents.",
+  "admin.triage-widget.title": "File de Triage Global (Priorité IA)",
+  "admin.triage-widget.empty-state": "Aucun rapport en attente de triage.",
+  "hacker.programmes.empty-state": "Aucun programme trouvé",
+  "hacker.rapports.empty-state": "Aucun rapport trouvé",
+  "entreprise.programmes.empty-state": "Aucun programme créé",
+  "entreprise.rapports.empty-state": "Aucun rapport reçu",
 };
 
 export async function seedContentDefaults(prisma: PrismaClient) {

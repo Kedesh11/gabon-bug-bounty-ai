@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Report } from "@/types/domain";
+import { useContent } from "@/hooks/api/content";
 
 const SEVERITY_RANK: Record<Report["severity"], number> = {
   critique: 0,
@@ -26,6 +27,8 @@ const LIST_PAGE_SIZE = 10;
 const CARD_PAGE_SIZE = 6;
 
 export function TriageQueueWidget({ reports }: { reports: Report[] }) {
+  const widgetTitle = useContent("admin.triage-widget.title", "File de Triage Global (Priorité IA)");
+  const emptyStateText = useContent("admin.triage-widget.empty-state", "Aucun rapport en attente de triage.");
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [page, setPage] = useState(0);
@@ -60,7 +63,7 @@ export function TriageQueueWidget({ reports }: { reports: Report[] }) {
     <div className="glass-card rounded-2xl border border-border overflow-hidden">
       <div className="p-5 border-b border-border bg-secondary/30 flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-sm font-bold flex items-center gap-2">
-          <Zap className="w-4 h-4 text-yellow-500" /> File de Triage Global (Priorité IA)
+          <Zap className="w-4 h-4 text-yellow-500" /> {widgetTitle}
         </h3>
         <div className="flex items-center gap-3">
           <ToggleGroup
@@ -83,7 +86,7 @@ export function TriageQueueWidget({ reports }: { reports: Report[] }) {
       </div>
 
       {pageItems.length === 0 ? (
-        <p className="p-8 text-center text-sm text-muted-foreground">Aucun rapport en attente de triage.</p>
+        <p className="p-8 text-center text-sm text-muted-foreground">{emptyStateText}</p>
       ) : viewMode === "list" ? (
         <div className="divide-y divide-border">
           {pageItems.map(r => (

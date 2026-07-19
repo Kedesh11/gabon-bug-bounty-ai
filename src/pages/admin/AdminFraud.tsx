@@ -134,6 +134,8 @@ function SignalCard({ signal }: { signal: FraudSignal }) {
 export default function AdminFraud() {
   const pageTitle = useContent("admin.fraud.title", "Détection de fraude");
   const pageSubtitle = useContent("admin.fraud.subtitle", "Signaux heuristiques à revue humaine — rien n'est bloqué automatiquement.");
+  const emptyStateTitle = useContent("admin.fraud.empty-state.title", "Aucun signal");
+  const emptyStateHelp = useContent("admin.fraud.empty-state.help", "Lancez une analyse pour examiner les comptes, rapports et versements récents.");
   const [statusFilter, setStatusFilter] = useState<FraudSignalStatus | "all">("open");
   const { data: signals = [], isLoading } = useFraudSignals(statusFilter === "all" ? {} : { status: statusFilter });
   const runScan = useRunFraudScan();
@@ -184,9 +186,9 @@ export default function AdminFraud() {
           ) : signals.length === 0 ? (
             <div className="glass-card rounded-xl p-10 border-border text-center">
               <ShieldAlert className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm font-bold text-foreground">Aucun signal</p>
+              <p className="text-sm font-bold text-foreground">{emptyStateTitle}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Lancez une analyse pour examiner les comptes, rapports et versements récents.
+                {emptyStateHelp}
               </p>
             </div>
           ) : (

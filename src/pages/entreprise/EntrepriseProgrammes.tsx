@@ -96,6 +96,7 @@ const statusBadgeClass = (status: Programme["status"]) => {
 
 export default function EntrepriseProgrammes() {
   const pageTitle = useContent("entreprise.programmes.title", "Mes programmes");
+  const emptyStateText = useContent("entreprise.programmes.empty-state", "Aucun programme créé");
   const { user } = useAuth();
   const { data: programmes = [] } = useProgrammes();
   const createProgramme = useCreateProgramme();
@@ -370,7 +371,7 @@ export default function EntrepriseProgrammes() {
               </div>
             </div>
           ))}
-          {myProgrammes.length === 0 && <p className="text-center text-muted-foreground py-8">Aucun programme créé</p>}
+          {myProgrammes.length === 0 && <p className="text-center text-muted-foreground py-8">{emptyStateText}</p>}
         </div>
       </div>
     </DashboardLayout>
