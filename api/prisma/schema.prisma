@@ -520,14 +520,21 @@ model AiAnalysis {
 // a small hierarchy of categories (parent/child) each optionally mapped to a CWE id,
 // with a suggested default severity used to pre-fill (not force) the report form.
 model VulnerabilityCategory {
-  id              String                  @id @default(uuid()) @db.Uuid
-  // Stable slug (e.g. "xss.stored") used to seed/upsert idempotently — the taxonomy
-  // is fixed/code-defined, unlike roles, so re-seeding must never create duplicates.
-  key             String                  @unique
-  name            String
+  id   String @id @default(uuid()) @db.Uuid
+  // Stable slug used to seed/upsert the curated catalog idempotently, and to derive
+  // a unique key for hacker-proposed categories (see taxonomyService.ts) — either
+  // way this must stay unique so re-seeding/re-proposing never creates duplicates.
+  key  String @unique
+  name String
   cweId           String?
   defaultSeverity Severity?
   description     String?
+
+  // true for the curated catalog seeded from vrtCatalog.ts; false for a category a
+  // hacker proposed from the report form (taxonomyService.proposeVulnerabilityCategory)
+  // after the automatic duplicate check found no close match. Both are listed and
+  // usable identically — this only distinguishes provenance for future moderation.
+  isSystem Boolean @default(true)
 
   parentId String?                 @db.Uuid
   parent   VulnerabilityCategory?  @relation("VulnerabilityCategoryHierarchy", fields: [parentId], references: [id])
