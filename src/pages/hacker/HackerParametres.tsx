@@ -8,8 +8,10 @@ import { ProfileSection } from "./parametres/ProfileSection";
 import { NotificationsSection } from "./parametres/NotificationsSection";
 import { PaymentSection } from "./parametres/PaymentSection";
 import { PayoutPreferences } from "./parametres/PayoutPreferences";
+import { useContent } from "@/hooks/api/content";
 
 export default function HackerParametres() {
+  const pageTitle = useContent("hacker.parametres.title", "Paramètres du Compte");
   const profileForm = useProfileForm();
   const notifications = useNotificationPreferences();
   const payment = usePaymentConfig();
@@ -17,7 +19,7 @@ export default function HackerParametres() {
   return (
     <DashboardLayout>
       <div className="space-y-8 w-full pb-12">
-        <h1 className="text-3xl font-black text-foreground tracking-tighter">Paramètres du Compte</h1>
+        <h1 className="text-3xl font-black text-foreground tracking-tighter">{pageTitle}</h1>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
           <div className="space-y-8">

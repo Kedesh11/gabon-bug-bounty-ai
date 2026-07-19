@@ -25,6 +25,7 @@ import { Report } from "@/types/domain";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
+import { useContent } from "@/hooks/api/content";
 
 const SEVERITY_CONFIG: Record<string, { color: string, label: string }> = {
   critique: { color: "bg-destructive text-white", label: "CRITIQUE" },
@@ -43,6 +44,8 @@ const STATUS_CONFIG: Record<string, { label: string, color: string, icon: Lucide
 };
 
 export default function HackerRapports() {
+  const pageTitle = useContent("hacker.rapports.title", "Mes Rapports de Sécurité");
+  const pageSubtitle = useContent("hacker.rapports.subtitle", "Suivi en temps réel de vos soumissions et de l'analyse IA.");
   const { data: myReports = [] } = useReports();
   const deleteReport = useDeleteReport();
   const [detail, setDetail] = useState<Report | null>(null);
@@ -72,8 +75,8 @@ export default function HackerRapports() {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
-            <h1 className="text-3xl font-black text-foreground tracking-tighter">Mes Rapports de Sécurité</h1>
-            <p className="text-muted-foreground font-medium italic">Suivi en temps réel de vos soumissions et de l'analyse IA.</p>
+            <h1 className="text-3xl font-black text-foreground tracking-tighter">{pageTitle}</h1>
+            <p className="text-muted-foreground font-medium italic">{pageSubtitle}</p>
           </div>
           <Button asChild className="h-12 px-8 bg-primary text-primary-foreground font-black rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all">
             <Link to="/soumettre-rapport">

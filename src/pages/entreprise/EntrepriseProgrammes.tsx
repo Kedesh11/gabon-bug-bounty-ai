@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Programme } from "@/types/domain";
+import { useContent } from "@/hooks/api/content";
 
 type ProgrammeForm = {
   name: string;
@@ -94,6 +95,7 @@ const statusBadgeClass = (status: Programme["status"]) => {
 };
 
 export default function EntrepriseProgrammes() {
+  const pageTitle = useContent("entreprise.programmes.title", "Mes programmes");
   const { user } = useAuth();
   const { data: programmes = [] } = useProgrammes();
   const createProgramme = useCreateProgramme();
@@ -258,7 +260,7 @@ export default function EntrepriseProgrammes() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-black text-foreground">Mes programmes</h1>
+          <h1 className="text-2xl font-black text-foreground">{pageTitle}</h1>
           <Button size="sm" onClick={() => { resetForm(); setShowAdd(true); }}>
             <Plus className="w-4 h-4 mr-1" /> Nouveau programme
           </Button>

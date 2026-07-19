@@ -40,8 +40,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useContent } from "@/hooks/api/content";
 
 export default function AdminDashboard() {
+  const pageTitle = useContent("admin.dashboard.title", "Contrôle Maître");
   const { data: reports = [] } = useReports();
   const { data: programmes = [] } = useProgrammes();
   const { data: hackers = [] } = useHackers();
@@ -162,7 +164,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              Contrôle Maître
+              {pageTitle}
               <span className={`font-mono text-xs px-2 py-0.5 border rounded uppercase tracking-widest animate-pulse ${
                 availabilityPercent === null
                   ? "text-muted-foreground bg-secondary border-border"

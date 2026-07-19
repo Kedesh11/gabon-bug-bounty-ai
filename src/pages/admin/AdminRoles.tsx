@@ -18,6 +18,7 @@ import {
 import { Shield, Plus, Trash2, Pencil, Lock } from "lucide-react";
 import { usePermissionCatalog, useRoles, useCreateRole, useUpdateRolePermissions, useDeleteRole, type RoleDef } from "@/hooks/api/roles";
 import { apiErrorMessage } from "@/lib/apiClient";
+import { useContent } from "@/hooks/api/content";
 
 function PermissionChecklist({
   selected,
@@ -170,6 +171,8 @@ function EditPermissionsDialog({ role, open, onOpenChange }: { role: RoleDef; op
 }
 
 export default function AdminRoles() {
+  const pageTitle = useContent("admin.roles.title", "Rôles & Permissions");
+  const pageSubtitle = useContent("admin.roles.subtitle", "Créez un rôle et attribuez-lui des permissions existantes — aucune modification de code nécessaire.");
   const { data: roles = [] } = useRoles();
   const deleteRole = useDeleteRole();
   const [editingRole, setEditingRole] = useState<RoleDef | null>(null);
@@ -180,10 +183,10 @@ export default function AdminRoles() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
-              <Shield className="w-6 h-6 text-primary" /> Rôles & Permissions
+              <Shield className="w-6 h-6 text-primary" /> {pageTitle}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Créez un rôle et attribuez-lui des permissions existantes — aucune modification de code nécessaire.
+              {pageSubtitle}
             </p>
           </div>
           <CreateRoleDialog />

@@ -18,8 +18,11 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useContent } from "@/hooks/api/content";
 
 export default function AdminKnowledgeBase() {
+  const pageTitle = useContent("admin.knowledge-base.title", "Base de Connaissances");
+  const pageSubtitle = useContent("admin.knowledge-base.subtitle", "Protocoles officiels et guides de résolution pour le Support.");
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
 
@@ -51,9 +54,9 @@ export default function AdminKnowledgeBase() {
               <ChevronLeft className="w-4 h-4" /> Retour au support
             </button>
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              <BookOpen className="w-8 h-8 text-blue-500" /> Base de Connaissances
+              <BookOpen className="w-8 h-8 text-blue-500" /> {pageTitle}
             </h1>
-            <p className="text-muted-foreground font-medium italic">Protocoles officiels et guides de résolution pour le Support.</p>
+            <p className="text-muted-foreground font-medium italic">{pageSubtitle}</p>
           </div>
           <div className="relative w-full md:w-96 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />

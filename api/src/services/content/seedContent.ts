@@ -129,6 +129,7 @@ const DEFAULT_JSON_ENTRIES: Record<string, unknown> = {
     { value: "info", label: "Info", description: "Best practices, info non sensible" },
   ],
   "programmes.filters": ["Tous", "Web", "API", "Mobile", "Infrastructure", "Private", "VDP"],
+  "hacker.programmes.filters": ["Tous", "Web", "API", "Mobile", "Infrastructure", "Public", "Privé", "VDP"],
 };
 
 // Flat text entries, same "seeded so the admin editor starts pre-populated" rationale
@@ -151,6 +152,40 @@ const DEFAULT_TEXT_ENTRIES: Record<string, string> = {
   "soumettre-programme.subtitle": "Ouvrez votre scope aux hackers éthiques. Le programme sera visible après validation.",
   "not-found.message": "Oops! Page not found",
   "not-found.link-label": "Return to Home",
+
+  // Phase 3 (internal dashboard) batch 1: page headers only (title/subtitle) for the
+  // admin/hacker/entreprise index pages. Icons, live status badges, and any subtitle
+  // with an interpolated dynamic value (user name, platform name) stay hardcoded —
+  // same "id-keyed local mapping" rule as Phase 2, applied to headers instead of lists.
+  "admin.support.title": "Support Desk",
+  "admin.support.subtitle": "Centre d'opérations : Tickets, Utilisateurs et Modération.",
+  "admin.roles.title": "Rôles & Permissions",
+  "admin.roles.subtitle": "Créez un rôle et attribuez-lui des permissions existantes — aucune modification de code nécessaire.",
+  "admin.utilisateurs.title": "Gestion des Utilisateurs",
+  "admin.utilisateurs.subtitle": "Administration, KYC et contrôle d'accès global.",
+  "admin.fraud.title": "Détection de fraude",
+  "admin.fraud.subtitle": "Signaux heuristiques à revue humaine — rien n'est bloqué automatiquement.",
+  "admin.logs.title": "Cyber-SIEM™",
+  "admin.logs.subtitle": "Système de Gestion des Informations et des Événements de Sécurité.",
+  "admin.triage.title": "Triage Control Center",
+  "admin.triage.subtitle": "Validation technique et analyse de sévérité des vulnérabilités.",
+  "admin.finance.title": "Finance Hub",
+  "admin.finance.subtitle": "Gestion des flux financiers, budgets et versements de primes.",
+  "admin.knowledge-base.title": "Base de Connaissances",
+  "admin.knowledge-base.subtitle": "Protocoles officiels et guides de résolution pour le Support.",
+  "admin.dashboard.title": "Contrôle Maître",
+  "admin.rapports.title": "Gestion des rapports",
+  "admin.programmes.title": "Gestion des programmes",
+  "hacker.dashboard.title": "Centre d'Élite",
+  "hacker.parametres.title": "Paramètres du Compte",
+  "hacker.rapports.title": "Mes Rapports de Sécurité",
+  "hacker.rapports.subtitle": "Suivi en temps réel de vos soumissions et de l'analyse IA.",
+  "hacker.programmes.title": "Exploration des Cibles",
+  "hacker.programmes.subtitle": "Découvrez de nouveaux programmes et commencez vos recherches.",
+  "entreprise.dashboard.title": "Corporate Shield",
+  "entreprise.rapports.title": "Rapports reçus",
+  "entreprise.programmes.title": "Mes programmes",
+  "entreprise.parametres.title": "Paramètres",
 };
 
 export async function seedContentDefaults(prisma: PrismaClient) {

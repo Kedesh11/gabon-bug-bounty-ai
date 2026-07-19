@@ -14,8 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useContent } from "@/hooks/api/content";
 
 export default function FinanceDashboard() {
+  const pageTitle = useContent("admin.finance.title", "Finance Hub");
+  const pageSubtitle = useContent("admin.finance.subtitle", "Gestion des flux financiers, budgets et versements de primes.");
   const { data: reports = [] } = useReports();
   const paidReports = reports.filter(r => r.reward > 0);
   const totalBounties = paidReports.reduce((s, r) => s + r.reward, 0);
@@ -26,9 +29,9 @@ export default function FinanceDashboard() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-2">
-              <Wallet className="w-8 h-8 text-green-500" /> Finance Hub
+              <Wallet className="w-8 h-8 text-green-500" /> {pageTitle}
             </h1>
-            <p className="text-muted-foreground">Gestion des flux financiers, budgets et versements de primes.</p>
+            <p className="text-muted-foreground">{pageSubtitle}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="font-bold gap-2">

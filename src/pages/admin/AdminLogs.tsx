@@ -31,8 +31,11 @@ import {
 } from "@/components/ui/dialog";
 import { PlatformLog } from "@/types/domain";
 import { toast } from "sonner";
+import { useContent } from "@/hooks/api/content";
 
 export default function AdminLogs() {
+  const pageTitle = useContent("admin.logs.title", "Cyber-SIEM™");
+  const pageSubtitle = useContent("admin.logs.subtitle", "Système de Gestion des Informations et des Événements de Sécurité.");
   const logs = MOCK_LOGS;
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("Tous");
@@ -66,9 +69,9 @@ export default function AdminLogs() {
             </div>
             <div>
               <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-2">
-                Cyber-SIEM™ <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black">LIVE</Badge>
+                {pageTitle} <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black">LIVE</Badge>
               </h1>
-              <p className="text-muted-foreground font-medium text-sm">Système de Gestion des Informations et des Événements de Sécurité.</p>
+              <p className="text-muted-foreground font-medium text-sm">{pageSubtitle}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

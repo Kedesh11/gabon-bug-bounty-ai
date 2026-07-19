@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShieldAlert, RefreshCw, Users, Handshake, Copy, CreditCard, Sparkles, Check, X, Eye } from "lucide-react";
 import { useFraudSignals, useRunFraudScan, useUpdateFraudSignalStatus, type FraudSignal, type FraudSignalStatus, type FraudSignalType } from "@/hooks/api/fraud";
 import { apiErrorMessage } from "@/lib/apiClient";
+import { useContent } from "@/hooks/api/content";
 
 const TYPE_LABELS: Record<FraudSignalType, string> = {
   duplicate_account: "Multi-comptes",
@@ -131,6 +132,8 @@ function SignalCard({ signal }: { signal: FraudSignal }) {
 }
 
 export default function AdminFraud() {
+  const pageTitle = useContent("admin.fraud.title", "Détection de fraude");
+  const pageSubtitle = useContent("admin.fraud.subtitle", "Signaux heuristiques à revue humaine — rien n'est bloqué automatiquement.");
   const [statusFilter, setStatusFilter] = useState<FraudSignalStatus | "all">("open");
   const { data: signals = [], isLoading } = useFraudSignals(statusFilter === "all" ? {} : { status: statusFilter });
   const runScan = useRunFraudScan();
@@ -141,10 +144,10 @@ export default function AdminFraud() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
-              <ShieldAlert className="w-6 h-6 text-primary" /> Détection de fraude
+              <ShieldAlert className="w-6 h-6 text-primary" /> {pageTitle}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Signaux heuristiques à revue humaine — rien n'est bloqué automatiquement.
+              {pageSubtitle}
             </p>
           </div>
           <Button
