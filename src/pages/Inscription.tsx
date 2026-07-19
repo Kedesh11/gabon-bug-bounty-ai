@@ -9,8 +9,11 @@ import { resolveDashboardPath } from "@/lib/roleNav";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/apiClient";
+import { useContent } from "@/hooks/api/content";
 
 const Inscription = () => {
+  const title = useContent("inscription.title", "Rejoignez le Réseau");
+  const subtitle = useContent("inscription.subtitle", "Contribuez à la sécurité numérique du Gabon.");
   const [searchParams] = useSearchParams();
   const forcedRole = searchParams.get("role");
   const isEntrepriseFlow = forcedRole === "entreprise";
@@ -70,9 +73,9 @@ const Inscription = () => {
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary border border-border shadow-2xl mb-4 group hover:border-primary/50 transition-all">
               <ShieldCheck className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight">Rejoignez le Réseau</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight">{title}</h1>
             <p className="text-muted-foreground font-medium max-w-sm mx-auto">
-              Contribuez à la sécurité numérique du Gabon.
+              {subtitle}
             </p>
           </div>
 

@@ -10,10 +10,12 @@ import { useAuth } from "@/contexts/useAuth";
 import { useCreateProgramme } from "@/hooks/api/programmes";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useNavigate } from "react-router-dom";
+import { useContent } from "@/hooks/api/content";
 
 const ENTERPRISE_REGISTERED_KEY = "bugbounty_has_registered_enterprise";
 
 const SoumettreProgramme = () => {
+  const subtitle = useContent("soumettre-programme.subtitle", "Ouvrez votre scope aux hackers éthiques. Le programme sera visible après validation.");
   const { user, isAuthenticated } = useAuth();
   const createProgramme = useCreateProgramme();
   const navigate = useNavigate();
@@ -114,7 +116,7 @@ const SoumettreProgramme = () => {
               Soumettre un <span className="text-gradient-cyber">Programme</span>
             </h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Ouvrez votre scope aux hackers éthiques. Le programme sera visible après validation.
+              {subtitle}
             </p>
           </div>
 
