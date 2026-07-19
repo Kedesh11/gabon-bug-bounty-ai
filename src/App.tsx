@@ -40,6 +40,7 @@ const AdminUserDetail = lazy(() => import("./pages/admin/AdminUserDetail"));
 const AdminTicketDetail = lazy(() => import("./pages/admin/AdminTicketDetail"));
 const AdminKnowledgeBase = lazy(() => import("./pages/admin/AdminKnowledgeBase"));
 const AdminRoles = lazy(() => import("./pages/admin/AdminRoles"));
+const AdminFraud = lazy(() => import("./pages/admin/AdminFraud"));
 
 // Hacker
 const HackerDashboard = lazy(() => import("./pages/hacker/HackerDashboard"));
@@ -103,6 +104,7 @@ const App = () => (
                   <Route path="/admin/support/ticket/:id" element={<ProtectedRoute permissions={["support.tickets.view"]}><AdminTicketDetail /></ProtectedRoute>} />
                   <Route path="/admin/support/kb" element={<ProtectedRoute permissions={["support.kb.view"]}><AdminKnowledgeBase /></ProtectedRoute>} />
                   <Route path="/admin/roles" element={<ProtectedRoute permissions={["roles.manage"]}><AdminRoles /></ProtectedRoute>} />
+                  <Route path="/admin/fraude" element={<ProtectedRoute permissions={["fraud.review"]}><AdminFraud /></ProtectedRoute>} />
 
                   {/* Hacker Routes */}
                   <Route path="/hacker" element={<ProtectedRoute roles={["hacker"]}><HackerDashboard /></ProtectedRoute>} />

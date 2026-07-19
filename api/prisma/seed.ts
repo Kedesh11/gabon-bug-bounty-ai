@@ -37,6 +37,10 @@ async function resetDemoData() {
   // leftover rows from test runs (test/helpers.ts) or manual smoke-testing would
   // otherwise silently accumulate here run after run. Cascades to hacker/entreprise
   // profiles, programmes, reports, badges, etc.
+  // FraudSignal rows referencing deleted reports cascade automatically (relatedReportId),
+  // but duplicate_account/collusion signals only store relatedProfileIds as a plain
+  // string array (no FK) — those would otherwise survive every profile wipe forever.
+  await prisma.fraudSignal.deleteMany();
   await prisma.profile.deleteMany();
   await prisma.platformLog.deleteMany();
   await prisma.systemConfig.deleteMany();

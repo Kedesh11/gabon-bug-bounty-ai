@@ -35,6 +35,7 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: "reports.triage", label: "Trier les rapports", description: "PATCH /api/reports/:id (statut, sévérité, récompense)" },
   { key: "reports.delete", label: "Supprimer un rapport", description: "DELETE /api/reports/:id" },
   { key: "roles.manage", label: "Administrer les rôles", description: "CRUD des rôles et de leurs permissions" },
+  { key: "fraud.review", label: "Examiner les signaux de fraude", description: "Lister/traiter les signaux, lancer une analyse (POST /api/fraud/*)" },
 
   // View permissions (frontend pages/nav — admin side only)
   { key: "dashboard.admin.view", label: "Voir le tableau de bord admin", description: "/admin" },
