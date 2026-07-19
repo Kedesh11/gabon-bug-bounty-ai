@@ -43,3 +43,59 @@ export function useProposeVulnerabilityCategory() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
   });
 }
+
+export interface AdminCategoryInput {
+  name: string;
+  cweId?: string;
+  defaultSeverity?: string;
+  description?: string;
+  parentId?: string;
+}
+
+// Full control (CWE, severity, hierarchy), no fuzzy-merge — for triage/admin
+// (permission taxonomy.manage), distinct from the hacker propose flow above.
+export function useCreateVulnerabilityCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AdminCategoryInput) => {
+      const { category } = await apiFetch<{ category: VulnerabilityCategory }>("/api/taxonomy/vulnerability-categories/manage", {
+        method: "POST",
+        body: input,
+      });
+      return category;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export interface UpdateCategoryInput {
+  name?: string;
+  cweId?: string | null;
+  defaultSeverity?: string | null;
+  description?: string | null;
+  parentId?: string | null;
+}
+
+export function useUpdateVulnerabilityCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateCategoryInput }) => {
+      const { category } = await apiFetch<{ category: VulnerabilityCategory }>(`/api/taxonomy/vulnerability-categories/${id}`, {
+        method: "PATCH",
+        body: data,
+      });
+      return category;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useDeleteVulnerabilityCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiFetch(`/api/taxonomy/vulnerability-categories/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
