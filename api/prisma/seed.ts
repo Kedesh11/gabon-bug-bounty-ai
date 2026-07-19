@@ -9,6 +9,7 @@
 import { PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { seedSystemRolesAndPermissions } from "../src/services/roles/seedSystemRoles.js";
+import { seedVulnerabilityTaxonomy } from "../src/services/taxonomy/seedTaxonomy.js";
 
 const prisma = new PrismaClient();
 const supabaseAdmin = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -75,6 +76,9 @@ async function main() {
 
   console.log("Seeding roles & permissions...");
   const roleIds = await seedSystemRolesAndPermissions(prisma);
+
+  console.log("Seeding vulnerability taxonomy...");
+  await seedVulnerabilityTaxonomy(prisma);
 
   console.log("Creating demo accounts...");
   const ids: Record<string, string> = {};

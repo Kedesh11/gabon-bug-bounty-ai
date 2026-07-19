@@ -29,6 +29,13 @@ export interface CreateReportInput {
   vrtType?: string;
   proof: string;
   pdfFileName?: string;
+  vulnerabilityCategoryId?: string;
+  affectedAsset?: string;
+  stepsToReproduce?: string;
+  impact?: string;
+  remediation?: string;
+  cvssVector?: string;
+  cvssScore?: number;
 }
 
 export function useCreateReport() {

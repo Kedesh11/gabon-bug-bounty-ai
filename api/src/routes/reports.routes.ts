@@ -25,6 +25,13 @@ const createReportSchema = z.object({
   vrtType: z.string().optional(),
   proof: z.string().min(1),
   pdfFileName: z.string().optional(),
+  vulnerabilityCategoryId: z.string().uuid().optional(),
+  affectedAsset: z.string().min(1).optional(),
+  stepsToReproduce: z.string().min(1).optional(),
+  impact: z.string().optional(),
+  remediation: z.string().optional(),
+  cvssVector: z.string().optional(),
+  cvssScore: z.number().min(0).max(10).optional(),
 });
 
 const updateReportSchema = z.object({

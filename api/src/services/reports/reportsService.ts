@@ -2,17 +2,33 @@ import type { AnalysisStatus, ReportStatus, Severity } from "@prisma/client";
 import { prisma } from "../../prisma.js";
 import { HttpError } from "../../middleware/errorHandler.js";
 import type { AuthenticatedUser } from "../../middleware/auth.js";
+import { findEarlierDuplicate } from "./duplicateDetection.js";
 
-export const reportInclude = { hacker: { include: { profile: true } }, programme: true, aiAnalysis: true };
+export const reportInclude = {
+  hacker: { include: { profile: true } },
+  programme: true,
+  aiAnalysis: true,
+  vulnerabilityCategory: true,
+};
 
 // Not real AI: a deterministic placeholder mirroring the frontend mock in
-// src/stores/dataStore.ts until a genuine triage model is wired up.
-function buildPlaceholderAnalysis(title: string, vulnerability: string, severity: Severity) {
+// src/stores/dataStore.ts until a genuine triage model is wired up. isDuplicate/
+// duplicateOfId are the one part of this that reflects a real check (see
+// duplicateDetection.ts), not a placeholder — everything else here still is.
+function buildAnalysis(
+  title: string,
+  vulnerability: string,
+  severity: Severity,
+  duplicate: { reportId: string } | null,
+) {
   return {
     confidence: 0.7 + Math.random() * 0.25,
     suggestedSeverity: severity,
-    isDuplicate: false,
-    summary: `Analyse automatique de "${title}". Le PoC semble valide. Vulnérabilité de type ${vulnerability} confirmée par analyse syntaxique.`,
+    isDuplicate: duplicate !== null,
+    duplicateOfId: duplicate?.reportId,
+    summary: duplicate
+      ? `Analyse automatique de "${title}". Un rapport antérieur sur le même actif et la même catégorie de vulnérabilité a déjà été soumis — marqué comme doublon potentiel pour revue par la triage.`
+      : `Analyse automatique de "${title}". Le PoC semble valide. Vulnérabilité de type ${vulnerability} confirmée par analyse syntaxique.`,
     reproductionLikelihood: 0.8,
   };
 }
@@ -69,6 +85,13 @@ export interface CreateReportInput {
   vrtType?: string;
   proof: string;
   pdfFileName?: string;
+  vulnerabilityCategoryId?: string;
+  affectedAsset?: string;
+  stepsToReproduce?: string;
+  impact?: string;
+  remediation?: string;
+  cvssVector?: string;
+  cvssScore?: number;
 }
 
 export async function createReport(userId: string, input: CreateReportInput) {
@@ -78,6 +101,20 @@ export async function createReport(userId: string, input: CreateReportInput) {
   const programme = await prisma.programme.findUnique({ where: { id: input.programmeId } });
   if (!programme) throw new HttpError(404, "Programme introuvable");
 
+  if (input.vulnerabilityCategoryId) {
+    const category = await prisma.vulnerabilityCategory.findUnique({ where: { id: input.vulnerabilityCategoryId } });
+    if (!category) throw new HttpError(400, "Catégorie de vulnérabilité inconnue");
+  }
+
+  // "First to report" rule: on a given programme, the earliest report against the
+  // same taxonomy category + affected asset is the one eligible for validation/payout.
+  // This flags the new report, it does not block submission or reject it outright.
+  const duplicate = await findEarlierDuplicate({
+    programmeId: input.programmeId,
+    vulnerabilityCategoryId: input.vulnerabilityCategoryId,
+    affectedAsset: input.affectedAsset,
+  });
+
   const report = await prisma.report.create({
     data: {
       ...input,
@@ -86,7 +123,7 @@ export async function createReport(userId: string, input: CreateReportInput) {
       status: "soumis",
       reward: 0,
       analysisStatus: "en_attente",
-      aiAnalysis: { create: buildPlaceholderAnalysis(input.title, input.vulnerability, input.severity) },
+      aiAnalysis: { create: buildAnalysis(input.title, input.vulnerability, input.severity, duplicate) },
     },
     include: reportInclude,
   });

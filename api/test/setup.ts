@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import { prisma } from "../src/prisma.js";
 import { seedSystemRolesAndPermissions } from "../src/services/roles/seedSystemRoles.js";
+import { seedVulnerabilityTaxonomy } from "../src/services/taxonomy/seedTaxonomy.js";
 
 try {
   process.loadEnvFile(new URL("../.env", import.meta.url));
@@ -13,6 +14,7 @@ process.env.NODE_ENV = "test";
 // 6 system roles + permission catalog to exist before creating any profile. Idempotent,
 // safe to run once per test file even though setupFiles re-executes per isolated module.
 await seedSystemRolesAndPermissions(prisma);
+await seedVulnerabilityTaxonomy(prisma);
 
 // CinetPay isn't configured with real credentials yet (see api/.env.example) — the
 // HTTP layer is fully mocked below, but requireCheckoutCredentials()/
