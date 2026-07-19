@@ -10,6 +10,7 @@ import { useContent } from "@/hooks/api/content";
 
 export default function EntrepriseParametres() {
   const pageTitle = useContent("entreprise.parametres.title", "Paramètres");
+  const orgHeading = useContent("entreprise.parametres.org-heading", "Informations de l'organisation");
   const { user, updateProfile } = useAuth();
   const { data: profile } = useEntreprise(user?.entrepriseProfileId);
   const updateEntreprise = useUpdateEntreprise();
@@ -30,7 +31,7 @@ export default function EntrepriseParametres() {
         <h1 className="text-2xl font-black text-foreground">{pageTitle}</h1>
 
         <div className="glass-card rounded-xl p-5 border-glow space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">Informations de l'organisation</h3>
+          <h3 className="text-sm font-semibold text-foreground">{orgHeading}</h3>
           <div className="space-y-3">
             <div>
               <label className="text-xs text-muted-foreground font-mono block mb-1">Nom de l'organisation</label>

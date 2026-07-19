@@ -280,6 +280,33 @@ const DEFAULT_TEXT_ENTRIES: Record<string, string> = {
   "admin.logs.empty-state.title": "Zero Intelligence Found",
   "admin.logs.empty-state.reset-button": "Réinitialiser l'Audit",
   "admin.utilisateurs.kyc-heading": "Validation d'Identité (KYC)",
+
+  // Phase 3 batch 5: hacker and entreprise pages — closes the Explore-agent
+  // survey's catalog (mock/demo data and individual form field labels stay
+  // excluded, same rule as every earlier Phase 3 batch).
+  "hacker.dashboard.performance-heading": "Performance Mensuelle",
+  "hacker.dashboard.specialization-heading": "Spécialisation",
+  "hacker.dashboard.recent-submissions-heading": "Soumissions Récentes",
+  "hacker.dashboard.opportunities-heading": "Opportunités",
+  "hacker.profil.stats-heading": "Statistiques Vitales",
+  "hacker.profil.badges-heading": "Succès & Badges",
+  "hacker.profil.config-heading": "Configuration du Profil",
+  "hacker.profil.config-subtitle": "Gérez votre identité publique sur Gabon Bug Bounty AI.",
+  "hacker.profil.name-help": "C'est le nom qui sera affiché sur les leaderboards.",
+  "hacker.profil.social-heading": "Connexions Sociales",
+  "hacker.parametres.profile.heading": "Informations d'inscription",
+  "hacker.parametres.payment.heading": "Configuration paiement",
+  "hacker.parametres.payment.gains-help": "Activez cette option pour recevoir vos paiements.",
+  "hacker.parametres.payment.methods-heading": "Ajouter un ou plusieurs moyens de paiement",
+  "hacker.parametres.payout.heading": "Préférences globales",
+  "hacker.parametres.payout.auto-withdrawal-help": "Si activé, le paiement sera envoyé automatiquement.",
+  "entreprise.dashboard.sla-heading": "Performance SLA",
+  "entreprise.dashboard.severity-heading": "Répartition par Sévérité",
+  "entreprise.dashboard.programmes-heading": "État des Programmes",
+  "entreprise.dashboard.top-researchers-heading": "Top Chercheurs",
+  "entreprise.dashboard.health-score-heading": "Score de Santé Sécurité",
+  "entreprise.parametres.org-heading": "Informations de l'organisation",
+  "entreprise.programmes.tiers-help": "Tiers de récompense par sévérité (optionnel)",
 };
 
 export async function seedContentDefaults(prisma: PrismaClient) {

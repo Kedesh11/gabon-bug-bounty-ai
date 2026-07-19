@@ -28,6 +28,10 @@ import { useContent } from "@/hooks/api/content";
 
 export default function HackerDashboard() {
   const pageTitle = useContent("hacker.dashboard.title", "Centre d'Élite");
+  const performanceHeading = useContent("hacker.dashboard.performance-heading", "Performance Mensuelle");
+  const specializationHeading = useContent("hacker.dashboard.specialization-heading", "Spécialisation");
+  const recentSubmissionsHeading = useContent("hacker.dashboard.recent-submissions-heading", "Soumissions Récentes");
+  const opportunitiesHeading = useContent("hacker.dashboard.opportunities-heading", "Opportunités");
   const { user } = useAuth();
   const { data: myReports = [] } = useReports();
   const { data: hackers = [] } = useHackers();
@@ -121,7 +125,7 @@ export default function HackerDashboard() {
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-primary" /> Performance Mensuelle
+                    <BarChart3 className="w-4 h-4 text-primary" /> {performanceHeading}
                   </h3>
                   <select className="bg-secondary text-[10px] font-bold px-2 py-1 rounded border border-border outline-none">
                     <option>2024</option>
@@ -149,7 +153,7 @@ export default function HackerDashboard() {
               {/* Skills & Specialization */}
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <Target className="w-4 h-4 text-accent" /> Spécialisation
+                  <Target className="w-4 h-4 text-accent" /> {specializationHeading}
                 </h3>
                 
                 <div className="space-y-4">
@@ -172,7 +176,7 @@ export default function HackerDashboard() {
               <div className="lg:col-span-3 glass-card rounded-2xl border border-border overflow-hidden">
                 <div className="p-5 border-b border-border bg-secondary/30 flex items-center justify-between">
                   <h3 className="text-sm font-bold flex items-center gap-2">
-                    <History className="w-4 h-4 text-primary" /> Soumissions Récentes
+                    <History className="w-4 h-4 text-primary" /> {recentSubmissionsHeading}
                   </h3>
                   <Button asChild variant="ghost" size="sm" className="text-[10px] font-bold h-7">
                     <Link to="/hacker/rapports">TOUT VOIR</Link>
@@ -204,7 +208,7 @@ export default function HackerDashboard() {
 
               <div className="lg:col-span-2 glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-orange-500">
-                  <Star className="w-4 h-4" /> Opportunités
+                  <Star className="w-4 h-4" /> {opportunitiesHeading}
                 </h3>
                 <div className="space-y-3">
                   {activeProgrammes.map(p => (

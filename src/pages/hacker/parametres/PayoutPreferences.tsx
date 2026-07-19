@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { HackerPaymentConfig, PreferredCurrency } from "@/types/domain";
+import { useContent } from "@/hooks/api/content";
 
 interface PayoutPreferencesProps {
   config: HackerPaymentConfig;
@@ -9,9 +10,11 @@ interface PayoutPreferencesProps {
 }
 
 export function PayoutPreferences({ config, setField }: PayoutPreferencesProps) {
+  const heading = useContent("hacker.parametres.payout.heading", "Préférences globales");
+  const autoWithdrawalHelp = useContent("hacker.parametres.payout.auto-withdrawal-help", "Si activé, le paiement sera envoyé automatiquement.");
   return (
     <div className="glass-card rounded-xl p-5 border-glow space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">Préférences globales</h3>
+      <h3 className="text-sm font-semibold text-foreground">{heading}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <Label className="text-xs font-mono text-muted-foreground">Devise préférée</Label>
@@ -41,7 +44,7 @@ export function PayoutPreferences({ config, setField }: PayoutPreferencesProps) 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary px-4 py-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Retrait automatique</p>
-          <p className="text-xs text-muted-foreground font-mono">Si activé, le paiement sera envoyé automatiquement.</p>
+          <p className="text-xs text-muted-foreground font-mono">{autoWithdrawalHelp}</p>
         </div>
         <Switch checked={config.autoWithdrawal} onCheckedChange={(value) => setField("autoWithdrawal", value)} />
       </div>
