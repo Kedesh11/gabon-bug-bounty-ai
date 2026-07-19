@@ -85,3 +85,138 @@ describe("Reports RBAC & CRUD", () => {
     expect(triagePatch.body.report.reward).toBe(500000);
   });
 });
+
+describe("First-to-report duplicate detection", () => {
+  async function categoryId(key: string) {
+    const category = await prisma.vulnerabilityCategory.findUniqueOrThrow({ where: { key } });
+    return category.id;
+  }
+
+  it("flags a later report on the same programme/category/asset as a duplicate of the earlier one", async () => {
+    const hacker1 = await createTestUser("hacker");
+    const hacker2 = await createTestUser("hacker");
+    const entreprise = await createTestUser("entreprise");
+    const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
+    const programme = await createTestProgramme(entrepriseProfile.id);
+    const xssStored = await categoryId("xss.stored");
+
+    const first = await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker1.authHeader)
+      .send({
+        title: "XSS stocké sur /profile",
+        description: "Injection XSS stockée via le champ bio",
+        severity: "haute",
+        programmeId: programme.id,
+        vulnerability: "XSS",
+        proof: "poc",
+        vulnerabilityCategoryId: xssStored,
+        affectedAsset: "app.gabon.ga",
+      });
+    expect(first.status).toBe(201);
+    expect(first.body.report.aiAnalysis.isDuplicate).toBe(false);
+
+    const second = await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker2.authHeader)
+      .send({
+        title: "Même XSS stocké, découvert indépendamment",
+        description: "Injection XSS stockée via le même champ bio",
+        severity: "haute",
+        programmeId: programme.id,
+        vulnerability: "XSS",
+        proof: "poc",
+        vulnerabilityCategoryId: xssStored,
+        // Whitespace/case variation on purpose: normalization should still catch it.
+        affectedAsset: "  APP.gabon.ga  ",
+      });
+    expect(second.status).toBe(201);
+    expect(second.body.report.aiAnalysis.isDuplicate).toBe(true);
+    expect(second.body.report.aiAnalysis.duplicateOfId).toBe(first.body.report.id);
+  });
+
+  it("does not flag reports on a different programme, a different category, or a different asset", async () => {
+    const hacker = await createTestUser("hacker");
+    const entreprise = await createTestUser("entreprise");
+    const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
+    const programmeA = await createTestProgramme(entrepriseProfile.id);
+    const programmeB = await createTestProgramme(entrepriseProfile.id);
+    const xssStored = await categoryId("xss.stored");
+    const sqlInjection = await categoryId("injection.sql");
+
+    const base = {
+      title: "Report de base",
+      description: "Description de base",
+      severity: "moyenne" as const,
+      vulnerability: "XSS",
+      proof: "poc",
+      vulnerabilityCategoryId: xssStored,
+      affectedAsset: "shared-asset.gabon.ga",
+    };
+
+    const original = await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker.authHeader)
+      .send({ ...base, programmeId: programmeA.id });
+    expect(original.body.report.aiAnalysis.isDuplicate).toBe(false);
+
+    const differentProgramme = await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker.authHeader)
+      .send({ ...base, programmeId: programmeB.id });
+    expect(differentProgramme.body.report.aiAnalysis.isDuplicate).toBe(false);
+
+    const differentCategory = await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker.authHeader)
+      .send({ ...base, programmeId: programmeA.id, vulnerabilityCategoryId: sqlInjection });
+    expect(differentCategory.body.report.aiAnalysis.isDuplicate).toBe(false);
+
+    const differentAsset = await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker.authHeader)
+      .send({ ...base, programmeId: programmeA.id, affectedAsset: "other-asset.gabon.ga" });
+    expect(differentAsset.body.report.aiAnalysis.isDuplicate).toBe(false);
+  });
+
+  it("never flags the first (earliest) report as a duplicate even after later ones arrive", async () => {
+    const hacker = await createTestUser("hacker");
+    const entreprise = await createTestUser("entreprise");
+    const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
+    const programme = await createTestProgramme(entrepriseProfile.id);
+    const rce = await categoryId("rce");
+
+    const first = await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker.authHeader)
+      .send({
+        title: "RCE via upload",
+        description: "desc",
+        severity: "critique",
+        programmeId: programme.id,
+        vulnerability: "RCE",
+        proof: "poc",
+        vulnerabilityCategoryId: rce,
+        affectedAsset: "upload.gabon.ga",
+      });
+
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker.authHeader)
+      .send({
+        title: "RCE via upload (rapport 2)",
+        description: "desc",
+        severity: "critique",
+        programmeId: programme.id,
+        vulnerability: "RCE",
+        proof: "poc",
+        vulnerabilityCategoryId: rce,
+        affectedAsset: "upload.gabon.ga",
+      });
+
+    const firstReloaded = await request(app)
+      .get(`/api/reports/${first.body.report.id}`)
+      .set("Authorization", hacker.authHeader);
+    expect(firstReloaded.body.report.aiAnalysis.isDuplicate).toBe(false);
+  });
+});

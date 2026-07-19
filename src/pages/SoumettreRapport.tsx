@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProgrammes } from "@/hooks/api/programmes";
 import { useCreateReport } from "@/hooks/api/reports";
+import { useVulnerabilityCategories } from "@/hooks/api/taxonomy";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { broadcastGlobalNotification } from "@/lib/globalNotifications";
 import { useAuth } from "@/contexts/useAuth";
@@ -30,20 +31,6 @@ import {
 import { toast } from "sonner";
 import { Report } from "@/types/domain";
 
-const VRT_CATEGORIES = [
-  "Injection côté serveur (SQLi, NoSQL, Commande OS)",
-  "Rupture d'authentification et gestion de session",
-  "Exposition de données sensibles",
-  "Entités externes XML (XXE)",
-  "Contrôle d'accès défaillant (IDOR, BOLA)",
-  "Mauvaise configuration de sécurité",
-  "Cross-Site Scripting (XSS)",
-  "Désérialisation non sécurisée",
-  "Vulnérabilités de logique métier",
-  "Divulgation d'informations",
-  "Autre"
-];
-
 const SEVERITY_LEVELS: Array<{ value: Report["severity"]; label: string; color: string; description: string }> = [
   { value: "critique", label: "Critique", color: "bg-destructive text-destructive-foreground", description: "Contrôle total, RCE, accès DB total" },
   { value: "haute", label: "Haute", color: "bg-orange-500 text-white", description: "Accès données sensibles, IDOR critique" },
@@ -54,6 +41,7 @@ const SEVERITY_LEVELS: Array<{ value: Report["severity"]; label: string; color: 
 
 const SoumettreRapport = () => {
   const { data: programmes = [] } = useProgrammes();
+  const { data: vulnerabilityCategories = [] } = useVulnerabilityCategories();
   const createReport = useCreateReport();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -65,7 +53,7 @@ const SoumettreRapport = () => {
     title: "",
     programmeId: programmeIdFromQuery || "",
     vulnerability: "",
-    vrtCategory: VRT_CATEGORIES[0],
+    vulnerabilityCategoryId: "",
     severity: "moyenne" as Report["severity"],
     impactedAsset: "",
     description: "",
@@ -76,7 +64,7 @@ const SoumettreRapport = () => {
     remediation: "",
   });
 
-  const [vrtSearch, setVrtSearch] = useState(form.vrtCategory);
+  const [vrtSearch, setVrtSearch] = useState("");
   const [showVrtSuggestions, setShowVrtSuggestions] = useState(false);
   const vrtRef = useRef<HTMLDivElement>(null);
 
@@ -92,6 +80,7 @@ const SoumettreRapport = () => {
       programmeId: form.programmeId !== "",
       impactedAsset: /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/.test(form.impactedAsset.trim()) || form.impactedAsset.includes("://") || form.impactedAsset.split(".").length >= 2,
       vulnerability: form.vulnerability.length >= 3,
+      vulnerabilityCategoryId: form.vulnerabilityCategoryId !== "",
       title: form.title.length >= 10 && form.title.length <= 150,
       description: form.description.length >= 50,
       steps: form.steps.length >= 30,
@@ -118,8 +107,8 @@ const SoumettreRapport = () => {
   const activeProgrammes = programmes.filter((programme) => programme.status === "actif");
   const selectedProgramme = programmes.find(p => p.id === form.programmeId);
 
-  const filteredVrt = VRT_CATEGORIES.filter(c => 
-    c.toLowerCase().includes(vrtSearch.toLowerCase())
+  const filteredVrt = vulnerabilityCategories.filter(c =>
+    c.name.toLowerCase().includes(vrtSearch.toLowerCase())
   );
 
   const handleScreenshotChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,6 +139,7 @@ const SoumettreRapport = () => {
       if (!validations.programmeId) { toast.error("Veuillez sélectionner un programme"); return; }
       if (!validations.impactedAsset) { toast.error("Veuillez saisir un actif valide (ex: api.gabon.ga)"); return; }
       if (!validations.vulnerability) { toast.error("Le type de vulnérabilité est trop court"); return; }
+      if (!validations.vulnerabilityCategoryId) { toast.error("Veuillez choisir une catégorie de vulnérabilité (taxonomie)"); return; }
     }
     if (step === 2) {
       if (!validations.title) { toast.error("Le titre doit faire entre 10 et 150 caractères"); return; }
@@ -174,16 +164,22 @@ const SoumettreRapport = () => {
 
     setSubmitting(true);
     try {
+      const selectedCategory = vulnerabilityCategories.find(c => c.id === form.vulnerabilityCategoryId);
       await createReport.mutateAsync({
         title: form.title.trim(),
-        description: `${form.description.trim()}\n\nREMEDIATION:\n${form.remediation.trim() || "Non spécifiée"}\n\nHTTP LOGS:\n${form.httpLogs.trim() || "Aucun log fourni"}`,
+        description: form.description.trim(),
         severity: form.severity,
         programmeId: selectedProgramme!.id,
         vulnerability: form.vulnerability.trim(),
-        vrtCategory: vrtSearch.trim(),
+        vrtCategory: selectedCategory?.name ?? vrtSearch.trim(),
         vrtType: form.vulnerability.trim(),
-        proof: `Actif: ${form.impactedAsset.trim()}\nÉtapes:\n${form.steps.trim()}\n\nCaptures d'écran: ${screenshots.length} fichiers`,
+        proof: `Logs HTTP:\n${form.httpLogs.trim() || "Aucun log fourni"}\n\nCaptures d'écran: ${screenshots.length} fichiers`,
         pdfFileName: pdfFile.name,
+        vulnerabilityCategoryId: form.vulnerabilityCategoryId || undefined,
+        affectedAsset: form.impactedAsset.trim(),
+        stepsToReproduce: form.steps.trim(),
+        impact: `Impact technique:\n${form.technicalImpact.trim() || "Non spécifié"}\n\nImpact métier:\n${form.businessImpact.trim() || "Non spécifié"}`,
+        remediation: form.remediation.trim() || undefined,
       });
 
       if (form.severity === "critique") {
@@ -319,6 +315,7 @@ const SoumettreRapport = () => {
                             onChange={(e) => {
                               setVrtSearch(e.target.value);
                               setShowVrtSuggestions(true);
+                              setForm(prev => ({ ...prev, vulnerabilityCategoryId: "" }));
                             }}
                             onFocus={() => setShowVrtSuggestions(true)}
                             className="h-12 bg-secondary/50 border-border pl-10 font-bold"
@@ -328,16 +325,23 @@ const SoumettreRapport = () => {
                         {showVrtSuggestions && (
                           <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-xl shadow-2xl max-h-[250px] overflow-y-auto glass-card">
                             {filteredVrt.length > 0 ? (
-                              filteredVrt.map((c, i) => (
+                              filteredVrt.map((c) => (
                                 <button
-                                  key={i}
+                                  key={c.id}
                                   onClick={() => {
-                                    setVrtSearch(c);
+                                    setVrtSearch(c.name);
                                     setShowVrtSuggestions(false);
+                                    setForm(prev => ({
+                                      ...prev,
+                                      vulnerabilityCategoryId: c.id,
+                                      vulnerability: prev.vulnerability || (c.cweId ? `${c.name} (${c.cweId})` : c.name),
+                                      severity: (c.defaultSeverity as Report["severity"]) || prev.severity,
+                                    }));
                                   }}
                                   className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-primary/10 transition-colors border-b border-border last:border-0"
                                 >
-                                  {c}
+                                  {c.name}
+                                  {c.cweId && <span className="ml-2 text-[9px] font-mono text-muted-foreground">{c.cweId}</span>}
                                 </button>
                               ))
                             ) : (

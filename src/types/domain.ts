@@ -146,6 +146,13 @@ export interface Report {
   vrtType?: string;
   proof: string;
   pdfFileName?: string;
+  vulnerabilityCategoryId?: string;
+  affectedAsset?: string;
+  stepsToReproduce?: string;
+  impact?: string;
+  remediation?: string;
+  cvssVector?: string;
+  cvssScore?: number;
   analysisStatus?: "en_attente" | "en_cours" | "terminee";
   aiAnalysis?: AIAnalysis;
 }

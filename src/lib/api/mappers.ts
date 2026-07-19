@@ -196,6 +196,13 @@ export interface ApiReport {
   vrtType?: string | null;
   proof: string;
   pdfFileName?: string | null;
+  vulnerabilityCategoryId?: string | null;
+  affectedAsset?: string | null;
+  stepsToReproduce?: string | null;
+  impact?: string | null;
+  remediation?: string | null;
+  cvssVector?: string | null;
+  cvssScore?: number | null;
   analysisStatus?: string | null;
   aiAnalysis?: ApiAiAnalysis | null;
 }
@@ -220,6 +227,13 @@ export function mapReport(api: ApiReport): Report {
     vrtType: api.vrtType ?? undefined,
     proof: api.proof,
     pdfFileName: api.pdfFileName ?? undefined,
+    vulnerabilityCategoryId: api.vulnerabilityCategoryId ?? undefined,
+    affectedAsset: api.affectedAsset ?? undefined,
+    stepsToReproduce: api.stepsToReproduce ?? undefined,
+    impact: api.impact ?? undefined,
+    remediation: api.remediation ?? undefined,
+    cvssVector: api.cvssVector ?? undefined,
+    cvssScore: api.cvssScore ?? undefined,
     analysisStatus: (api.analysisStatus as Report["analysisStatus"]) ?? undefined,
     aiAnalysis: api.aiAnalysis
       ? {
