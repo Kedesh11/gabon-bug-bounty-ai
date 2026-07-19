@@ -6,8 +6,11 @@ import { KeyRound, ArrowRight, ShieldCheck } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useContent } from "@/hooks/api/content";
 
 const ReinitialiserMotDePasse = () => {
+  const title = useContent("reinitialiser-mot-de-passe.title", "Réinitialiser le mot de passe");
+  const subtitle = useContent("reinitialiser-mot-de-passe.subtitle", "Définissez un nouveau mot de passe sécurisé");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [token, setToken] = useState(searchParams.get("token") || "");
@@ -35,9 +38,9 @@ const ReinitialiserMotDePasse = () => {
         <div className="relative z-10 w-full max-w-md px-4">
           <div className="text-center mb-8">
             <ShieldCheck className="w-10 h-10 text-primary mx-auto mb-3" />
-            <h1 className="text-3xl font-black text-foreground">Réinitialiser le mot de passe</h1>
+            <h1 className="text-3xl font-black text-foreground">{title}</h1>
             <p className="text-sm text-muted-foreground mt-1 font-mono">
-              Définissez un nouveau mot de passe sécurisé
+              {subtitle}
             </p>
           </div>
 

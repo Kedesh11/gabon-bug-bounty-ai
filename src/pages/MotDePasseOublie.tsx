@@ -5,8 +5,11 @@ import { Mail, ArrowRight, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useContent } from "@/hooks/api/content";
 
 const MotDePasseOublie = () => {
+  const title = useContent("mot-de-passe-oublie.title", "Mot de passe oublié");
+  const subtitle = useContent("mot-de-passe-oublie.subtitle", "Recevez un lien sécurisé de réinitialisation");
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
 
@@ -27,9 +30,9 @@ const MotDePasseOublie = () => {
         <div className="relative z-10 w-full max-w-md px-4">
           <div className="text-center mb-8">
             <Shield className="w-10 h-10 text-primary mx-auto mb-3" />
-            <h1 className="text-3xl font-black text-foreground">Mot de passe oublié</h1>
+            <h1 className="text-3xl font-black text-foreground">{title}</h1>
             <p className="text-sm text-muted-foreground mt-1 font-mono">
-              Recevez un lien sécurisé de réinitialisation
+              {subtitle}
             </p>
           </div>
 

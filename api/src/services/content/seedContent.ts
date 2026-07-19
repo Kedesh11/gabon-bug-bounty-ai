@@ -140,6 +140,17 @@ const DEFAULT_TEXT_ENTRIES: Record<string, string> = {
   "home.hero.title-line1": "Bug Bounty",
   "home.hero.title-line2": "Gabon",
   "home.hero.subtitle": "Système collaboratif de cybersécurité propulsé par des agents MCP intelligents. Protégez vos infrastructures numériques avec les meilleurs hackers éthiques.",
+  "connexion.title": "Accès Sécurisé",
+  "connexion.subtitle": "Gérez vos vulnérabilités et vos programmes avec l'IA.",
+  "inscription.title": "Rejoignez le Réseau",
+  "inscription.subtitle": "Contribuez à la sécurité numérique du Gabon.",
+  "mot-de-passe-oublie.title": "Mot de passe oublié",
+  "mot-de-passe-oublie.subtitle": "Recevez un lien sécurisé de réinitialisation",
+  "reinitialiser-mot-de-passe.title": "Réinitialiser le mot de passe",
+  "reinitialiser-mot-de-passe.subtitle": "Définissez un nouveau mot de passe sécurisé",
+  "soumettre-programme.subtitle": "Ouvrez votre scope aux hackers éthiques. Le programme sera visible après validation.",
+  "not-found.message": "Oops! Page not found",
+  "not-found.link-label": "Return to Home",
 };
 
 export async function seedContentDefaults(prisma: PrismaClient) {
