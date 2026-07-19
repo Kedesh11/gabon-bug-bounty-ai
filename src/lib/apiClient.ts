@@ -130,3 +130,31 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   return payload as T;
 }
+
+// Separate from apiFetch because file uploads need a FormData body with a
+// browser-set multipart boundary — JSON.stringify-ing it would corrupt the file.
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  await ensureFreshSession();
+
+  const doFetch = () => {
+    const headers: Record<string, string> = {};
+    if (currentSession) headers.Authorization = `Bearer ${currentSession.access_token}`;
+    return fetch(`${API_URL}${path}`, { method: "POST", headers, body: formData });
+  };
+
+  let res = await doFetch();
+
+  if (res.status === 401 && currentSession) {
+    const refreshed = await refreshSession();
+    if (refreshed) res = await doFetch();
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  const payload = contentType.includes("application/json") ? await res.json() : undefined;
+
+  if (!res.ok) {
+    throw new ApiError(res.status, payload?.error ?? `Erreur ${res.status}`, payload?.details);
+  }
+
+  return payload as T;
+}

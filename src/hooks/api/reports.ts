@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/apiClient";
+import { apiFetch, apiUpload } from "@/lib/apiClient";
 import { ApiReport, mapReport } from "@/lib/api/mappers";
 import { REPORT_STATUS_TO_API } from "@/lib/api/enumMaps";
 import { Report } from "@/types/domain";
@@ -63,6 +63,23 @@ export function useUpdateReport() {
       const body: Record<string, unknown> = { ...data };
       if (data.status) body.status = REPORT_STATUS_TO_API[data.status];
       const { report } = await apiFetch<{ report: ApiReport }>(`/api/reports/${id}`, { method: "PATCH", body });
+      return mapReport(report);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+// Actually sends the hacker's PDF write-up bytes, not just its filename — see
+// api/src/services/reports/reportStorage.ts. Kept as a second step after
+// useCreateReport (which only needs the report id) rather than a single multipart
+// request, so the JSON creation contract stays simple and independently testable.
+export function useUploadReportPdf() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ reportId, file }: { reportId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const { report } = await apiUpload<{ report: ApiReport }>(`/api/reports/${reportId}/pdf`, formData);
       return mapReport(report);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),

@@ -464,7 +464,12 @@ model Report {
   vrtCategory   String?
   vrtType       String?
   proof         String
+  // pdfFileName is the original filename (display only); pdfPath is the Supabase
+  // Storage object key the actual bytes were uploaded to (see reportStorage.ts) —
+  // previously only the filename was ever sent, the file itself was discarded.
   pdfFileName   String?
+  pdfPath       String?
+  pdfUploadedAt DateTime?
 
   vulnerabilityCategoryId String?              @db.Uuid
   vulnerabilityCategory   VulnerabilityCategory? @relation(fields: [vulnerabilityCategoryId], references: [id])
