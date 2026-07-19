@@ -1,3 +1,4 @@
+import { env } from "../../../env.js";
 import { z } from "zod";
 import { runAgent, GROUNDING_INSTRUCTION } from "./shared.js";
 import { formatReportContextForPrompt } from "../reportContext.js";
@@ -5,7 +6,7 @@ import type { ReportContext } from "../types.js";
 import type { ClassificationOutput } from "./classification.js";
 import type { FalsePositiveOutput } from "./falsePositive.js";
 
-export const MODEL = "qwen/qwen-2.5-72b-instruct";
+export const MODEL = env.OPENROUTER_MODEL_QWEN;
 
 export const antiFraudSchema = z.object({
   suspicious: z.boolean(),
