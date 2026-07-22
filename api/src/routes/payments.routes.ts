@@ -9,9 +9,22 @@ import { requirePermission } from "../middleware/requirePermission.js";
 import { createCollection } from "../services/payments/paymentService.js";
 import { createRecipientAccount, createOnboardingLink } from "../services/payments/stripe/connect.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
+import { listPayments } from "../services/payments/paymentsQueryService.js";
 
 export const paymentsRouter = Router();
 paymentsRouter.use(requireAuth);
+
+// Real transaction ledger for the finance dashboard — same permission that already
+// gates seeing that page (dashboard.finance.view doubles as the API read-gate here,
+// same precedent as logs.view/support.tickets.view elsewhere in this codebase).
+paymentsRouter.get(
+  "/",
+  requirePermission("dashboard.finance.view"),
+  asyncHandler(async (_req, res) => {
+    const payments = await listPayments();
+    res.json({ payments });
+  }),
+);
 
 const fundSchema = z.object({
   method: z.enum(["card", "mobile_money"]),

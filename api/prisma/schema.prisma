@@ -76,6 +76,7 @@ model Profile {
   ticketMessages       TicketMessage[] @relation("TicketMessageAuthor")
   kycDocuments         KycDocument[]   @relation("KycDocumentSubject")
   reviewedKycDocuments KycDocument[]   @relation("KycDocumentReviewedBy")
+  completedComplianceItems ComplianceItem[] @relation("ComplianceItemCompletedBy")
 
   @@map("profiles")
 }
@@ -958,4 +959,27 @@ model KycDocument {
   updatedAt DateTime @updatedAt
 
   @@map("kyc_documents")
+}
+
+// ---------------------------------------------------------------------------
+// Finance compliance checklist — real replacement for FinanceDashboard.tsx's
+// static "Compliance Status" bullets (Phase D of the mock-data-to-real effort).
+// Finance/admin define items and check them off manually; nothing here is
+// computed automatically (unlike KYC/fraud, there's no real signal that maps
+// to "tax withholding applied" etc. — this is deliberately a plain checklist).
+// ---------------------------------------------------------------------------
+
+model ComplianceItem {
+  id     String  @id @default(uuid()) @db.Uuid
+  label  String
+  isDone Boolean @default(false)
+
+  completedById String?   @db.Uuid
+  completedBy   Profile?  @relation("ComplianceItemCompletedBy", fields: [completedById], references: [id])
+  completedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("compliance_items")
 }

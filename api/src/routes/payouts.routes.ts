@@ -6,9 +6,19 @@ import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { createPayout } from "../services/payments/paymentService.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
+import { listPayouts } from "../services/payments/paymentsQueryService.js";
 
 export const payoutsRouter = Router();
 payoutsRouter.use(requireAuth);
+
+payoutsRouter.get(
+  "/",
+  requirePermission("dashboard.finance.view"),
+  asyncHandler(async (_req, res) => {
+    const payouts = await listPayouts();
+    res.json({ payouts });
+  }),
+);
 
 payoutsRouter.post(
   "/reports/:id",

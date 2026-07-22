@@ -1,19 +1,27 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useReports } from "@/hooks/api/reports";
+import { usePayments, usePayouts } from "@/hooks/api/payments";
+import { useComplianceItems, useCreateComplianceItem, useToggleComplianceItem, useDeleteComplianceItem } from "@/hooks/api/compliance";
+import { buildTransactionFeed, topProgrammesByCost, pendingPayoutReports } from "@/lib/financeStats";
 import {
   DollarSign,
-  CreditCard,
   History,
   Wallet,
   PieChart,
   ArrowUpRight,
-  Download,
-  ShieldCheck
+  ArrowDownRight,
+  ShieldCheck,
+  Plus,
+  Trash2
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { useState } from "react";
+import { toast } from "sonner";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { useContent } from "@/hooks/api/content";
 
 export default function FinanceDashboard() {
@@ -22,9 +30,23 @@ export default function FinanceDashboard() {
   const transactionsHeading = useContent("admin.finance.transactions-heading", "Dernières Transactions");
   const topProgrammesHeading = useContent("admin.finance.top-programmes-heading", "Top Programmes (Coût)");
   const complianceHeading = useContent("admin.finance.compliance-heading", "Compliance Status");
+
   const { data: reports = [] } = useReports();
-  const paidReports = reports.filter(r => r.reward > 0);
-  const totalBounties = paidReports.reduce((s, r) => s + r.reward, 0);
+  const { data: payments = [] } = usePayments();
+  const { data: payouts = [] } = usePayouts();
+  const { data: complianceItems = [] } = useComplianceItems();
+  const createComplianceItem = useCreateComplianceItem();
+  const toggleComplianceItem = useToggleComplianceItem();
+  const deleteComplianceItem = useDeleteComplianceItem();
+  const [newItemLabel, setNewItemLabel] = useState("");
+
+  const totalPaidOut = payouts.filter((p) => p.status === "succeeded").reduce((s, p) => s + p.amount, 0);
+  const totalReceived = payments.filter((p) => p.status === "succeeded").reduce((s, p) => s + p.amount, 0);
+  const pending = pendingPayoutReports(reports, payouts);
+  const pendingTotal = pending.reduce((s, r) => s + r.reward, 0);
+  const transactions = buildTransactionFeed(payments, payouts);
+  const topProgrammes = topProgrammesByCost(payouts);
+  const maxProgrammeCost = Math.max(1, ...topProgrammes.map((p) => p.total));
 
   return (
     <DashboardLayout>
@@ -36,42 +58,30 @@ export default function FinanceDashboard() {
             </h1>
             <p className="text-muted-foreground">{pageSubtitle}</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="font-bold gap-2">
-              <Download className="w-4 h-4" /> RAPPORT FISCAL
-            </Button>
-            <Button className="bg-green-600 text-white hover:bg-green-700 font-bold gap-2">
-              <CreditCard className="w-4 h-4" /> PAYER LA FILE
-            </Button>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="glass-card p-6 border-border bg-gradient-to-br from-background to-green-500/5">
-            <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-2">Total Bounties Payés</p>
-            <p className="text-4xl font-black text-foreground">{totalBounties.toLocaleString()} <span className="text-sm font-normal">XAF</span></p>
+            <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-2">Total Versé aux Hackers</p>
+            <p className="text-4xl font-black text-foreground">{totalPaidOut.toLocaleString()} <span className="text-sm font-normal">XAF</span></p>
             <div className="flex items-center gap-2 mt-4 text-green-500 font-bold text-xs">
-              <ArrowUpRight className="w-4 h-4" /> +15.4% ce mois
+              <ArrowUpRight className="w-4 h-4" /> {payouts.filter((p) => p.status === "succeeded").length} versements réussis
             </div>
           </Card>
-          
+
           <Card className="glass-card p-6 border-border">
-            <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-2">Budget Global Alloué</p>
-            <p className="text-4xl font-black text-foreground">50,000,000 <span className="text-sm font-normal">XAF</span></p>
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between text-[10px] font-bold uppercase">
-                <span>Consommation</span>
-                <span>{Math.round((totalBounties / 50000000) * 100)}%</span>
-              </div>
-              <Progress value={(totalBounties / 50000000) * 100} className="h-1.5 bg-secondary" />
+            <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-2">Total Reçu des Entreprises</p>
+            <p className="text-4xl font-black text-foreground">{totalReceived.toLocaleString()} <span className="text-sm font-normal">XAF</span></p>
+            <div className="flex items-center gap-2 mt-4 text-blue-500 font-bold text-xs">
+              <ArrowDownRight className="w-4 h-4" /> {payments.filter((p) => p.status === "succeeded").length} financements reçus
             </div>
           </Card>
 
           <Card className="glass-card p-6 border-border">
             <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-2">En Attente de Versement</p>
-            <p className="text-4xl font-black text-yellow-500">4,250,000 <span className="text-sm font-normal text-muted-foreground">XAF</span></p>
+            <p className="text-4xl font-black text-yellow-500">{pendingTotal.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">XAF</span></p>
             <div className="flex items-center gap-2 mt-4 text-muted-foreground font-bold text-xs">
-              <History className="w-4 h-4" /> 12 transactions prêtes
+              <History className="w-4 h-4" /> {pending.length} rapport{pending.length !== 1 ? "s" : ""} accepté{pending.length !== 1 ? "s" : ""} sans versement
             </div>
           </Card>
         </div>
@@ -82,26 +92,30 @@ export default function FinanceDashboard() {
               <h3 className="text-sm font-bold flex items-center gap-2">
                 <History className="w-4 h-4 text-primary" /> {transactionsHeading}
               </h3>
-              <Badge variant="outline">VOIR TOUT</Badge>
             </div>
             <div className="divide-y divide-border">
-              {paidReports.slice(0, 6).map((r) => (
-                <div key={r.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors">
+              {transactions.map((tx) => (
+                <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors">
                   <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <DollarSign className="w-5 h-5 text-green-500" />
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${tx.kind === "payout" ? "bg-green-500/10" : "bg-blue-500/10"}`}>
+                      <DollarSign className={`w-5 h-5 ${tx.kind === "payout" ? "text-green-500" : "text-blue-500"}`} />
                     </div>
                     <div>
-                      <p className="text-sm font-bold">{r.hackerName}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono uppercase">{r.programmeName}</p>
+                      <p className="text-sm font-bold">{tx.party}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono uppercase">{tx.label}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-black text-foreground">-{r.reward.toLocaleString()} XAF</p>
-                    <p className="text-[10px] text-muted-foreground">{r.createdAt}</p>
+                    <p className={`text-sm font-black ${tx.kind === "payout" ? "text-foreground" : "text-blue-500"}`}>
+                      {tx.kind === "payout" ? "-" : "+"}{tx.amount.toLocaleString()} {tx.currency}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString("fr-FR")} · {tx.status}</p>
                   </div>
                 </div>
               ))}
+              {transactions.length === 0 && (
+                <p className="p-8 text-sm text-muted-foreground text-center">Aucune transaction pour le moment.</p>
+              )}
             </div>
           </div>
 
@@ -111,38 +125,82 @@ export default function FinanceDashboard() {
                 <PieChart className="w-4 h-4 text-accent" /> {topProgrammesHeading}
               </h3>
               <div className="space-y-4">
-                <BudgetUsage label="SEEG Gabon" spent="12.5M" progress={75} />
-                <BudgetUsage label="Ministère de l'Économie" spent="8.2M" progress={45} />
-                <Badge variant="outline" className="w-full justify-center py-2 text-[10px] font-bold uppercase tracking-widest">Voir le détail par actif</Badge>
+                {topProgrammes.map((p) => (
+                  <div key={p.programmeId} className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span>{p.programmeName}</span>
+                      <span className="text-primary">{p.total.toLocaleString()} XAF</span>
+                    </div>
+                    <Progress value={(p.total / maxProgrammeCost) * 100} className="h-1.5 bg-secondary" />
+                  </div>
+                ))}
+                {topProgrammes.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">Aucun versement effectué pour le moment.</p>
+                )}
               </div>
             </Card>
 
-            <Card className="glass-card p-6 border-border bg-primary/5 border-primary/20">
-              <div className="flex items-center gap-3 mb-4">
+            <Card className="glass-card p-6 border-border bg-primary/5 border-primary/20 space-y-4">
+              <div className="flex items-center gap-3">
                 <ShieldCheck className="w-6 h-6 text-primary" />
                 <h3 className="text-sm font-black uppercase tracking-widest">{complianceHeading}</h3>
               </div>
               <ul className="space-y-3">
-                <li className="flex items-center gap-2 text-xs font-medium"><div className="h-1.5 w-1.5 rounded-full bg-green-500" /> Vérification KYC terminée</li>
-                <li className="flex items-center gap-2 text-xs font-medium"><div className="h-1.5 w-1.5 rounded-full bg-green-500" /> Retenues fiscales appliquées</li>
-                <li className="flex items-center gap-2 text-xs font-medium"><div className="h-1.5 w-1.5 rounded-full bg-yellow-500" /> 2 audits en attente (Q2)</li>
+                {complianceItems.map((item) => (
+                  <li key={item.id} className="flex items-center gap-2 text-xs font-medium group">
+                    <Checkbox
+                      checked={item.isDone}
+                      onCheckedChange={(checked) => toggleComplianceItem.mutate(
+                        { id: item.id, isDone: checked === true },
+                        { onError: (err) => toast.error(apiErrorMessage(err)) },
+                      )}
+                    />
+                    <span className={item.isDone ? "line-through text-muted-foreground" : ""}>{item.label}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 ml-auto opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteComplianceItem.mutate(item.id, { onError: (err) => toast.error(apiErrorMessage(err)) })}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </li>
+                ))}
+                {complianceItems.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Aucun élément de conformité défini.</p>
+                )}
               </ul>
+              <div className="flex gap-2 pt-2 border-t border-border/50">
+                <Input
+                  value={newItemLabel}
+                  onChange={(e) => setNewItemLabel(e.target.value)}
+                  placeholder="Nouvel élément..."
+                  className="h-8 text-xs bg-secondary/50"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newItemLabel.trim().length >= 2) {
+                      createComplianceItem.mutate(newItemLabel.trim(), {
+                        onSuccess: () => setNewItemLabel(""),
+                        onError: (err) => toast.error(apiErrorMessage(err)),
+                      });
+                    }
+                  }}
+                />
+                <Button
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  disabled={newItemLabel.trim().length < 2 || createComplianceItem.isPending}
+                  onClick={() => createComplianceItem.mutate(newItemLabel.trim(), {
+                    onSuccess: () => setNewItemLabel(""),
+                    onError: (err) => toast.error(apiErrorMessage(err)),
+                  })}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </Card>
           </div>
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-function BudgetUsage({ label, spent, progress }: { label: string, spent: string, progress: number }) {
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-xs font-bold">
-        <span>{label}</span>
-        <span className="text-primary">{spent} XAF</span>
-      </div>
-      <Progress value={progress} className="h-1.5 bg-secondary" />
-    </div>
   );
 }

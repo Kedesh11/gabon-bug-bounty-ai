@@ -395,6 +395,22 @@ async function main() {
     },
   });
 
+  console.log("Seeding compliance checklist...");
+  await prisma.complianceItem.create({
+    data: {
+      label: "Vérifier les KYC des hackers avant tout versement > 500 000 XAF",
+      isDone: true,
+      completedById: ids["finance@bugbounty.com"],
+      completedAt: new Date("2024-07-01"),
+    },
+  });
+  await prisma.complianceItem.create({
+    data: { label: "Déclaration trimestrielle des flux financiers à la DGI", isDone: false },
+  });
+  await prisma.complianceItem.create({
+    data: { label: "Revue annuelle des contrats prestataires (Stripe, CinetPay)", isDone: false },
+  });
+
   console.log("Seeding system config...");
   await prisma.systemConfig.create({
     data: {
