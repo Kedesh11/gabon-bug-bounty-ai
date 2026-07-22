@@ -42,6 +42,7 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: "kyc.review", label: "Examiner les documents KYC", description: "Approuver ou rejeter un document d'identité soumis (PATCH /api/kyc/documents/:id)" },
   { key: "compliance.manage", label: "Gérer la checklist de conformité", description: "CRUD des éléments de conformité (POST/PATCH/DELETE /api/compliance/items)" },
   { key: "kb.manage", label: "Gérer la base de connaissances", description: "CRUD des articles de la base de connaissances support (POST/PATCH/DELETE /api/kb/articles)" },
+  { key: "programmes.validate", label: "Valider les programmes", description: "Approuver ou refuser un programme soumis par une entreprise avant sa publication publique (PATCH /api/programmes/:id/validation)" },
 
   // View permissions (frontend pages/nav — admin side only)
   { key: "dashboard.admin.view", label: "Voir le tableau de bord admin", description: "/admin" },

@@ -78,6 +78,7 @@ model Profile {
   reviewedKycDocuments KycDocument[]   @relation("KycDocumentReviewedBy")
   completedComplianceItems ComplianceItem[] @relation("ComplianceItemCompletedBy")
   kbArticles               KbArticle[]      @relation("KbArticleAuthor")
+  validatedProgrammes      Programme[]      @relation("ProgrammeValidatedBy")
 
   @@map("profiles")
 }
@@ -242,6 +243,15 @@ enum ProgrammeStatus {
   ferme
 }
 
+// Distinct from ProgrammeStatus (actif/pause/ferme, an operational state the
+// entreprise itself controls): this is the moderation gate a staff member with
+// programmes.validate must clear before a submitted programme is publicly visible.
+enum ProgrammeValidationStatus {
+  en_attente
+  valide
+  refuse
+}
+
 enum ProgrammeType {
   public
   private
@@ -336,6 +346,13 @@ model Programme {
   isNew              Boolean        @default(false)
 
   status          ProgrammeStatus  @default(actif)
+
+  validationStatus ProgrammeValidationStatus @default(en_attente)
+  validatedById    String?                   @db.Uuid
+  validatedBy      Profile?                  @relation("ProgrammeValidatedBy", fields: [validatedById], references: [id])
+  validatedAt      DateTime?
+  rejectionReason  String?
+
   createdAt       DateTime         @default(now())
   reportsCount    Int              @default(0)
 

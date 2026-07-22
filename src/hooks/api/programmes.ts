@@ -16,6 +16,43 @@ export function useProgrammes() {
   });
 }
 
+// An entreprise's own programmes, every validation status included — the public
+// GET /api/programmes only ever returns "valide" ones.
+export function useMyProgrammes() {
+  return useQuery({
+    queryKey: [...KEY, "mine"],
+    queryFn: async () => {
+      const { programmes } = await apiFetch<{ programmes: ApiProgramme[] }>("/api/programmes/mine");
+      return programmes.map(mapProgramme);
+    },
+  });
+}
+
+export function useProgrammesForReview(filters: { validationStatus?: "en_attente" | "valide" | "refuse" } = {}) {
+  return useQuery({
+    queryKey: [...KEY, "review", filters],
+    queryFn: async () => {
+      const params = filters.validationStatus ? `?validationStatus=${filters.validationStatus}` : "";
+      const { programmes } = await apiFetch<{ programmes: ApiProgramme[] }>(`/api/programmes/review${params}`);
+      return programmes.map(mapProgramme);
+    },
+  });
+}
+
+export function useValidateProgramme() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, decision, rejectionReason }: { id: string; decision: "valide" | "refuse"; rejectionReason?: string }) => {
+      const { programme } = await apiFetch<{ programme: ApiProgramme }>(`/api/programmes/${id}/validation`, {
+        method: "PATCH",
+        body: { decision, rejectionReason },
+      });
+      return mapProgramme(programme);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
 export function useProgramme(id: string | undefined) {
   return useQuery({
     queryKey: [...KEY, id],
