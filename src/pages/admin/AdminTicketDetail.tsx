@@ -216,6 +216,13 @@ export default function AdminTicketDetail() {
                  <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">
                     {kbTip}
                  </p>
+                 <Button
+                    variant="link"
+                    className="h-auto p-0 text-blue-500 text-[10px] font-black uppercase"
+                    onClick={() => navigate("/admin/support/kb")}
+                 >
+                    Consulter la base de connaissances
+                 </Button>
               </div>
            </div>
         </div>

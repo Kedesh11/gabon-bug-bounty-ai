@@ -77,6 +77,7 @@ model Profile {
   kycDocuments         KycDocument[]   @relation("KycDocumentSubject")
   reviewedKycDocuments KycDocument[]   @relation("KycDocumentReviewedBy")
   completedComplianceItems ComplianceItem[] @relation("ComplianceItemCompletedBy")
+  kbArticles               KbArticle[]      @relation("KbArticleAuthor")
 
   @@map("profiles")
 }
@@ -982,4 +983,26 @@ model ComplianceItem {
   updatedAt DateTime @updatedAt
 
   @@map("compliance_items")
+}
+
+// ---------------------------------------------------------------------------
+// Support knowledge base — real replacement for the fully decorative
+// AdminKnowledgeBase.tsx mock (hardcoded categories/articles, dead search,
+// dead links). Category is a free-text field, same reasoning as
+// Ticket.category: informal groupings, not a closed taxonomy.
+// ---------------------------------------------------------------------------
+
+model KbArticle {
+  id       String @id @default(uuid()) @db.Uuid
+  title    String
+  category String
+  body     String
+
+  authorId String  @db.Uuid
+  author   Profile @relation("KbArticleAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kb_articles")
 }
