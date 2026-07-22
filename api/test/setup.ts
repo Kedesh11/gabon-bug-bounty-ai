@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { vi } from "vitest";
 import { prisma } from "../src/prisma.js";
 import { seedSystemRolesAndPermissions } from "../src/services/roles/seedSystemRoles.js";
@@ -56,7 +57,10 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
         return Promise.resolve({ data: { user: { id: userId } }, error: null });
       }),
       admin: {
-        createUser: vi.fn(),
+        // Default: succeeds with a fresh id, like a real signup would — tests that
+        // care about failure/rollback override with mockResolvedValueOnce/mockRejectedValueOnce.
+        createUser: vi.fn(() => Promise.resolve({ data: { user: { id: randomUUID() } }, error: null })),
+        deleteUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
         signOut: vi.fn(),
         listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
       },

@@ -37,6 +37,12 @@ const envSchema = z.object({
   OPENROUTER_MODEL_QWEN: z.string().min(1).default("qwen/qwen-2.5-72b-instruct"),
   OPENROUTER_MODEL_KIMI: z.string().min(1).default("moonshotai/kimi-k3"),
   OPENROUTER_MODEL_CHATGPT: z.string().min(1).default("openai/gpt-5.6-luna-pro"),
+
+  // Optional until a real Resend account is available; the mailer throws a clear
+  // error at call time if this is missing (see lib/mailer.ts). Used to deliver
+  // staff credentials when a superadmin provisions a new role/account.
+  RESEND_API_KEY: z.string().optional().default(""),
+  RESEND_FROM_EMAIL: z.string().optional().default("onboarding@resend.dev"),
 });
 
 const parsed = envSchema.safeParse(process.env);

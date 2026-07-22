@@ -1,9 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import request from "supertest";
 import { app } from "../src/index.js";
 import { createTestUser } from "./helpers.js";
 import { prisma } from "../src/prisma.js";
+import { supabaseAdmin } from "../src/lib/supabaseAdmin.js";
+
+function newRoleProvisioningBody(overrides: Record<string, unknown> = {}) {
+  const id = randomUUID();
+  return {
+    label: `Role ${id}`,
+    permissionKeys: [] as string[],
+    name: "Personne Test",
+    email: `staff-${id}@example.com`,
+    password: "MotDePasse123!",
+    ...overrides,
+  };
+}
 
 describe("Roles & permissions", () => {
   it("rejects a caller without roles.manage from listing roles", async () => {
@@ -38,26 +51,34 @@ describe("Roles & permissions", () => {
     const res = await request(app)
       .post("/api/roles")
       .set("Authorization", admin.authHeader)
-      .send({ label: "Auditeur", permissionKeys: ["not.a.real.permission"] });
+      .send(newRoleProvisioningBody({ label: "Auditeur", permissionKeys: ["not.a.real.permission"] }));
     expect(res.status).toBe(400);
   });
 
-  it("creates a custom role and a user with that role immediately gets the granted permission — no code change", async () => {
+  it("creates a custom role AND its first staff account in one step — the account immediately gets the granted permission", async () => {
     const admin = await createTestUser("admin");
 
     const label = `Auditeur Conformité ${randomUUID()}`;
     const createRes = await request(app)
       .post("/api/roles")
       .set("Authorization", admin.authHeader)
-      .send({ label, permissionKeys: ["reports.view.all"] });
+      .send(newRoleProvisioningBody({ label, permissionKeys: ["reports.view.all"] }));
     expect(createRes.status).toBe(201);
     expect(createRes.body.role.key).toContain("auditeur_conformite");
     expect(createRes.body.role.isSystem).toBe(false);
+    expect(createRes.body.profile.role).toBe(createRes.body.role.key);
+    expect(createRes.body.profile.permissions).toContain("reports.view.all");
+    // No RESEND_API_KEY in the test environment — the flow must still succeed and
+    // report the email as not sent, rather than fail the whole request.
+    expect(createRes.body.emailSent).toBe(false);
+    expect(createRes.body.emailError).toBeTruthy();
 
-    // Assign a real user to the new role directly (simulating what an admin-facing
-    // "assign role" flow would do) and confirm the permission is live end-to-end.
-    const compliance = await createTestUser("hacker");
-    await prisma.profile.update({ where: { id: compliance.id }, data: { roleId: createRes.body.role.id } });
+    // The profile created by role provisioning above has no test-harness auth token
+    // registered (it went through a real supabaseAdmin.auth.admin.createUser call) —
+    // verify permission propagation via a direct DB-role reassignment on a normal
+    // test user instead, same end-to-end intent as before this change.
+    const complianceUser = await createTestUser("hacker");
+    await prisma.profile.update({ where: { id: complianceUser.id }, data: { roleId: createRes.body.role.id } });
 
     const entreprise = await createTestUser("entreprise");
     const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
@@ -74,7 +95,7 @@ describe("Roles & permissions", () => {
       },
     });
 
-    const res = await request(app).get(`/api/reports/${report.id}`).set("Authorization", compliance.authHeader);
+    const res = await request(app).get(`/api/reports/${report.id}`).set("Authorization", complianceUser.authHeader);
     expect(res.status).toBe(200);
   });
 
@@ -83,7 +104,7 @@ describe("Roles & permissions", () => {
     const createRes = await request(app)
       .post("/api/roles")
       .set("Authorization", admin.authHeader)
-      .send({ label: `Role Editable ${randomUUID()}`, permissionKeys: [] });
+      .send(newRoleProvisioningBody({ label: `Role Editable ${randomUUID()}` }));
 
     const updateRes = await request(app)
       .patch(`/api/roles/${createRes.body.role.id}/permissions`)
@@ -107,8 +128,10 @@ describe("Roles & permissions", () => {
     const createRes = await request(app)
       .post("/api/roles")
       .set("Authorization", admin.authHeader)
-      .send({ label: "Role Temporaire", permissionKeys: [] });
+      .send(newRoleProvisioningBody({ label: `Role Temporaire ${randomUUID()}` }));
     const roleId = createRes.body.role.id;
+    // Role creation now also provisions its first account (createRes.body.profile) —
+    // the role already has one assignee before this test adds a second one.
 
     const assignee = await createTestUser("hacker");
     await prisma.profile.update({ where: { id: assignee.id }, data: { roleId } });
@@ -118,8 +141,55 @@ describe("Roles & permissions", () => {
 
     const hackerRole = await prisma.role.findUniqueOrThrow({ where: { key: "hacker" } });
     await prisma.profile.update({ where: { id: assignee.id }, data: { roleId: hackerRole.id } });
+    await prisma.profile.update({ where: { id: createRes.body.profile.id }, data: { roleId: hackerRole.id } });
 
     const okRes = await request(app).delete(`/api/roles/${roleId}`).set("Authorization", admin.authHeader);
     expect(okRes.status).toBe(204);
+  });
+
+  it("rolls back the role if Supabase Auth account creation fails", async () => {
+    const admin = await createTestUser("admin");
+    const label = `Role Orphelin ${randomUUID()}`;
+
+    vi.mocked(supabaseAdmin.auth.admin.createUser).mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: "Email déjà utilisé" },
+    } as never);
+
+    const res = await request(app)
+      .post("/api/roles")
+      .set("Authorization", admin.authHeader)
+      .send(newRoleProvisioningBody({ label }));
+    expect(res.status).toBe(400);
+
+    const roleByLabel = await prisma.role.findFirst({ where: { label } });
+    expect(roleByLabel).toBeNull();
+  });
+
+  it("rolls back the role and the orphaned Supabase user if the Profile insert fails", async () => {
+    const admin = await createTestUser("admin");
+    const existing = await createTestUser("hacker");
+    const label = `Role Conflit ${randomUUID()}`;
+
+    // Force the "new" Supabase user id to collide with an already-existing Profile id,
+    // so prisma.profile.create hits the primary key uniqueness constraint.
+    vi.mocked(supabaseAdmin.auth.admin.createUser).mockResolvedValueOnce({
+      data: { user: { id: existing.id } },
+      error: null,
+    } as never);
+
+    const res = await request(app)
+      .post("/api/roles")
+      .set("Authorization", admin.authHeader)
+      .send(newRoleProvisioningBody({ label }));
+    expect(res.status).toBe(500);
+
+    const roleByLabel = await prisma.role.findFirst({ where: { label } });
+    expect(roleByLabel).toBeNull();
+    expect(supabaseAdmin.auth.admin.deleteUser).toHaveBeenCalledWith(existing.id);
+
+    // The pre-existing profile itself must be untouched by the failed attempt.
+    const untouched = await prisma.profile.findUniqueOrThrow({ where: { id: existing.id } });
+    expect(untouched.email).toBe(existing.email);
   });
 });

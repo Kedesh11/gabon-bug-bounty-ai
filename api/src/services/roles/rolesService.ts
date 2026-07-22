@@ -1,6 +1,10 @@
 import { prisma } from "../../prisma.js";
 import { HttpError } from "../../middleware/errorHandler.js";
 import { PERMISSIONS } from "./permissionCatalog.js";
+import { supabaseAdmin } from "../../lib/supabaseAdmin.js";
+import { serializeProfile, profileRoleInclude } from "../../lib/serializeProfile.js";
+import { sendStaffCredentialsEmail } from "../../lib/mailer.js";
+import { createPlatformLog } from "../platformLogs/logsService.js";
 
 const roleInclude = { permissions: { include: { permission: true } } };
 
@@ -43,7 +47,21 @@ function slugifyKey(label: string) {
     .replace(/^_+|_+$/g, "");
 }
 
-export async function createRole(input: { label: string; description?: string; permissionKeys: string[] }) {
+export interface CreateRoleInput {
+  label: string;
+  description?: string;
+  permissionKeys: string[];
+  // Creating a role always provisions its first staff account in the same step — there
+  // is no path in this platform for a bare role template with nobody holding it yet.
+  // Only hacker/entreprise self-register (auth.routes.ts); every other role is
+  // provisioned by a superadmin here.
+  name: string;
+  email: string;
+  password: string;
+  message?: string;
+}
+
+export async function createRole(input: CreateRoleInput) {
   assertKnownPermissionKeys(input.permissionKeys);
 
   const key = slugifyKey(input.label);
@@ -65,7 +83,45 @@ export async function createRole(input: { label: string; description?: string; p
     include: roleInclude,
   });
 
-  return serializeRole(role);
+  const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email: input.email,
+    password: input.password,
+    email_confirm: true,
+  });
+  if (createError || !created.user) {
+    await prisma.role.delete({ where: { id: role.id } });
+    throw new HttpError(400, createError?.message ?? "Impossible de créer le compte");
+  }
+
+  let profile;
+  try {
+    profile = await prisma.profile.create({
+      data: { id: created.user.id, email: input.email, name: input.name, roleId: role.id },
+      include: profileRoleInclude,
+    });
+  } catch (err) {
+    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+    await prisma.role.delete({ where: { id: role.id } });
+    throw err;
+  }
+
+  const { sent: emailSent, error: emailError } = await sendStaffCredentialsEmail({
+    to: input.email,
+    roleLabel: input.label,
+    email: input.email,
+    password: input.password,
+    message: input.message,
+  });
+
+  await createPlatformLog({
+    type: "security",
+    level: "info",
+    message: `Compte staff créé pour le rôle "${input.label}" (${input.email})`,
+    source: "rolesService",
+    userId: profile.id,
+  });
+
+  return { role: serializeRole(role), profile: serializeProfile(profile), emailSent, emailError };
 }
 
 export async function updateRolePermissions(roleId: string, permissionKeys: string[]) {

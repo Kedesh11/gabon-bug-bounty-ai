@@ -39,12 +39,28 @@ export function useRoles() {
   });
 }
 
+export interface CreateRoleInput {
+  label: string;
+  description?: string;
+  permissionKeys: string[];
+  name: string;
+  email: string;
+  password: string;
+  message?: string;
+}
+
+export interface CreateRoleResult {
+  role: RoleDef;
+  profile: { id: string; email: string; name: string };
+  emailSent: boolean;
+  emailError?: string;
+}
+
 export function useCreateRole() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { label: string; description?: string; permissionKeys: string[] }) => {
-      const { role } = await apiFetch<{ role: RoleDef }>("/api/roles", { method: "POST", body: input });
-      return role;
+    mutationFn: async (input: CreateRoleInput) => {
+      return apiFetch<CreateRoleResult>("/api/roles", { method: "POST", body: input });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ROLES_KEY }),
   });

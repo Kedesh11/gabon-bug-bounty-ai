@@ -27,13 +27,17 @@ const createRoleSchema = z.object({
   label: z.string().min(2),
   description: z.string().optional(),
   permissionKeys: z.array(z.string()).default([]),
+  name: z.string().min(2, "Le nom complet doit contenir au moins 2 caractères"),
+  email: z.string().email(),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  message: z.string().optional(),
 });
 
 rolesRouter.post(
   "/",
   asyncHandler(async (req, res) => {
     const body = createRoleSchema.parse(req.body);
-    const role = await createRole(body);
+    const { role, profile, emailSent, emailError } = await createRole(body);
     await createPlatformLog({
       type: "security",
       level: "info",
@@ -41,7 +45,7 @@ rolesRouter.post(
       source: "roles.routes",
       userId: req.user!.id,
     });
-    res.status(201).json({ role });
+    res.status(201).json({ role, profile, emailSent, emailError });
   }),
 );
 
