@@ -74,6 +74,8 @@ model Profile {
   editedContentEntries ContentEntry[]
   tickets              Ticket[]        @relation("TicketAuthor")
   ticketMessages       TicketMessage[] @relation("TicketMessageAuthor")
+  kycDocuments         KycDocument[]   @relation("KycDocumentSubject")
+  reviewedKycDocuments KycDocument[]   @relation("KycDocumentReviewedBy")
 
   @@map("profiles")
 }
@@ -914,4 +916,46 @@ model TicketMessage {
   createdAt DateTime @default(now())
 
   @@map("ticket_messages")
+}
+
+// ---------------------------------------------------------------------------
+// KYC (identity verification) documents — real replacement for the
+// AdminUtilisateurs.tsx/AdminUserDetail.tsx mock KYC data (Phase C). Tracks
+// review status only for now; actual file storage isn't wired up because no
+// self-service upload UI exists yet to produce real files (the mock it
+// replaces has no file viewer either — see api/src/services/kyc/kycService.ts).
+// ---------------------------------------------------------------------------
+
+enum KycDocumentType {
+  passeport_recto
+  passeport_verso
+  justificatif_domicile
+  photo_identite
+}
+
+enum KycDocumentStatus {
+  en_attente
+  valide
+  rejete
+}
+
+model KycDocument {
+  id     String            @id @default(uuid()) @db.Uuid
+  type   KycDocumentType
+  status KycDocumentStatus @default(en_attente)
+
+  subjectId String  @db.Uuid
+  subject   Profile @relation("KycDocumentSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  fileName String?
+
+  reviewedById String?   @db.Uuid
+  reviewedBy   Profile?  @relation("KycDocumentReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kyc_documents")
 }

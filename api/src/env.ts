@@ -35,8 +35,8 @@ const envSchema = z.object({
   // swapping a provider's model doesn't require a deploy.
   OPENROUTER_MODEL_DEEPSEEK: z.string().min(1).default("deepseek/deepseek-chat"),
   OPENROUTER_MODEL_QWEN: z.string().min(1).default("qwen/qwen-2.5-72b-instruct"),
-  OPENROUTER_MODEL_KIMI: z.string().min(1).default("moonshotai/kimi-k2"),
-  OPENROUTER_MODEL_CHATGPT: z.string().min(1).default("openai/gpt-4o-mini"),
+  OPENROUTER_MODEL_KIMI: z.string().min(1).default("moonshotai/kimi-k3"),
+  OPENROUTER_MODEL_CHATGPT: z.string().min(1).default("openai/gpt-5.6-luna-pro"),
 });
 
 const parsed = envSchema.safeParse(process.env);
