@@ -3,6 +3,7 @@ import { useHackers, useUpdateHacker } from "@/hooks/api/hackers";
 import { useEntreprises, useUpdateEntreprise } from "@/hooks/api/entreprises";
 import { useTickets, useCreateTicket, type TicketPriority } from "@/hooks/api/tickets";
 import { useFraudSignals } from "@/hooks/api/fraud";
+import { useKycDocuments } from "@/hooks/api/kyc";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useNavigate } from "react-router-dom";
 import {
@@ -143,9 +144,21 @@ export default function SupportDashboard() {
 
   const [userSearch, setUserSearch] = useState("");
   const [kycFilter, setKycFilter] = useState(false);
+  const { data: pendingKycDocuments = [] } = useKycDocuments({ status: "en_attente" });
+  const pendingKycSubjectIds = useMemo(() => new Set(pendingKycDocuments.map((d) => d.subjectId)), [pendingKycDocuments]);
 
-  const filteredHackers = useMemo(() => hackers.filter(h => h.name.toLowerCase().includes(userSearch.toLowerCase()) || h.email.toLowerCase().includes(userSearch.toLowerCase())), [hackers, userSearch]);
-  const filteredEntreprises = useMemo(() => entreprises.filter(e => e.name.toLowerCase().includes(userSearch.toLowerCase()) || e.email.toLowerCase().includes(userSearch.toLowerCase())), [entreprises, userSearch]);
+  const filteredHackers = useMemo(
+    () => hackers
+      .filter(h => h.name.toLowerCase().includes(userSearch.toLowerCase()) || h.email.toLowerCase().includes(userSearch.toLowerCase()))
+      .filter(h => !kycFilter || pendingKycSubjectIds.has(h.profileId)),
+    [hackers, userSearch, kycFilter, pendingKycSubjectIds],
+  );
+  const filteredEntreprises = useMemo(
+    () => entreprises
+      .filter(e => e.name.toLowerCase().includes(userSearch.toLowerCase()) || e.email.toLowerCase().includes(userSearch.toLowerCase()))
+      .filter(e => !kycFilter || pendingKycSubjectIds.has(e.profileId)),
+    [entreprises, userSearch, kycFilter, pendingKycSubjectIds],
+  );
 
   return (
     <DashboardLayout>

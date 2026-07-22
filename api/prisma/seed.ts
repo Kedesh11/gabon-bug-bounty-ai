@@ -366,6 +366,35 @@ async function main() {
     },
   });
 
+  console.log("Seeding KYC documents...");
+  await prisma.kycDocument.create({
+    data: { type: "passeport_recto", status: "en_attente", fileName: "passeport-recto.jpg", subjectId: ids["hacker@bugbounty.com"] },
+  });
+  await prisma.kycDocument.create({
+    data: { type: "photo_identite", status: "en_attente", fileName: "selfie.jpg", subjectId: ids["ghost@mail.com"] },
+  });
+  await prisma.kycDocument.create({
+    data: {
+      type: "justificatif_domicile",
+      status: "rejete",
+      fileName: "facture.pdf",
+      subjectId: ids["hacker@bugbounty.com"],
+      reviewedById: ids["support@bugbounty.com"],
+      reviewedAt: new Date(),
+      reviewNote: "Document illisible, merci de resoumettre.",
+    },
+  });
+  await prisma.kycDocument.create({
+    data: {
+      type: "passeport_verso",
+      status: "valide",
+      fileName: "passeport-verso.jpg",
+      subjectId: ids["hacker@bugbounty.com"],
+      reviewedById: ids["support@bugbounty.com"],
+      reviewedAt: new Date(),
+    },
+  });
+
   console.log("Seeding system config...");
   await prisma.systemConfig.create({
     data: {

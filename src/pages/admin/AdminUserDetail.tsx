@@ -4,6 +4,14 @@ import { useHackers, useUpdateHacker } from "@/hooks/api/hackers";
 import { useEntreprises, useUpdateEntreprise } from "@/hooks/api/entreprises";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useLogs } from "@/hooks/api/logs";
+import { useKycDocuments, useReviewKycDocument, type KycDocumentType, type KycDocumentStatus } from "@/hooks/api/kyc";
+
+const KYC_TYPE_LABELS: Record<KycDocumentType, string> = {
+  passeport_recto: "Passeport (Recto)",
+  passeport_verso: "Passeport (Verso)",
+  justificatif_domicile: "Justificatif de domicile",
+  photo_identite: "Photo d'identité",
+};
 import {
   Mail,
   ShieldCheck,
@@ -18,7 +26,6 @@ import {
   Globe,
   Award,
   Zap,
-  Info,
   MessageSquare,
   Lock
 } from "lucide-react";
@@ -51,6 +58,8 @@ export default function AdminUserDetail() {
   // EntrepriseProfile id in the route param — PlatformLog.userId always references
   // Profile. Called before the early return below to respect the rules of hooks.
   const { data: logs = [] } = useLogs({ userId: userData?.profileId });
+  const { data: kycDocuments = [] } = useKycDocuments({ subjectId: userData?.profileId });
+  const reviewKyc = useReviewKycDocument();
 
   if (!userData) {
     return (
@@ -181,10 +190,24 @@ export default function AdminUserDetail() {
 
                  <TabsContent value="kyc">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <KycDocCard label="Passeport (Recto)" status="validé" />
-                       <KycDocCard label="Passeport (Verso)" status="validé" />
-                       <KycDocCard label="Justificatif de domicile" status="en_cours" />
-                       <KycDocCard label="Photo d'identité" status="validé" />
+                       {kycDocuments.map((doc) => (
+                          <KycDocCard
+                             key={doc.id}
+                             label={KYC_TYPE_LABELS[doc.type]}
+                             status={doc.status}
+                             onApprove={() => reviewKyc.mutate({ id: doc.id, status: "valide" }, {
+                                onSuccess: () => toast.success("Document approuvé"),
+                                onError: (err) => toast.error(apiErrorMessage(err)),
+                             })}
+                             onReject={() => reviewKyc.mutate({ id: doc.id, status: "rejete" }, {
+                                onSuccess: () => toast.error("Document rejeté"),
+                                onError: (err) => toast.error(apiErrorMessage(err)),
+                             })}
+                          />
+                       ))}
+                       {kycDocuments.length === 0 && (
+                          <p className="text-sm text-muted-foreground col-span-full text-center py-8">Aucun document soumis.</p>
+                       )}
                     </div>
                  </TabsContent>
 
@@ -251,24 +274,27 @@ function StatWidget({ icon, label, value, color }: { icon: React.ReactNode, labe
   );
 }
 
-function KycDocCard({ label, status }: { label: string, status: 'validé' | 'rejeté' | 'en_cours' }) {
+function KycDocCard({ label, status, onApprove, onReject }: { label: string, status: KycDocumentStatus, onApprove: () => void, onReject: () => void }) {
   return (
-    <Card className="p-6 rounded-[32px] border-border bg-secondary/10 space-y-4 group hover:border-blue-500/30 transition-all cursor-pointer">
+    <Card className="p-6 rounded-[32px] border-border bg-secondary/10 space-y-4 group hover:border-blue-500/30 transition-all">
        <div className="flex justify-between items-start">
           <div className="h-12 w-12 rounded-2xl bg-background border border-border flex items-center justify-center text-muted-foreground group-hover:text-blue-500 transition-colors">
              <FileText className="w-6 h-6" />
           </div>
           <Badge className={`text-[8px] font-black uppercase ${
-             status === 'validé' ? 'bg-green-500 text-white' : 
-             status === 'rejeté' ? 'bg-destructive text-white' : 'bg-orange-500 text-white'
+             status === 'valide' ? 'bg-green-500 text-white' :
+             status === 'rejete' ? 'bg-destructive text-white' : 'bg-orange-500 text-white'
           }`}>{status}</Badge>
        </div>
        <div>
           <p className="text-sm font-black">{label}</p>
-          <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1 mt-1">
-             <Info className="w-3 h-3" /> Cliquez pour prévisualiser
-          </p>
        </div>
+       {status === 'en_attente' && (
+          <div className="flex gap-2">
+             <Button size="sm" className="flex-1 h-9 rounded-xl bg-green-500 hover:bg-green-600 text-white text-[10px] font-black uppercase" onClick={onApprove}>Approuver</Button>
+             <Button size="sm" variant="outline" className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase text-destructive border-border" onClick={onReject}>Rejeter</Button>
+          </div>
+       )}
     </Card>
   );
 }
