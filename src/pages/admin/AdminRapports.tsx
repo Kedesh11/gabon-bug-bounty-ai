@@ -53,7 +53,9 @@ export default function AdminRapports() {
   const deleteReport = useDeleteReport();
   const runMcpAnalysis = useRunMcpAnalysis();
   const canTriage = user?.permissions.includes("reports.triage") ?? false;
-  const [search, setSearch] = useState("");
+  // Deep-link support from AdminUserDetail.tsx's "Voir tout l'historique" button,
+  // same pattern as the ?id= deep-link below.
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
   const [rewardInput, setRewardInput] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchParams, setSearchParams] = useSearchParams();

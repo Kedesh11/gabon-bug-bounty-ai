@@ -83,8 +83,8 @@ export default function AdminUtilisateurs() {
               <Building2 className="w-4 h-4 mr-2" /> Entreprises ({entreprises.length})
             </TabsTrigger>
             <TabsTrigger value="kyc" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              <ShieldCheck className="w-4 h-4 mr-2" /> Demandes KYC 
-              <Badge className="ml-2 bg-destructive/10 text-destructive border-none h-4 px-1 text-[8px]">2</Badge>
+              <ShieldCheck className="w-4 h-4 mr-2" /> Demandes KYC
+              <Badge className="ml-2 bg-destructive/10 text-destructive border-none h-4 px-1 text-[8px]">{kycDocuments.length}</Badge>
             </TabsTrigger>
           </TabsList>
 

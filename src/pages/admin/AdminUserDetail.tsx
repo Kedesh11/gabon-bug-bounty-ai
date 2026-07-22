@@ -1,7 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useParams, useNavigate } from "react-router-dom";
-import { useHackers, useUpdateHacker } from "@/hooks/api/hackers";
-import { useEntreprises, useUpdateEntreprise } from "@/hooks/api/entreprises";
+import { useHackers, useUpdateHacker, useDeleteHacker } from "@/hooks/api/hackers";
+import { useEntreprises, useUpdateEntreprise, useDeleteEntreprise } from "@/hooks/api/entreprises";
+import { useReports } from "@/hooks/api/reports";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useLogs } from "@/hooks/api/logs";
 import { useKycDocuments, useReviewKycDocument, type KycDocumentType, type KycDocumentStatus } from "@/hooks/api/kyc";
@@ -23,10 +24,8 @@ import {
   Trash2,
   ChevronLeft,
   Calendar,
-  Globe,
   Award,
   Zap,
-  MessageSquare,
   Lock
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +49,8 @@ export default function AdminUserDetail() {
   const { data: entreprises = [] } = useEntreprises();
   const updateHacker = useUpdateHacker();
   const updateEntreprise = useUpdateEntreprise();
+  const deleteHacker = useDeleteHacker();
+  const deleteEntreprise = useDeleteEntreprise();
 
   const hacker = hackers.find(h => h.id === id);
   const entreprise = entreprises.find(e => e.id === id);
@@ -60,6 +61,7 @@ export default function AdminUserDetail() {
   const { data: logs = [] } = useLogs({ userId: userData?.profileId });
   const { data: kycDocuments = [] } = useKycDocuments({ subjectId: userData?.profileId });
   const reviewKyc = useReviewKycDocument();
+  const { data: allReports = [] } = useReports();
 
   if (!userData) {
     return (
@@ -76,6 +78,26 @@ export default function AdminUserDetail() {
   }
 
   const isHacker = !!hacker;
+
+  const kycLabel =
+    kycDocuments.length === 0
+      ? "KYC NON SOUMIS"
+      : kycDocuments.every((d) => d.status === "valide")
+        ? "KYC VÉRIFIÉ"
+        : "KYC EN ATTENTE";
+
+  const userReports = allReports
+    .filter((r) => (isHacker ? r.hackerId === userData.id : r.entrepriseId === userData.id))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const handleDelete = () => {
+    const onSettled = {
+      onSuccess: () => { toast.success("Compte supprimé"); navigate(-1); },
+      onError: (err: unknown) => toast.error(apiErrorMessage(err)),
+    };
+    if (isHacker) deleteHacker.mutate(userData.id, onSettled);
+    else deleteEntreprise.mutate(userData.id, onSettled);
+  };
 
   return (
     <DashboardLayout>
@@ -107,7 +129,7 @@ export default function AdminUserDetail() {
                     </p>
                  </div>
                  <div className="flex flex-wrap justify-center gap-2">
-                    <Badge className="bg-blue-600/10 text-blue-600 border-none px-3 py-1 text-[10px] font-black uppercase">KYC VÉRIFIÉ</Badge>
+                    <Badge className="bg-blue-600/10 text-blue-600 border-none px-3 py-1 text-[10px] font-black uppercase">{kycLabel}</Badge>
                     <Badge className={`px-3 py-1 text-[10px] font-black uppercase ${
                        userData.status === 'actif' ? 'bg-green-500/10 text-green-500' : 'bg-destructive/10 text-destructive'
                     }`}>{userData.status}</Badge>
@@ -116,15 +138,11 @@ export default function AdminUserDetail() {
 
               <div className="space-y-4 pt-6 border-t border-border">
                  <DetailItem icon={<Mail className="w-4 h-4" />} label="Email" value={userData.email} />
-                 <DetailItem icon={<Calendar className="w-4 h-4" />} label="Membre depuis" value="Janvier 2024" />
-                 <DetailItem icon={<Globe className="w-4 h-4" />} label="Pays" value="Gabon" />
+                 <DetailItem icon={<Calendar className="w-4 h-4" />} label="Membre depuis" value={new Date(userData.joinedAt).toLocaleDateString("fr-FR", { year: "numeric", month: "long" })} />
                  <DetailItem icon={<Award className="w-4 h-4" />} label="ID Unique" value={userData.id} />
               </div>
 
               <div className="pt-6 space-y-3">
-                 <Button className="w-full h-12 rounded-2xl bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-600/20">
-                    <MessageSquare className="w-4 h-4 mr-2" /> ENVOYER UN MESSAGE
-                 </Button>
                  <div className="grid grid-cols-2 gap-3">
                     <Button variant="outline" className="h-12 rounded-2xl border-border font-black text-[10px] uppercase" onClick={() => {
                        const newStatus = userData.status === 'actif' ? 'suspendu' : 'actif';
@@ -137,7 +155,7 @@ export default function AdminUserDetail() {
                     }}>
                        <Ban className="w-4 h-4 mr-2" /> {userData.status === 'actif' ? 'SUSPENDRE' : 'ACTIVER'}
                     </Button>
-                    <Button variant="outline" className="h-12 rounded-2xl border-border font-black text-[10px] uppercase text-destructive hover:bg-destructive hover:text-white transition-all">
+                    <Button variant="outline" className="h-12 rounded-2xl border-border font-black text-[10px] uppercase text-destructive hover:bg-destructive hover:text-white transition-all" onClick={handleDelete}>
                        <Trash2 className="w-4 h-4 mr-2" /> SUPPRIMER
                     </Button>
                  </div>
@@ -148,8 +166,8 @@ export default function AdminUserDetail() {
               {/* Top Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <StatWidget icon={<Zap className="w-5 h-5" />} label={isHacker ? "Score de Réputation" : "Programmes Actifs"} value={isHacker ? hacker.reputation.toString() : entreprise.programmesCount.toString()} color="blue" />
-                 <StatWidget icon={<DollarSign className="w-5 h-5" />} label="Total Gains/Investi" value={isHacker ? "850K FCFA" : (entreprise.totalPaid/1000).toFixed(0) + "K FCFA"} color="green" />
-                 <StatWidget icon={<Award className="w-5 h-5" />} label={isHacker ? "Bugs Corrigés" : "Rapports Reçus"} value={isHacker ? hacker.bugsFound.toString() : "42"} color="purple" />
+                 <StatWidget icon={<DollarSign className="w-5 h-5" />} label="Total Gains/Investi" value={isHacker ? (hacker.totalRewards / 1000).toFixed(0) + "K FCFA" : (entreprise.totalPaid/1000).toFixed(0) + "K FCFA"} color="green" />
+                 <StatWidget icon={<Award className="w-5 h-5" />} label={isHacker ? "Bugs Corrigés" : "Rapports Reçus"} value={isHacker ? hacker.bugsFound.toString() : userReports.length.toString()} color="purple" />
               </div>
 
               <Tabs defaultValue="activity" className="space-y-6">
@@ -169,22 +187,33 @@ export default function AdminUserDetail() {
                     <Card className="glass-card rounded-[32px] border-border overflow-hidden p-8 space-y-6">
                        <h3 className="text-xl font-black tracking-tight">{recentReportsHeading}</h3>
                        <div className="space-y-4">
-                          {[1, 2, 3].map(i => (
-                             <div key={i} className="p-5 rounded-3xl bg-secondary/20 border border-border flex items-center justify-between group hover:border-blue-500/30 transition-all">
+                          {userReports.slice(0, 5).map(report => (
+                             <div key={report.id} className="p-5 rounded-3xl bg-secondary/20 border border-border flex items-center justify-between group hover:border-blue-500/30 transition-all">
                                 <div className="flex items-center gap-4">
                                    <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                                       <FileText className="w-5 h-5" />
                                    </div>
                                    <div>
-                                      <p className="text-sm font-bold">Vulnérabilité SQLi sur l'endpoint /v1/auth</p>
-                                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">PROGRAMME: SEEG GABON • IL Y A 3 JOURS</p>
+                                      <p className="text-sm font-bold">{report.title}</p>
+                                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
+                                         PROGRAMME: {report.programmeName} • {new Date(report.createdAt).toLocaleDateString("fr-FR")}
+                                      </p>
                                    </div>
                                 </div>
-                                <Badge className="bg-orange-500 text-white text-[8px] font-black">CRITIQUE</Badge>
+                                <Badge className="bg-orange-500 text-white text-[8px] font-black uppercase">{report.severity}</Badge>
                              </div>
                           ))}
+                          {userReports.length === 0 && (
+                             <p className="text-sm text-muted-foreground text-center py-4">Aucun rapport pour le moment.</p>
+                          )}
                        </div>
-                       <Button variant="ghost" className="w-full text-blue-500 font-black text-[10px] uppercase tracking-widest">Voir tout l'historique</Button>
+                       <Button
+                          variant="ghost"
+                          className="w-full text-blue-500 font-black text-[10px] uppercase tracking-widest"
+                          onClick={() => navigate(isHacker ? `/admin/rapports?search=${encodeURIComponent(userData.name)}` : "/admin/rapports")}
+                       >
+                          Voir tout l'historique
+                       </Button>
                     </Card>
                  </TabsContent>
 
