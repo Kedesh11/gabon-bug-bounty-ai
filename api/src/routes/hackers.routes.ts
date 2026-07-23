@@ -80,6 +80,9 @@ hackersRouter.patch(
 
 const updateOwnHackerSchema = z.object({
   specialties: z.array(z.string()).optional(),
+  bio: z.string().max(2000).optional(),
+  githubHandle: z.string().max(100).optional(),
+  twitterHandle: z.string().max(100).optional(),
 });
 
 hackersRouter.patch(

@@ -10,6 +10,7 @@ import {
   updateEntreprise,
   deleteEntreprise,
 } from "../services/entreprises/entreprisesService.js";
+import { topResearchersForEntreprise } from "../services/hackers/hackersService.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 export const entreprisesRouter = Router();
@@ -29,6 +30,17 @@ entreprisesRouter.get(
   asyncHandler(async (req, res) => {
     const entreprise = await getEntrepriseById(req.params.id, req.user!);
     res.json({ entreprise });
+  }),
+);
+
+// Real "Top Chercheurs" for this entreprise's dashboard — same ownership rule as
+// GET /:id (an entreprise can only see its own; staff can see any).
+entreprisesRouter.get(
+  "/:id/top-researchers",
+  asyncHandler(async (req, res) => {
+    await getEntrepriseById(req.params.id, req.user!);
+    const researchers = await topResearchersForEntreprise(req.params.id);
+    res.json({ researchers });
   }),
 );
 

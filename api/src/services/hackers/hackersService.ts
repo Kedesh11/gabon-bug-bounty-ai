@@ -70,9 +70,42 @@ export async function updateOwnPaymentConfig(userId: string, input: UpdatePaymen
 // Self-service subset of updateHacker below — a hacker can edit their own
 // specialties, but reputation/bugsFound/totalRewards/status stay admin-only
 // (they're computed/trust signals, not something the hacker should set themselves).
-export async function updateOwnHacker(userId: string, input: { specialties?: string[] }) {
+export async function updateOwnHacker(
+  userId: string,
+  input: { specialties?: string[]; bio?: string; githubHandle?: string; twitterHandle?: string },
+) {
   const hacker = await getOwnHackerProfile(userId);
   return prisma.hackerProfile.update({ where: { id: hacker.id }, data: input, include: hackerDetailInclude });
+}
+
+const TOP_RESEARCHERS_LIMIT = 5;
+
+// Real "Top Chercheurs" for an entreprise's dashboard — grouped directly off
+// Report.entrepriseId (denormalized onto Report already, no join through Programme
+// needed), counting accepted/resolved reports and summing their rewards.
+export async function topResearchersForEntreprise(entrepriseId: string) {
+  const grouped = await prisma.report.groupBy({
+    by: ["hackerId"],
+    where: { entrepriseId, status: { in: ["accepte", "resolu"] } },
+    _count: { _all: true },
+    _sum: { reward: true },
+    orderBy: { _sum: { reward: "desc" } },
+    take: TOP_RESEARCHERS_LIMIT,
+  });
+
+  const hackers = await prisma.hackerProfile.findMany({
+    where: { id: { in: grouped.map((g) => g.hackerId) } },
+    include: hackerDetailInclude,
+  });
+  const hackerById = new Map(hackers.map((h) => [h.id, h]));
+
+  return grouped
+    .map((g) => ({
+      hacker: hackerById.get(g.hackerId),
+      reportsCount: g._count._all,
+      totalReward: g._sum.reward ?? 0,
+    }))
+    .filter((entry): entry is { hacker: NonNullable<typeof entry.hacker>; reportsCount: number; totalReward: number } => !!entry.hacker);
 }
 
 export async function listHackers() {

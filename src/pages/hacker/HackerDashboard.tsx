@@ -8,19 +8,17 @@ import {
   DollarSign,
   ShieldCheck,
   Zap,
-  Target,
+  Trophy,
   Activity,
   BarChart3,
   Star,
   Search,
-  Flame,
   ChevronRight,
   History,
   UserCircle2
 } from "lucide-react";
 import { CrowdStream } from "@/components/CrowdStream";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -42,16 +40,27 @@ export default function HackerDashboard() {
 
   const totalRewards = myReports.reduce((s, r) => s + r.reward, 0);
   const accepted = myReports.filter(r => r.status === "accepté" || r.status === "résolu").length;
-  
-  const preferredCurrency = profile?.config?.preferredCurrency || "XAF";
-  const currencySymbol = preferredCurrency === "XAF" ? "FCFA" : preferredCurrency === "USD" ? "$" : "€";
-  
-  // Convert rewards if necessary (simple mock conversion)
-  const convertedRewards = preferredCurrency === "XAF" ? totalRewards : preferredCurrency === "USD" ? totalRewards / 600 : totalRewards / 650;
 
-  // Calculate Signal (Acceptance Rate) and Impact (Average Severity)
+  // Real acceptance rate — the only "score" derivable from actual report outcomes.
   const signal = myReports.length > 0 ? Math.round((accepted / myReports.length) * 100) : 0;
-  const impact = 4.2; // Mock impact score out of 5
+
+  // Real submissions-per-month, last 6 months, computed from myReports.createdAt —
+  // no fabricated chart data.
+  const monthlySubmissions = (() => {
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return { key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString("fr-FR", { month: "short" }), count: 0 };
+    });
+    for (const r of myReports) {
+      const d = new Date(r.createdAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const bucket = months.find(m => m.key === key);
+      if (bucket) bucket.count += 1;
+    }
+    return months;
+  })();
+  const maxMonthlyCount = Math.max(1, ...monthlySubmissions.map(m => m.count));
 
   return (
     <DashboardLayout>
@@ -60,7 +69,12 @@ export default function HackerDashboard() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-foreground tracking-tighter flex items-center gap-3">
-              {pageTitle} <span className="text-primary font-mono text-sm px-2 py-0.5 bg-primary/10 border border-primary/20 rounded uppercase tracking-widest">Actif</span>
+              {pageTitle}
+              <span className={`font-mono text-sm px-2 py-0.5 border rounded uppercase tracking-widest ${
+                profile?.status === "actif" ? "text-primary bg-primary/10 border-primary/20" : "text-destructive bg-destructive/10 border-destructive/20"
+              }`}>
+                {profile?.status ?? "…"}
+              </span>
             </h1>
             <p className="text-muted-foreground font-medium">Bon retour, <span className="text-foreground font-bold">{user?.name}</span>. Votre statut de recherche est optimal.</p>
           </div>
@@ -89,84 +103,75 @@ export default function HackerDashboard() {
             
             {/* Main Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard 
-                icon={<Bug className="w-5 h-5 text-primary" />} 
-                label="Soumissions" 
-                value={myReports.length.toString()} 
-                subValue="+2 ce mois"
+              <StatCard
+                icon={<Bug className="w-5 h-5 text-primary" />}
+                label="Soumissions"
+                value={myReports.length.toString()}
+                subValue={`${accepted} accepté${accepted !== 1 ? "s" : ""}`}
                 color="primary"
               />
-              <StatCard 
-                icon={<DollarSign className="w-5 h-5 text-green-500" />} 
-                label={`Revenus (${preferredCurrency})`} 
-                value={convertedRewards.toLocaleString(undefined, { maximumFractionDigits: 0 })} 
-                subValue={`Symbole: ${currencySymbol}`}
+              <StatCard
+                icon={<DollarSign className="w-5 h-5 text-green-500" />}
+                label="Revenus (XAF)"
+                value={totalRewards.toLocaleString()}
+                subValue="Total gagné"
                 color="green"
               />
-              <StatCard 
-                icon={<Activity className="w-5 h-5 text-accent" />} 
-                label="Signal" 
-                value={`${signal}%`} 
-                subValue="Précision"
+              <StatCard
+                icon={<Activity className="w-5 h-5 text-accent" />}
+                label="Signal"
+                value={`${signal}%`}
+                subValue="Taux d'acceptation"
                 color="accent"
               />
-              <StatCard 
-                icon={<Flame className="w-5 h-5 text-orange-500" />} 
-                label="Impact" 
-                value={impact.toString()} 
-                subValue="Sur 5.0"
+              <StatCard
+                icon={<Trophy className="w-5 h-5 text-orange-500" />}
+                label="Réputation"
+                value={(profile?.reputation ?? 0).toString()}
+                subValue={`Rang #${profile?.rank ?? "…"}`}
                 color="orange"
               />
             </div>
 
             {/* Performance Analytics & Skills */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Earnings & Reputation Chart Area */}
+              {/* Real submissions-per-month chart */}
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-primary" /> {performanceHeading}
-                  </h3>
-                  <select className="bg-secondary text-[10px] font-bold px-2 py-1 rounded border border-border outline-none">
-                    <option>2024</option>
-                  </select>
-                </div>
-                
+                <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-primary" /> {performanceHeading}
+                </h3>
+
                 <div className="h-48 flex items-end justify-between gap-2 px-2">
-                  {[45, 60, 30, 80, 50, 90, 70].map((h, i) => (
-                    <div key={i} className="w-full group relative">
+                  {monthlySubmissions.map((m) => (
+                    <div key={m.key} className="w-full group relative">
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {h * 10}k
+                        {m.count}
                       </div>
-                      <div 
-                        className="bg-primary/20 group-hover:bg-primary transition-all rounded-t-lg" 
-                        style={{ height: `${h}%` }} 
+                      <div
+                        className="bg-primary/20 group-hover:bg-primary transition-all rounded-t-lg"
+                        style={{ height: `${Math.max(4, (m.count / maxMonthlyCount) * 100)}%` }}
                       />
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-tighter px-2">
-                  <span>Jan</span><span>Fév</span><span>Mar</span><span>Avr</span><span>Mai</span><span>Juin</span><span>Juil</span>
+                  {monthlySubmissions.map((m) => <span key={m.key}>{m.label}</span>)}
                 </div>
               </div>
 
-              {/* Skills & Specialization */}
+              {/* Specialization */}
               <div className="glass-card rounded-2xl border border-border p-6 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
-                  <Target className="w-4 h-4 text-accent" /> {specializationHeading}
+                  <ShieldCheck className="w-4 h-4 text-accent" /> {specializationHeading}
                 </h3>
-                
-                <div className="space-y-4">
-                  <SkillProgress label="Web Application Security" value={85} color="bg-primary" />
-                  <SkillProgress label="API & Microservices" value={65} color="bg-accent" />
-                  <SkillProgress label="Mobile (Android/iOS)" value={30} color="bg-blue-500" />
-                  <SkillProgress label="Infrastructure / Cloud" value={45} color="bg-orange-500" />
-                </div>
 
-                <div className="pt-4 flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2">
                   {profile?.specialties?.map(s => (
                     <Badge key={s} variant="secondary" className="bg-secondary/50 text-[10px] font-bold uppercase">{s}</Badge>
                   ))}
+                  {(!profile || profile.specialties.length === 0) && (
+                    <p className="text-xs text-muted-foreground">Aucune spécialité renseignée — configurez-les depuis votre profil.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -251,28 +256,18 @@ export default function HackerDashboard() {
                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Classement Global</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-primary/10 text-primary border-primary/20 font-black px-3 py-1">ÉLITE</Badge>
                   <Badge variant="outline" className="font-mono text-xs">{profile?.reputation || 0} PTS</Badge>
                 </div>
               </div>
               <div className="p-6 space-y-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                    <span>Niveau Suivant</span>
-                    <span className="text-primary">75%</span>
-                  </div>
-                  <Progress value={75} className="h-2 bg-secondary" />
-                  <p className="text-[9px] text-muted-foreground text-center">Encore 500 points pour le badge **Vanguard**</p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="text-center space-y-1">
                     <p className="text-[10px] font-black text-muted-foreground uppercase">Acceptés</p>
                     <p className="text-lg font-black text-foreground">{accepted}</p>
                   </div>
                   <div className="text-center space-y-1">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">Rang</p>
-                    <p className="text-lg font-black text-foreground">Top 2%</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase">Bugs Validés</p>
+                    <p className="text-lg font-black text-foreground">{profile?.bugsFound ?? 0}</p>
                   </div>
                 </div>
               </div>
@@ -306,20 +301,6 @@ function StatCard({ icon, label, value, subValue, color }: { icon: React.ReactNo
       <p className="text-3xl font-black text-foreground tracking-tighter">{value}</p>
       <div className="mt-2 text-[10px] text-muted-foreground font-bold uppercase tracking-tight">
         {subValue}
-      </div>
-    </div>
-  );
-}
-
-function SkillProgress({ label, value, color }: { label: string, value: number, color: string }) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-tighter">
-        <span>{label}</span>
-        <span className="text-muted-foreground">{value}%</span>
-      </div>
-      <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full`} style={{ width: `${value}%` }} />
       </div>
     </div>
   );

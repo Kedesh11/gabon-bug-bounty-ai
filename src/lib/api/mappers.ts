@@ -218,6 +218,8 @@ export interface ApiReport {
   reward: number;
   createdAt: string;
   updatedAt: string;
+  triagedAt?: string | null;
+  resolvedAt?: string | null;
   vulnerability: string;
   vrtCategory?: string | null;
   vrtType?: string | null;
@@ -250,6 +252,8 @@ export function mapReport(api: ApiReport): Report {
     reward: api.reward,
     createdAt: api.createdAt,
     updatedAt: api.updatedAt,
+    triagedAt: api.triagedAt ?? undefined,
+    resolvedAt: api.resolvedAt ?? undefined,
     vulnerability: api.vulnerability,
     vrtCategory: api.vrtCategory ?? undefined,
     vrtType: api.vrtType ?? undefined,
@@ -309,6 +313,9 @@ export interface ApiHackerProfile {
   joinedAt: string;
   profile: { id: string; name: string; email: string };
   badges?: ApiBadge[];
+  bio?: string | null;
+  githubHandle?: string | null;
+  twitterHandle?: string | null;
 }
 
 export function mapHacker(api: ApiHackerProfile): HackerProfile {
@@ -325,6 +332,9 @@ export function mapHacker(api: ApiHackerProfile): HackerProfile {
     badges: api.badges ?? [],
     joinedAt: api.joinedAt,
     status: api.status as HackerProfile["status"],
+    bio: api.bio ?? undefined,
+    githubHandle: api.githubHandle ?? undefined,
+    twitterHandle: api.twitterHandle ?? undefined,
   };
 }
 

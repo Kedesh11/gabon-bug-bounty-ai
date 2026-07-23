@@ -141,6 +141,12 @@ model HackerProfile {
   status       HackerStatus @default(actif)
   joinedAt     DateTime     @default(now())
 
+  // Collected by HackerProfil.tsx's profile form — previously typed into inert
+  // inputs that were never actually saved.
+  bio           String?
+  githubHandle  String?
+  twitterHandle String?
+
   // Stripe Connect v2 Recipient account id, set once the hacker completes onboarding.
   stripeAccountId String?
 
@@ -486,6 +492,13 @@ model Report {
   reward      Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Set once, the moment status first leaves "soumis"/"en_analyse" into a triage
+  // decision (accepté/rejeté) and once it reaches "résolu" — real SLA math needs
+  // this, since `updatedAt` gets bumped by any later edit and can't tell "when was
+  // this triaged" from "when was the title last tweaked".
+  triagedAt  DateTime?
+  resolvedAt DateTime?
 
   // Free-text fallback fields, kept for backward compatibility with reports submitted
   // before the taxonomy existed. New submissions should set vulnerabilityCategoryId

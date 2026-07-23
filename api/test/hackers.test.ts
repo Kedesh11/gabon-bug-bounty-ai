@@ -121,3 +121,17 @@ describe("Public hacker leaderboard", () => {
     expect(entry.criticalBugsCount).toBe(1);
   });
 });
+
+describe("PATCH /api/hackers/me — bio/social fields", () => {
+  it("saves bio, githubHandle and twitterHandle for real, previously silently dropped", async () => {
+    const hacker = await createTestUser("hacker");
+    const res = await request(app)
+      .patch("/api/hackers/me")
+      .set("Authorization", hacker.authHeader)
+      .send({ bio: "Chercheur en sécurité web.", githubHandle: "jdupont", twitterHandle: "jdupont_sec" });
+    expect(res.status).toBe(200);
+    expect(res.body.hacker.bio).toBe("Chercheur en sécurité web.");
+    expect(res.body.hacker.githubHandle).toBe("jdupont");
+    expect(res.body.hacker.twitterHandle).toBe("jdupont_sec");
+  });
+});

@@ -42,6 +42,33 @@ export function useUpdateEntreprise() {
   });
 }
 
+export interface TopResearcher {
+  hacker: { id: string; name: string; reputation: number };
+  reportsCount: number;
+  totalReward: number;
+}
+
+// Real "Top Chercheurs" for this entreprise — grouped from actual accepted/resolved
+// Report rows server-side, not a hardcoded [1,2,3] list. Deliberately a lighter shape
+// than the full HackerProfile (no rank/badges/etc — this endpoint doesn't compute a
+// rank, just a per-entreprise reward ranking).
+export function useTopResearchers(entrepriseId: string | undefined) {
+  return useQuery({
+    queryKey: [...KEY, entrepriseId, "top-researchers"],
+    queryFn: async () => {
+      const { researchers } = await apiFetch<{
+        researchers: { hacker: { id: string; reputation: number; profile: { name: string } }; reportsCount: number; totalReward: number }[];
+      }>(`/api/entreprises/${entrepriseId}/top-researchers`);
+      return researchers.map((r): TopResearcher => ({
+        hacker: { id: r.hacker.id, name: r.hacker.profile.name, reputation: r.hacker.reputation },
+        reportsCount: r.reportsCount,
+        totalReward: r.totalReward,
+      }));
+    },
+    enabled: !!entrepriseId,
+  });
+}
+
 export function useDeleteEntreprise() {
   const queryClient = useQueryClient();
   return useMutation({
