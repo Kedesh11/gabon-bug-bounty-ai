@@ -7,7 +7,6 @@ import { useJsonContent } from "@/hooks/api/content";
 interface Agent {
   id: string;
   name: string;
-  model: string;
   description: string;
   capabilities: string[];
 }
@@ -34,49 +33,42 @@ const DEFAULT_AGENTS: Agent[] = [
   {
     id: "vulnerability-analysis",
     name: "Agent d'Analyse des Vulnérabilités",
-    model: "DeepSeek",
     description: "Classe chaque rapport dans la taxonomie VRT de la plateforme et identifie le CWE correspondant.",
     capabilities: ["Classification dans le catalogue VRT existant", "Identification du CWE", "Analyse fondée strictement sur le rapport soumis", "Propose une nouvelle catégorie si aucune ne correspond"],
   },
   {
     id: "severity-assessment",
     name: "Agent d'Évaluation de la Sévérité",
-    model: "DeepSeek",
     description: "Score CVSS v3.1 (vecteur et note) et sévérité suggérée, à partir de la classification établie.",
     capabilities: ["Scoring CVSS v3.1", "Vérifie la cohérence avec un CVSS déjà fourni par le hacker", "Prise en compte de la catégorie de vulnérabilité identifiée"],
   },
   {
     id: "false-positive-detection",
     name: "Agent de Détection de Faux Positifs",
-    model: "Qwen",
     description: "Évalue la plausibilité et la reproductibilité du rapport à partir des preuves fournies.",
     capabilities: ["Analyse de cohérence des preuves", "Évaluation de la reproductibilité décrite", "Tient compte du contrôle de doublon exact déjà effectué par la plateforme"],
   },
   {
     id: "anti-fraud",
     name: "Agent Anti-Fraude",
-    model: "Qwen",
     description: "Détection sémantique — paraphrase, incohérences internes, signes de copie d'un write-up public. Complète le contrôle de similarité textuelle déjà en place.",
     capabilities: ["Détection de paraphrase (au-delà du copier-coller exact)", "Recherche d'incohérences internes au rapport", "Génère un signal de fraude réservé à la revue humaine — aucun blocage automatique"],
   },
   {
     id: "recommendation",
     name: "Agent de Recommandation",
-    model: "Kimi",
     description: "Complète la remédiation seulement si celle du hacker est absente ou insuffisante — ne la remplace jamais.",
     capabilities: ["Respecte la remédiation déjà proposée par le hacker si elle est suffisante", "Suggestions ancrées dans la catégorie de vulnérabilité identifiée", "N'invente rien qui ne découle pas du rapport"],
   },
   {
     id: "decision",
     name: "Agent de Décision",
-    model: "ChatGPT",
     description: "Synthétise les analyses des agents précédents en une décision suggérée — jamais appliquée automatiquement.",
     capabilities: ["Synthèse de toutes les analyses en amont", "Suggestion : accepter / rejeter / demander des informations", "Toujours soumise à la validation de la triage humaine"],
   },
   {
     id: "reward",
     name: "Agent de Gestion des Récompenses",
-    model: "ChatGPT",
     description: "Montant suggéré, ancré dans les tiers de récompense réels du programme concerné — jamais versé automatiquement.",
     capabilities: ["Respecte les tiers min/max définis par le programme", "Cohérent avec la sévérité retenue", "Suggestion pré-remplie, validée manuellement par la finance"],
   },
@@ -111,8 +103,8 @@ const MCPAgents = () => {
               <span className="text-gradient-cyber">MCP</span>
             </h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Un système de 7 agents spécialisés, chacun porté par un modèle différent (DeepSeek, Qwen, Kimi, ChatGPT via OpenRouter),
-              qui analysent chaque rapport en s'appuyant strictement sur son contenu — leurs suggestions sont toujours validées par un humain.
+              Un système de 7 agents IA spécialisés, orchestrés via OpenRouter, qui analysent chaque rapport
+              en s'appuyant strictement sur son contenu — leurs suggestions sont toujours validées par un humain.
             </p>
           </div>
 
@@ -122,7 +114,7 @@ const MCPAgents = () => {
               { icon: Network, label: "Agents actifs", value: "7" },
               { icon: Brain, label: "Rapports analysés", value: stats ? stats.totalRuns.toLocaleString("fr-FR") : "—" },
               { icon: Activity, label: "Taux de complétion", value: stats?.completionRate != null ? `${(stats.completionRate * 100).toFixed(0)}%` : "—" },
-              { icon: Zap, label: "Modèles distincts", value: "4" },
+              { icon: Zap, label: "Étapes du pipeline", value: workflow.length.toString() },
             ].map((m, i) => (
               <div key={i} className="glass-card rounded-xl p-5 border-glow text-center">
                 <m.icon className="w-6 h-6 text-primary mx-auto mb-2" />
@@ -158,10 +150,7 @@ const MCPAgents = () => {
                     <agent.icon className="w-6 h-6 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-lg font-bold text-foreground">{agent.name}</h3>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-primary/30 text-primary shrink-0">{agent.model}</span>
-                    </div>
+                    <h3 className="text-lg font-bold text-foreground">{agent.name}</h3>
                     <p className="text-sm text-muted-foreground">{agent.description}</p>
                   </div>
                 </div>

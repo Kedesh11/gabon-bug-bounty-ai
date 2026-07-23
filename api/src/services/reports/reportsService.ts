@@ -14,7 +14,16 @@ export const reportInclude = {
   vulnerabilityCategory: true,
   // Most recent run first — the MCP agents pipeline (services/mcpAgents) that
   // populates this runs asynchronously after creation, see createReport() below.
-  mcpAgentRuns: { include: { outputs: true }, orderBy: { createdAt: "desc" as const } },
+  // `outputs` is an explicit select rather than `true`: which underlying LLM/model
+  // ran each agent (McpAgentOutput.model) is internal plumbing, never sent to the client.
+  mcpAgentRuns: {
+    include: {
+      outputs: {
+        select: { id: true, runId: true, agentType: true, status: true, output: true, errorMessage: true, createdAt: true },
+      },
+    },
+    orderBy: { createdAt: "desc" as const },
+  },
 };
 
 // Not real AI: a deterministic placeholder mirroring the frontend mock in

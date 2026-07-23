@@ -148,7 +148,6 @@ export type McpAgentRunStatus = "pending" | "running" | "completed" | "failed";
 export interface McpAgentOutput {
   id: string;
   agentType: McpAgentType;
-  model: string;
   status: McpAgentRunStatus;
   output: Record<string, unknown> | null;
   errorMessage?: string;

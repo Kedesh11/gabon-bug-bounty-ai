@@ -188,7 +188,6 @@ export interface ApiAiAnalysis {
 export interface ApiMcpAgentOutput {
   id: string;
   agentType: string;
-  model: string;
   status: string;
   output: Record<string, unknown> | null;
   errorMessage?: string | null;
@@ -286,7 +285,6 @@ export function mapReport(api: ApiReport): Report {
       outputs: run.outputs.map((o) => ({
         id: o.id,
         agentType: o.agentType as McpAgentType,
-        model: o.model,
         status: o.status as McpAgentRunStatus,
         output: o.output,
         errorMessage: o.errorMessage ?? undefined,
