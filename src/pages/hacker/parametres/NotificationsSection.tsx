@@ -8,9 +8,10 @@ interface NotificationsSectionProps {
   setPreference: <K extends keyof NotificationPreferences>(field: K, value: NotificationPreferences[K]) => void;
   onSave: () => void;
   onSendTest: () => void;
+  isSaving?: boolean;
 }
 
-export function NotificationsSection({ preferences, setPreference, onSave, onSendTest }: NotificationsSectionProps) {
+export function NotificationsSection({ preferences, setPreference, onSave, onSendTest, isSaving }: NotificationsSectionProps) {
   return (
     <div className="glass-card rounded-xl p-5 border-glow space-y-4">
       <div className="flex items-center gap-3">
@@ -40,9 +41,9 @@ export function NotificationsSection({ preferences, setPreference, onSave, onSen
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={onSave} variant="outline">
+        <Button onClick={onSave} variant="outline" disabled={isSaving}>
           <Save className="w-4 h-4 mr-2" />
-          Enregistrer notifications
+          {isSaving ? "Enregistrement..." : "Enregistrer notifications"}
         </Button>
         <Button onClick={onSendTest} variant="secondary">
           <Send className="w-4 h-4 mr-2" />

@@ -157,11 +157,20 @@ authRouter.get(
   }),
 );
 
+const notificationPreferencesSchema = z.object({
+  inAppEnabled: z.boolean(),
+  emailEnabled: z.boolean(),
+  paymentAlerts: z.boolean(),
+  reportStatusAlerts: z.boolean(),
+  securityAlerts: z.boolean(),
+});
+
 // Email isn't editable here: it's owned by Supabase Auth (auth.users) and changing it
 // requires the reconfirmation flow (supabase.auth.updateUser) — out of scope for now.
 const updateMeSchema = z.object({
   name: z.string().min(1).optional(),
   avatar: z.string().optional(),
+  notificationPreferences: notificationPreferencesSchema.optional(),
 });
 
 authRouter.patch(

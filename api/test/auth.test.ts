@@ -25,3 +25,20 @@ describe("GET /api/auth/me", () => {
     expect(res.body.profile.hackerProfile).toBeTruthy();
   });
 });
+
+describe("PATCH /api/auth/me — notification preferences", () => {
+  it("persists notification preferences for real, retrievable via GET /me", async () => {
+    const hacker = await createTestUser("hacker");
+    const prefs = { inAppEnabled: true, emailEnabled: true, paymentAlerts: false, reportStatusAlerts: true, securityAlerts: false };
+
+    const patchRes = await request(app)
+      .patch("/api/auth/me")
+      .set("Authorization", hacker.authHeader)
+      .send({ notificationPreferences: prefs });
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.profile.notificationPreferences).toEqual(prefs);
+
+    const meRes = await request(app).get("/api/auth/me").set("Authorization", hacker.authHeader);
+    expect(meRes.body.profile.notificationPreferences).toEqual(prefs);
+  });
+});

@@ -2,29 +2,21 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/useAuth";
 import { addNotification } from "@/lib/notifications";
+import { apiErrorMessage } from "@/lib/apiClient";
 import { DEFAULT_NOTIFICATION_PREFERENCES, type NotificationPreferences } from "./types";
 
 export function useNotificationPreferences() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
     DEFAULT_NOTIFICATION_PREFERENCES,
   );
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Real backend value (Profile.notificationPreferences) replaces the old
+  // localStorage-only copy — lost on a new device/browser before this.
   useEffect(() => {
     if (!user) return;
-
-    const prefKey = `bb_notify_prefs_${user.id}`;
-    const savedPrefs = localStorage.getItem(prefKey);
-    if (!savedPrefs) {
-      setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(savedPrefs) as Partial<NotificationPreferences>;
-      setNotificationPreferences({ ...DEFAULT_NOTIFICATION_PREFERENCES, ...parsed });
-    } catch {
-      setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
-    }
+    setNotificationPreferences({ ...DEFAULT_NOTIFICATION_PREFERENCES, ...user.notificationPreferences });
   }, [user]);
 
   const setNotificationPreference = <K extends keyof NotificationPreferences>(
@@ -34,16 +26,22 @@ export function useNotificationPreferences() {
     setNotificationPreferences((prev) => ({ ...prev, [field]: value }));
   };
 
-  const saveNotificationPreferences = () => {
+  const saveNotificationPreferences = async () => {
     if (!user) return;
-    const key = `bb_notify_prefs_${user.id}`;
-    localStorage.setItem(key, JSON.stringify(notificationPreferences));
-    addNotification(user.id, {
-      title: "Préférences notifications mises à jour",
-      message: "Vos réglages de notification ont été enregistrés.",
-      type: "info",
-    });
-    toast.success("Préférences notifications enregistrées");
+    setIsSaving(true);
+    try {
+      await updateProfile({ notificationPreferences });
+      addNotification(user.id, {
+        title: "Préférences notifications mises à jour",
+        message: "Vos réglages de notification ont été enregistrés.",
+        type: "info",
+      });
+      toast.success("Préférences notifications enregistrées");
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const sendTestNotification = () => {
@@ -65,5 +63,6 @@ export function useNotificationPreferences() {
     setNotificationPreference,
     saveNotificationPreferences,
     sendTestNotification,
+    isSaving,
   };
 }
