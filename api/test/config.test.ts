@@ -91,3 +91,25 @@ describe("GET /api/maintenance-status", () => {
     expect(res.body.maintenanceUntil).not.toBeNull();
   });
 });
+
+describe("GET /api/config/integrations", () => {
+  it("rejects a caller without settings.view", async () => {
+    const hacker = await createTestUser("hacker");
+    const res = await request(app).get("/api/config/integrations").set("Authorization", hacker.authHeader);
+    expect(res.status).toBe(403);
+  });
+
+  it("reports real configuration booleans, never secret values", async () => {
+    const admin = await createTestUser("admin");
+    const res = await request(app).get("/api/config/integrations").set("Authorization", admin.authHeader);
+    expect(res.status).toBe(200);
+    const { integrations } = res.body;
+    // Forced by test/setup.ts, so these are deterministic regardless of environment.
+    expect(integrations.cinetpayCheckout).toBe(true);
+    expect(integrations.cinetpayTransfer).toBe(true);
+    expect(integrations.stripe).toBe(true);
+    expect(integrations.resend).toBe(false);
+    expect(typeof integrations.openrouter).toBe("boolean");
+    expect(JSON.stringify(res.body)).not.toMatch(/sk-|whsec_|re_/);
+  });
+});
