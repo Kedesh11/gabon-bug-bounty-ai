@@ -171,7 +171,7 @@ describe("Admin taxonomy management", () => {
     const entreprise = await createTestUser("entreprise");
     const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
     const programme = await prisma.programme.create({
-      data: { name: "Prog taxo", description: "d", entrepriseId: entrepriseProfile.id, minReward: 1000, maxReward: 5000 },
+      data: { name: "Prog taxo", slug: `prog-taxo-${randomUUID()}`, description: "d", entrepriseId: entrepriseProfile.id, minReward: 1000, maxReward: 5000 },
     });
 
     const createRes = await request(app)

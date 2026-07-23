@@ -354,7 +354,7 @@ export default function EntrepriseProgrammes() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/programmes/${programme.id}`}>
+                  <Link to={`/programmes/${programme.slug}`}>
                     <ExternalLink className="w-3 h-3 mr-1" />
                     Voir
                   </Link>

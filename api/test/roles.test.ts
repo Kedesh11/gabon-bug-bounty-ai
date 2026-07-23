@@ -83,7 +83,7 @@ describe("Roles & permissions", () => {
     const entreprise = await createTestUser("entreprise");
     const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
     const programme = await prisma.programme.create({
-      data: { name: "Prog", description: "d", entrepriseId: entrepriseProfile.id, minReward: 1000, maxReward: 5000 },
+      data: { name: "Prog", slug: `prog-${randomUUID()}`, description: "d", entrepriseId: entrepriseProfile.id, minReward: 1000, maxReward: 5000 },
     });
     const hackerForReport = await createTestUser("hacker");
     const hackerProfile = await prisma.hackerProfile.findUniqueOrThrow({ where: { profileId: hackerForReport.id } });

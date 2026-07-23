@@ -121,7 +121,7 @@ export default function HackerProgrammes() {
         {viewMode === "card" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProgrammes.map((p) => (
-              <Link key={p.id} to={`/programmes/${p.id}`} className="group">
+              <Link key={p.id} to={`/programmes/${p.slug}`} className="group">
                 <Card className="h-full glass-card border-border hover:border-primary/50 transition-all duration-300 overflow-hidden flex flex-col">
                   <div className="p-6 bg-secondary/20 border-b border-border flex justify-between items-start">
                     <div className="h-12 w-12 rounded-xl bg-background border border-border flex items-center justify-center overflow-hidden p-2 group-hover:scale-110 transition-transform">
@@ -160,7 +160,7 @@ export default function HackerProgrammes() {
         {viewMode === "list" && (
           <div className="space-y-4">
             {filteredProgrammes.map((p) => (
-              <Link key={p.id} to={`/programmes/${p.id}`} className="group block">
+              <Link key={p.id} to={`/programmes/${p.slug}`} className="group block">
                 <Card className="glass-card border-border hover:border-primary/40 transition-all overflow-hidden flex items-center">
                   <div className="w-32 bg-secondary/30 flex items-center justify-center p-6 border-r border-border h-full group-hover:bg-primary/5 transition-colors shrink-0 self-stretch">
                     {p.logoUrl ? <img src={p.logoUrl} className="w-12 h-12 object-contain" /> : <Shield className="w-8 h-8 text-primary/40" />}
@@ -201,7 +201,7 @@ export default function HackerProgrammes() {
               </TableHeader>
               <TableBody>
                 {filteredProgrammes.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-primary/5 border-border group cursor-pointer" onClick={() => navigate(`/programmes/${p.id}`)}>
+                  <TableRow key={p.id} className="hover:bg-primary/5 border-border group cursor-pointer" onClick={() => navigate(`/programmes/${p.slug}`)}>
                     <TableCell className="py-4">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded bg-background border border-border flex items-center justify-center overflow-hidden p-1">

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { app } from "../src/index.js";
@@ -97,7 +98,7 @@ describe("Public hacker leaderboard", () => {
     const entreprise = await createTestUser("entreprise");
     const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
     const programme = await prisma.programme.create({
-      data: { name: "Prog critique", description: "d", entrepriseId: entrepriseProfile.id, minReward: 1000, maxReward: 5000 },
+      data: { name: "Prog critique", slug: `prog-critique-${randomUUID()}`, description: "d", entrepriseId: entrepriseProfile.id, minReward: 1000, maxReward: 5000 },
     });
     const hackerProfile = await prisma.hackerProfile.findUniqueOrThrow({ where: { profileId: hacker.id } });
 

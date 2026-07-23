@@ -29,6 +29,7 @@ export async function createTestProgramme(entrepriseProfileId: string) {
   return prisma.programme.create({
     data: {
       name: "Programme de test",
+      slug: `programme-de-test-${randomUUID()}`,
       description: "Description de test",
       entrepriseId: entrepriseProfileId,
       minReward: 10000,

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { app } from "../src/index.js";
@@ -268,6 +269,7 @@ describe("Fraud detection — payment anomalies", () => {
     const programme = await prisma.programme.create({
       data: {
         name: "Programme triage strict",
+        slug: `programme-triage-strict-${randomUUID()}`,
         description: "d",
         entrepriseId: entreprise.entrepriseProfile.id,
         minReward: 1000,
@@ -297,6 +299,7 @@ describe("Fraud detection — payment anomalies", () => {
     const programme = await prisma.programme.create({
       data: {
         name: "Programme triage strict 2",
+        slug: `programme-triage-strict-2-${randomUUID()}`,
         description: "d",
         entrepriseId: entreprise.entrepriseProfile.id,
         minReward: 1000,

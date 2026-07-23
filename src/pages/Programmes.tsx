@@ -124,7 +124,7 @@ const Programmes = () => {
           {viewMode === "card" && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
               {filteredProgrammes.map((p) => (
-                <Link key={p.id} to={`/programmes/${p.id}`} className="group">
+                <Link key={p.id} to={`/programmes/${p.slug}`} className="group">
                   <Card className="h-full glass-card border-border hover:border-primary/50 transition-all duration-300 overflow-hidden flex flex-col hover:shadow-[0_0_30px_rgba(var(--primary),0.1)]">
                     <div className="p-6 bg-secondary/20 border-b border-border flex justify-between items-start">
                       <div className="h-14 w-14 rounded-2xl bg-background border border-border flex items-center justify-center overflow-hidden p-2 group-hover:scale-110 transition-transform">
@@ -164,7 +164,7 @@ const Programmes = () => {
           {viewMode === "list" && (
             <div className="grid grid-cols-1 gap-6 max-w-5xl mx-auto">
               {filteredProgrammes.map((p) => (
-                <Link key={p.id} to={`/programmes/${p.id}`} className="group">
+                <Link key={p.id} to={`/programmes/${p.slug}`} className="group">
                   <Card className="glass-card border-border hover:border-primary/40 transition-all duration-300 overflow-hidden shadow-sm hover:shadow-xl">
                     <div className="flex flex-col md:flex-row">
                       <div className="w-full md:w-48 bg-secondary/30 flex items-center justify-center p-8 border-b md:border-b-0 md:border-r border-border group-hover:bg-primary/5 transition-colors shrink-0">
@@ -220,7 +220,7 @@ const Programmes = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredProgrammes.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-primary/5 border-border group cursor-pointer" onClick={() => navigate(`/programmes/${p.id}`)}>
+                    <TableRow key={p.id} className="hover:bg-primary/5 border-border group cursor-pointer" onClick={() => navigate(`/programmes/${p.slug}`)}>
                       <TableCell className="py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded bg-background border border-border flex items-center justify-center overflow-hidden p-1">
@@ -247,7 +247,7 @@ const Programmes = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>
-                          <Link to={`/programmes/${p.id}`}><ChevronRight className="w-4 h-4" /></Link>
+                          <Link to={`/programmes/${p.slug}`}><ChevronRight className="w-4 h-4" /></Link>
                         </Button>
                       </TableCell>
                     </TableRow>

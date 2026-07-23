@@ -35,6 +35,7 @@ export interface ApiActivity {
 
 export interface ApiProgramme {
   id: string;
+  slug: string;
   name: string;
   entrepriseId: string;
   entreprise?: { profile: { name: string } };
@@ -111,6 +112,7 @@ function mapActivity(activity: ApiActivity): ProgrammeActivity {
 export function mapProgramme(api: ApiProgramme): Programme {
   return {
     id: api.id,
+    slug: api.slug,
     name: api.name,
     entrepriseId: api.entrepriseId,
     entrepriseName: api.entreprise?.profile.name ?? "",

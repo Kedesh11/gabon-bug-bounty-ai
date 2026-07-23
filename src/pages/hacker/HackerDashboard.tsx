@@ -217,7 +217,7 @@ export default function HackerDashboard() {
                 </h3>
                 <div className="space-y-3">
                   {activeProgrammes.map(p => (
-                    <Link key={p.id} to={`/programmes/${p.id}`} className="block p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group">
+                    <Link key={p.id} to={`/programmes/${p.slug}`} className="block p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0 border border-border group-hover:border-primary/20 transition-all">
                           {p.logoUrl ? <img src={p.logoUrl} className="object-contain p-1" /> : <ShieldCheck className="w-5 h-5 text-primary/40" />}
