@@ -55,7 +55,7 @@ export function useUpdateHacker() {
 export function useUpdateMyHacker() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { specialties?: string[] }) => {
+    mutationFn: async (data: { specialties?: string[]; bio?: string; githubHandle?: string; twitterHandle?: string }) => {
       const { hacker } = await apiFetch<{ hacker: ApiHackerProfile }>("/api/hackers/me", {
         method: "PATCH",
         body: data,

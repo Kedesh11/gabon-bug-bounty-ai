@@ -86,6 +86,46 @@ describe("Reports RBAC & CRUD", () => {
   });
 });
 
+describe("Real SLA timestamps (triagedAt/resolvedAt)", () => {
+  it("stamps triagedAt once, on the first triage decision, and never again", async () => {
+    const hacker = await createTestUser("hacker");
+    const entreprise = await createTestUser("entreprise");
+    const triage = await createTestUser("triage");
+    const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
+    const programme = await createTestProgramme(entrepriseProfile.id);
+
+    const createRes = await request(app)
+      .post("/api/reports")
+      .set("Authorization", hacker.authHeader)
+      .send({ title: "SLA Test Report", description: "d", severity: "haute", programmeId: programme.id, vulnerability: "XSS", proof: "poc" });
+    const reportId = createRes.body.report.id;
+    expect(createRes.body.report.triagedAt).toBeNull();
+    expect(createRes.body.report.resolvedAt).toBeNull();
+
+    const acceptRes = await request(app)
+      .patch(`/api/reports/${reportId}`)
+      .set("Authorization", triage.authHeader)
+      .send({ status: "accepte", reward: 1000 });
+    expect(acceptRes.body.report.triagedAt).toBeTruthy();
+    const firstTriagedAt = acceptRes.body.report.triagedAt;
+
+    // A later, unrelated edit must not move triagedAt — unlike updatedAt.
+    await new Promise((r) => setTimeout(r, 5));
+    const editRes = await request(app)
+      .patch(`/api/reports/${reportId}`)
+      .set("Authorization", triage.authHeader)
+      .send({ reward: 2000 });
+    expect(editRes.body.report.triagedAt).toBe(firstTriagedAt);
+
+    const resolveRes = await request(app)
+      .patch(`/api/reports/${reportId}`)
+      .set("Authorization", triage.authHeader)
+      .send({ status: "resolu" });
+    expect(resolveRes.body.report.resolvedAt).toBeTruthy();
+    expect(resolveRes.body.report.triagedAt).toBe(firstTriagedAt);
+  });
+});
+
 describe("First-to-report duplicate detection", () => {
   async function categoryId(key: string) {
     const category = await prisma.vulnerabilityCategory.findUniqueOrThrow({ where: { key } });

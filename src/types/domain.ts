@@ -178,6 +178,8 @@ export interface Report {
   reward: number;
   createdAt: string;
   updatedAt: string;
+  triagedAt?: string | null;
+  resolvedAt?: string | null;
   vulnerability: string;
   vrtCategory?: string;
   vrtType?: string;
@@ -213,6 +215,9 @@ export interface HackerProfile {
   joinedAt: string;
   status: "actif" | "banni" | "suspendu";
   config?: HackerPaymentConfig;
+  bio?: string;
+  githubHandle?: string;
+  twitterHandle?: string;
 }
 
 export type PaymentMethod = "mobile_money" | "bank_transfer" | "bank_card" | "paypal" | "crypto";

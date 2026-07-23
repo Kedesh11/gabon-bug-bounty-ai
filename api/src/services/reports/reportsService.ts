@@ -156,7 +156,18 @@ export async function updateReport(id: string, input: UpdateReportInput) {
   const existing = await prisma.report.findUnique({ where: { id } });
   if (!existing) throw new HttpError(404, "Rapport introuvable");
 
-  return prisma.report.update({ where: { id }, data: input, include: reportInclude });
+  // Stamped once, the first time status crosses into a triage decision / resolution —
+  // never overwritten on a later edit, so these stay a real "when did this happen"
+  // rather than drifting with `updatedAt` on every subsequent change.
+  const timestamps: { triagedAt?: Date; resolvedAt?: Date } = {};
+  if (input.status && (input.status === "accepte" || input.status === "rejete") && !existing.triagedAt) {
+    timestamps.triagedAt = new Date();
+  }
+  if (input.status === "resolu" && !existing.resolvedAt) {
+    timestamps.resolvedAt = new Date();
+  }
+
+  return prisma.report.update({ where: { id }, data: { ...input, ...timestamps }, include: reportInclude });
 }
 
 export async function deleteReport(id: string) {

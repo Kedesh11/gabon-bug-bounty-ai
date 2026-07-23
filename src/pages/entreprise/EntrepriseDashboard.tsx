@@ -1,6 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useProgrammes } from "@/hooks/api/programmes";
 import { useReports } from "@/hooks/api/reports";
+import { useTopResearchers } from "@/hooks/api/entreprises";
+import { useConfig } from "@/hooks/api/config";
 import { useAuth } from "@/contexts/useAuth";
 import {
   Bug,
@@ -28,14 +30,15 @@ export default function EntrepriseDashboard() {
   const severityHeading = useContent("entreprise.dashboard.severity-heading", "Répartition par Sévérité");
   const programmesHeading = useContent("entreprise.dashboard.programmes-heading", "État des Programmes");
   const topResearchersHeading = useContent("entreprise.dashboard.top-researchers-heading", "Top Chercheurs");
-  const healthScoreHeading = useContent("entreprise.dashboard.health-score-heading", "Score de Santé Sécurité");
   const { user } = useAuth();
   const { data: programmes = [] } = useProgrammes();
   const { data: myReports = [] } = useReports();
+  const { data: topResearchers = [] } = useTopResearchers(user?.entrepriseProfileId);
+  const { data: config } = useConfig();
 
   const myProgrammes = programmes.filter(p => p.entrepriseId === user?.entrepriseProfileId);
   const totalPaid = myReports.reduce((s, r) => s + r.reward, 0);
-  
+
   const stats = {
     critique: myReports.filter(r => r.severity === "critique").length,
     haute: myReports.filter(r => r.severity === "haute").length,
@@ -44,6 +47,17 @@ export default function EntrepriseDashboard() {
   };
 
   const pendingReports = myReports.filter(r => r.status === "soumis" || r.status === "en_analyse").length;
+
+  // Real SLA — hours/days elapsed between creation and the triage/resolution
+  // timestamps stamped once, for real, in reportsService.updateReport.
+  const triagedReports = myReports.filter(r => r.triagedAt);
+  const avgTriageHours = triagedReports.length > 0
+    ? Math.round(triagedReports.reduce((s, r) => s + (new Date(r.triagedAt!).getTime() - new Date(r.createdAt).getTime()), 0) / triagedReports.length / 3_600_000)
+    : null;
+  const resolvedReports = myReports.filter(r => r.resolvedAt);
+  const avgResolutionDays = resolvedReports.length > 0
+    ? Math.round(resolvedReports.reduce((s, r) => s + (new Date(r.resolvedAt!).getTime() - new Date(r.createdAt).getTime()), 0) / resolvedReports.length / 86_400_000)
+    : null;
 
   return (
     <DashboardLayout>
@@ -115,9 +129,20 @@ export default function EntrepriseDashboard() {
                 </h3>
                 
                 <div className="space-y-6">
-                  <SLAGauge label="Temps de Triage" value="24h" target="36h" progress={65} />
-                  <SLAGauge label="Temps de Première Réponse" value="12h" target="24h" progress={80} />
-                  <SLAGauge label="Délai de Résolution" value="18j" target="30j" progress={55} />
+                  <SLAGauge
+                    label="Temps de Triage Moyen"
+                    value={avgTriageHours !== null ? `${avgTriageHours}h` : "—"}
+                    target={config ? `${config.triageLimitHours}h` : undefined}
+                    progress={avgTriageHours !== null && config ? Math.min(100, (avgTriageHours / config.triageLimitHours) * 100) : 0}
+                  />
+                  <SLAGauge
+                    label="Délai de Résolution Moyen"
+                    value={avgResolutionDays !== null ? `${avgResolutionDays}j` : "—"}
+                    progress={avgResolutionDays !== null ? 100 : 0}
+                  />
+                  {triagedReports.length === 0 && resolvedReports.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground italic">Pas encore de rapport trié ou résolu pour calculer un SLA réel.</p>
+                  )}
                 </div>
               </div>
 
@@ -158,7 +183,6 @@ export default function EntrepriseDashboard() {
                       </div>
                       <div className="text-right">
                         <p className="text-xs font-black">{p.reportsCount} rapports</p>
-                        <p className="text-[10px] text-muted-foreground italic">Dernier il y a 2j</p>
                       </div>
                     </div>
                   ))}
@@ -170,49 +194,30 @@ export default function EntrepriseDashboard() {
                   <Users className="w-4 h-4 text-primary" /> {topResearchersHeading}
                 </h3>
                 <div className="space-y-4">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border">
+                  {topResearchers.map((r, i) => (
+                    <div key={r.hacker.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 border border-border">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs">
-                          #{i}
+                          #{i + 1}
                         </div>
-                        <p className="text-xs font-bold">Hacker_{i}45</p>
+                        <p className="text-xs font-bold">{r.hacker.name}</p>
                       </div>
-                      <Badge variant="outline" className="text-[9px] font-black">{10 - i} BUGS</Badge>
+                      <Badge variant="outline" className="text-[9px] font-black">{r.reportsCount} BUGS</Badge>
                     </div>
                   ))}
+                  {topResearchers.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">Aucun rapport accepté pour le moment.</p>
+                  )}
                 </div>
-                <Button variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest">Voir le leaderboard</Button>
+                <Button asChild variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest">
+                  <Link to="/hackers">Voir le leaderboard</Link>
+                </Button>
               </div>
             </div>
           </div>
 
-          {/* Right Sidebar: CrowdStream & Security Health */}
+          {/* Right Sidebar: CrowdStream */}
           <div className="xl:col-span-1 space-y-6">
-            <div className="glass-card rounded-2xl border border-border p-6 space-y-6 bg-gradient-to-br from-background to-secondary/30">
-              <div className="text-center space-y-2">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{healthScoreHeading}</h3>
-                <div className="relative inline-flex items-center justify-center">
-                  <svg className="h-32 w-32">
-                    <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-secondary" />
-                    <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="364.4" strokeDashoffset={364.4 * 0.15} strokeLinecap="round" className="text-primary transition-all duration-1000" />
-                  </svg>
-                  <span className="absolute text-3xl font-black italic text-foreground">85%</span>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
-                <div className="text-center">
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Validation</p>
-                  <p className="text-sm font-black text-foreground">Rapide</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Risque</p>
-                  <p className="text-sm font-black text-green-500">Bas</p>
-                </div>
-              </div>
-            </div>
-
             <CrowdStream />
           </div>
         </div>
@@ -245,7 +250,7 @@ function StatCard({ icon, label, value, subValue, color }: { icon: React.ReactNo
   );
 }
 
-function SLAGauge({ label, value, target, progress }: { label: string, value: string, target: string, progress: number }) {
+function SLAGauge({ label, value, target, progress }: { label: string, value: string, target?: string, progress: number }) {
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-end">
@@ -253,7 +258,7 @@ function SLAGauge({ label, value, target, progress }: { label: string, value: st
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
           <p className="text-lg font-black text-foreground">{value}</p>
         </div>
-        <p className="text-[9px] font-bold text-primary italic">Target: {target}</p>
+        {target && <p className="text-[9px] font-bold text-primary italic">Cible : {target}</p>}
       </div>
       <Progress value={progress} className="h-1.5 bg-secondary" />
     </div>
