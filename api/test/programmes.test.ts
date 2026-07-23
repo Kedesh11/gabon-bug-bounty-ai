@@ -180,3 +180,55 @@ describe("Programme validation workflow", () => {
     expect(mine.rejectionReason).toBe("Scope insuffisamment précis");
   });
 });
+
+describe("Programme slugs", () => {
+  it("generates a real, URL-safe slug from the name on creation", async () => {
+    const entreprise = await createTestUser("entreprise");
+    const res = await request(app)
+      .post("/api/programmes")
+      .set("Authorization", entreprise.authHeader)
+      .send({ name: `Programme Été Spécial ${randomUUID()}`, description: "desc", minReward: 1000, maxReward: 5000 });
+    expect(res.status).toBe(201);
+    expect(res.body.programme.slug).toMatch(/^programme-ete-special-[0-9a-f-]+$/);
+  });
+
+  it("dedupes colliding slugs with a numeric suffix instead of rejecting", async () => {
+    const entreprise = await createTestUser("entreprise");
+    const name = `Nom Identique ${randomUUID()}`;
+
+    const first = await request(app)
+      .post("/api/programmes")
+      .set("Authorization", entreprise.authHeader)
+      .send({ name, description: "desc", minReward: 1000, maxReward: 5000 });
+    const second = await request(app)
+      .post("/api/programmes")
+      .set("Authorization", entreprise.authHeader)
+      .send({ name, description: "desc", minReward: 1000, maxReward: 5000 });
+
+    expect(first.body.programme.slug).not.toBe(second.body.programme.slug);
+    expect(second.body.programme.slug).toBe(`${first.body.programme.slug}-2`);
+  });
+
+  it("resolves a programme by slug or by UUID — both keep working", async () => {
+    const admin = await createTestUser("admin");
+    const entreprise = await createTestUser("entreprise");
+    const createRes = await request(app)
+      .post("/api/programmes")
+      .set("Authorization", entreprise.authHeader)
+      .send({ name: `Double Accès ${randomUUID()}`, description: "desc", minReward: 1000, maxReward: 5000 });
+    const { id, slug } = createRes.body.programme;
+
+    const bySlug = await request(app).get(`/api/programmes/${slug}`).set("Authorization", admin.authHeader);
+    expect(bySlug.status).toBe(200);
+    expect(bySlug.body.programme.id).toBe(id);
+
+    const byId = await request(app).get(`/api/programmes/${id}`).set("Authorization", admin.authHeader);
+    expect(byId.status).toBe(200);
+    expect(byId.body.programme.slug).toBe(slug);
+  });
+
+  it("404s a slug-shaped identifier that doesn't exist", async () => {
+    const res = await request(app).get("/api/programmes/does-not-exist-at-all");
+    expect(res.status).toBe(404);
+  });
+});

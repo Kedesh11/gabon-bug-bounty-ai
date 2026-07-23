@@ -78,37 +78,37 @@ const DEFAULT_JSON_ENTRIES: Record<string, unknown> = {
   ],
   "mcp-agents.agents": [
     {
-      id: "vulnerability-analysis", name: "Agent d'Analyse des Vulnérabilités", model: "DeepSeek",
+      id: "vulnerability-analysis", name: "Agent d'Analyse des Vulnérabilités",
       description: "Classe chaque rapport dans la taxonomie VRT de la plateforme et identifie le CWE correspondant.",
       capabilities: ["Classification dans le catalogue VRT existant", "Identification du CWE", "Analyse fondée strictement sur le rapport soumis", "Propose une nouvelle catégorie si aucune ne correspond"],
     },
     {
-      id: "severity-assessment", name: "Agent d'Évaluation de la Sévérité", model: "DeepSeek",
+      id: "severity-assessment", name: "Agent d'Évaluation de la Sévérité",
       description: "Score CVSS v3.1 (vecteur et note) et sévérité suggérée, à partir de la classification établie.",
       capabilities: ["Scoring CVSS v3.1", "Vérifie la cohérence avec un CVSS déjà fourni par le hacker", "Prise en compte de la catégorie de vulnérabilité identifiée"],
     },
     {
-      id: "false-positive-detection", name: "Agent de Détection de Faux Positifs", model: "Qwen",
+      id: "false-positive-detection", name: "Agent de Détection de Faux Positifs",
       description: "Évalue la plausibilité et la reproductibilité du rapport à partir des preuves fournies.",
       capabilities: ["Analyse de cohérence des preuves", "Évaluation de la reproductibilité décrite", "Tient compte du contrôle de doublon exact déjà effectué par la plateforme"],
     },
     {
-      id: "anti-fraud", name: "Agent Anti-Fraude", model: "Qwen",
+      id: "anti-fraud", name: "Agent Anti-Fraude",
       description: "Détection sémantique — paraphrase, incohérences internes, signes de copie d'un write-up public. Complète le contrôle de similarité textuelle déjà en place.",
       capabilities: ["Détection de paraphrase (au-delà du copier-coller exact)", "Recherche d'incohérences internes au rapport", "Génère un signal de fraude réservé à la revue humaine — aucun blocage automatique"],
     },
     {
-      id: "recommendation", name: "Agent de Recommandation", model: "Kimi",
+      id: "recommendation", name: "Agent de Recommandation",
       description: "Complète la remédiation seulement si celle du hacker est absente ou insuffisante — ne la remplace jamais.",
       capabilities: ["Respecte la remédiation déjà proposée par le hacker si elle est suffisante", "Suggestions ancrées dans la catégorie de vulnérabilité identifiée", "N'invente rien qui ne découle pas du rapport"],
     },
     {
-      id: "decision", name: "Agent de Décision", model: "ChatGPT",
+      id: "decision", name: "Agent de Décision",
       description: "Synthétise les analyses des agents précédents en une décision suggérée — jamais appliquée automatiquement.",
       capabilities: ["Synthèse de toutes les analyses en amont", "Suggestion : accepter / rejeter / demander des informations", "Toujours soumise à la validation de la triage humaine"],
     },
     {
-      id: "reward", name: "Agent de Gestion des Récompenses", model: "ChatGPT",
+      id: "reward", name: "Agent de Gestion des Récompenses",
       description: "Montant suggéré, ancré dans les tiers de récompense réels du programme concerné — jamais versé automatiquement.",
       capabilities: ["Respecte les tiers min/max définis par le programme", "Cohérent avec la sévérité retenue", "Suggestion pré-remplie, validée manuellement par la finance"],
     },

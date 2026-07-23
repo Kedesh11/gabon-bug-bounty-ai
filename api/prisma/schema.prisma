@@ -297,6 +297,11 @@ enum Severity {
 model Programme {
   id              String            @id @default(uuid()) @db.Uuid
   name            String
+  // Generated once from `name` at creation (see programmesService.ts), never
+  // regenerated on rename to avoid breaking already-shared links. Nullable for one
+  // migration cycle only — see the backfill script run between the two migrations
+  // that introduced this column; every row has one by the time this is required.
+  slug            String            @unique
   entrepriseId    String            @db.Uuid
   entreprise      EntrepriseProfile @relation(fields: [entrepriseId], references: [id], onDelete: Cascade)
 

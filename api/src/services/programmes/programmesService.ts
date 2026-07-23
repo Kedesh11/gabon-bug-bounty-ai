@@ -5,6 +5,32 @@ import { createPlatformLog } from "../platformLogs/logsService.js";
 
 const entrepriseInclude = { entreprise: { include: { profile: true } } };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function slugify(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Generated once at creation from `name`, never regenerated on rename (see the
+// `slug` field comment in schema.prisma) — dedupes against every existing slug with
+// a numeric suffix rather than rejecting, since an entreprise submitting a program
+// with a name that happens to collide shouldn't get a confusing validation error.
+async function generateUniqueSlug(name: string): Promise<string> {
+  const base = slugify(name) || "programme";
+  let slug = base;
+  let suffix = 2;
+  while (await prisma.programme.findUnique({ where: { slug }, select: { id: true } })) {
+    slug = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return slug;
+}
+
 export async function resolveEntrepriseId(userId: string, role: string, requestedId?: string) {
   if (role === "admin") {
     if (!requestedId) throw new HttpError(400, "entrepriseId requis pour un admin");
@@ -49,9 +75,12 @@ export async function listProgrammesForReview(filters: { validationStatus?: Prog
   });
 }
 
-export async function getProgrammeById(id: string) {
+// Accepts either the real UUID (old/internal links, e.g. admin tooling that only
+// ever knew the id) or the public slug (new shareable links) — resolved by shape,
+// so both keep working with no redirect needed.
+export async function getProgrammeById(idOrSlug: string) {
   const programme = await prisma.programme.findUnique({
-    where: { id },
+    where: UUID_RE.test(idOrSlug) ? { id: idOrSlug } : { slug: idOrSlug },
     include: {
       rewardTiers: true,
       targetGroups: { include: { targets: true } },
@@ -97,11 +126,13 @@ export interface ProgrammeInput {
 
 export async function createProgramme(userId: string, role: string, input: ProgrammeInput) {
   const entrepriseId = await resolveEntrepriseId(userId, role, input.entrepriseId);
+  const slug = await generateUniqueSlug(input.name);
 
   const { rewardTiers, entrepriseId: _ignored, ...rest } = input;
   return prisma.programme.create({
     data: {
       ...rest,
+      slug,
       entrepriseId,
       // Always starts pending, regardless of anything in the payload — validation
       // can only ever be set via validateProgramme, never at creation.

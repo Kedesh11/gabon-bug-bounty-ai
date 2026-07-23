@@ -52,6 +52,10 @@ export interface ProgrammeThingsToKnow {
 
 export interface Programme {
   id: string;
+  // Public, human-readable identifier for URLs (/programmes/:slug) — generated once
+  // from `name` at creation, never regenerated on rename to avoid breaking shared
+  // links. `id` (the real UUID) still works in the same route too.
+  slug: string;
   name: string;
   entrepriseId: string;
   entrepriseName: string;
@@ -148,7 +152,6 @@ export type McpAgentRunStatus = "pending" | "running" | "completed" | "failed";
 export interface McpAgentOutput {
   id: string;
   agentType: McpAgentType;
-  model: string;
   status: McpAgentRunStatus;
   output: Record<string, unknown> | null;
   errorMessage?: string;

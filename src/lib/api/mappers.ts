@@ -35,6 +35,7 @@ export interface ApiActivity {
 
 export interface ApiProgramme {
   id: string;
+  slug: string;
   name: string;
   entrepriseId: string;
   entreprise?: { profile: { name: string } };
@@ -111,6 +112,7 @@ function mapActivity(activity: ApiActivity): ProgrammeActivity {
 export function mapProgramme(api: ApiProgramme): Programme {
   return {
     id: api.id,
+    slug: api.slug,
     name: api.name,
     entrepriseId: api.entrepriseId,
     entrepriseName: api.entreprise?.profile.name ?? "",
@@ -188,7 +190,6 @@ export interface ApiAiAnalysis {
 export interface ApiMcpAgentOutput {
   id: string;
   agentType: string;
-  model: string;
   status: string;
   output: Record<string, unknown> | null;
   errorMessage?: string | null;
@@ -286,7 +287,6 @@ export function mapReport(api: ApiReport): Report {
       outputs: run.outputs.map((o) => ({
         id: o.id,
         agentType: o.agentType as McpAgentType,
-        model: o.model,
         status: o.status as McpAgentRunStatus,
         output: o.output,
         errorMessage: o.errorMessage ?? undefined,

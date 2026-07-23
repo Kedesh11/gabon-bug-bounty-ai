@@ -156,6 +156,7 @@ async function main() {
   const progGouv = await prisma.programme.create({
     data: {
       name: "API Gouvernementale v2",
+      slug: "api-gouvernementale-v2",
       entrepriseId: ministere.id,
       description: "Test de sécurité de l'API REST gouvernementale",
       descriptionLong:
@@ -193,6 +194,7 @@ async function main() {
   const progPortail = await prisma.programme.create({
     data: {
       name: "Portail Citoyen",
+      slug: "portail-citoyen",
       entrepriseId: gabonTelecom.id,
       description: "Sécurité du portail de services citoyens",
       descriptionLong: "Programme couvrant le portail web, les API publiques et la gestion d'identité des usagers.",
@@ -229,6 +231,7 @@ async function main() {
   await prisma.programme.create({
     data: {
       name: "Audit de Sécurité - SEEG",
+      slug: "audit-de-securite-seeg",
       entrepriseId: seeg.id,
       description: "Audit complet de l'infrastructure critique et des portails de facturation.",
       descriptionLong:

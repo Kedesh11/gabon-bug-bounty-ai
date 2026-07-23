@@ -342,7 +342,6 @@ export default function AdminRapports() {
                                 <p>{output.errorMessage ?? "Échec de l'analyse."}</p>
                               )}
                             </div>
-                            <p className="mt-1 text-[9px] text-muted-foreground/70">{output.model}</p>
                           </details>
                         ))}
                       </div>
