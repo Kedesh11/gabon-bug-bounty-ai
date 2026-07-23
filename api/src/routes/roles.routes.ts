@@ -3,7 +3,16 @@ import { z } from "zod";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
-import { listPermissions, listRoles, createRole, updateRolePermissions, deleteRole } from "../services/roles/rolesService.js";
+import {
+  listPermissions,
+  listRoles,
+  createRole,
+  updateRolePermissions,
+  deleteRole,
+  addStaffAccountToRole,
+  listStaffAccounts,
+  deleteStaffAccount,
+} from "../services/roles/rolesService.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
 export const rolesRouter = Router();
@@ -20,6 +29,16 @@ rolesRouter.get(
   "/",
   asyncHandler(async (_req, res) => {
     res.json({ roles: await listRoles() });
+  }),
+);
+
+// Declared before any "/:id"-shaped route below so "accounts" is never mistaken
+// for a role id (there is no GET "/:id" today, but this keeps it safe if one is
+// ever added).
+rolesRouter.get(
+  "/accounts",
+  asyncHandler(async (_req, res) => {
+    res.json({ accounts: await listStaffAccounts() });
   }),
 );
 
@@ -49,6 +68,22 @@ rolesRouter.post(
   }),
 );
 
+const provisionAccountSchema = z.object({
+  name: z.string().min(2, "Le nom complet doit contenir au moins 2 caractères"),
+  email: z.string().email(),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  message: z.string().optional(),
+});
+
+rolesRouter.post(
+  "/:id/accounts",
+  asyncHandler(async (req, res) => {
+    const body = provisionAccountSchema.parse(req.body);
+    const { profile, emailSent, emailError } = await addStaffAccountToRole(req.params.id, body);
+    res.status(201).json({ profile, emailSent, emailError });
+  }),
+);
+
 const updatePermissionsSchema = z.object({
   permissionKeys: z.array(z.string()),
 });
@@ -66,6 +101,14 @@ rolesRouter.patch(
       userId: req.user!.id,
     });
     res.json({ role });
+  }),
+);
+
+rolesRouter.delete(
+  "/accounts/:id",
+  asyncHandler(async (req, res) => {
+    await deleteStaffAccount(req.params.id, req.user!.id);
+    res.status(204).send();
   }),
 );
 

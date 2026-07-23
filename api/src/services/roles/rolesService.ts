@@ -47,20 +47,69 @@ function slugifyKey(label: string) {
     .replace(/^_+|_+$/g, "");
 }
 
-export interface CreateRoleInput {
-  label: string;
-  description?: string;
-  permissionKeys: string[];
-  // Creating a role always provisions its first staff account in the same step — there
-  // is no path in this platform for a bare role template with nobody holding it yet.
-  // Only hacker/entreprise self-register (auth.routes.ts); every other role is
-  // provisioned by a superadmin here.
+export interface ProvisionStaffAccountInput {
   name: string;
   email: string;
   password: string;
   message?: string;
 }
 
+// Shared by createRole (new role + its first account) and addStaffAccountToRole
+// (a second/third account under an already-existing role, e.g. a second finance
+// person) — the account-provisioning half is identical either way. Never deletes
+// the Role itself on failure: that's the caller's responsibility, since a brand-new
+// role has 0 profiles and is safe to roll back, while an existing role may already
+// have other accounts on it.
+async function provisionStaffAccount(roleId: string, roleLabel: string, input: ProvisionStaffAccountInput) {
+  const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    email: input.email,
+    password: input.password,
+    email_confirm: true,
+  });
+  if (createError || !created.user) {
+    throw new HttpError(400, createError?.message ?? "Impossible de créer le compte");
+  }
+
+  let profile;
+  try {
+    profile = await prisma.profile.create({
+      data: { id: created.user.id, email: input.email, name: input.name, roleId },
+      include: profileRoleInclude,
+    });
+  } catch (err) {
+    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+    throw err;
+  }
+
+  const { sent: emailSent, error: emailError } = await sendStaffCredentialsEmail({
+    to: input.email,
+    roleLabel,
+    email: input.email,
+    password: input.password,
+    message: input.message,
+  });
+
+  await createPlatformLog({
+    type: "security",
+    level: "info",
+    message: `Compte staff créé pour le rôle "${roleLabel}" (${input.email})`,
+    source: "rolesService",
+    userId: profile.id,
+  });
+
+  return { profile: serializeProfile(profile), emailSent, emailError };
+}
+
+export interface CreateRoleInput extends ProvisionStaffAccountInput {
+  label: string;
+  description?: string;
+  permissionKeys: string[];
+}
+
+// Creating a role always provisions its first staff account in the same step — there
+// is no path in this platform for a bare role template with nobody holding it yet.
+// Only hacker/entreprise self-register (auth.routes.ts); every other role is
+// provisioned by a superadmin here.
 export async function createRole(input: CreateRoleInput) {
   assertKnownPermissionKeys(input.permissionKeys);
 
@@ -83,45 +132,73 @@ export async function createRole(input: CreateRoleInput) {
     include: roleInclude,
   });
 
-  const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
-    email: input.email,
-    password: input.password,
-    email_confirm: true,
-  });
-  if (createError || !created.user) {
-    await prisma.role.delete({ where: { id: role.id } });
-    throw new HttpError(400, createError?.message ?? "Impossible de créer le compte");
-  }
-
-  let profile;
   try {
-    profile = await prisma.profile.create({
-      data: { id: created.user.id, email: input.email, name: input.name, roleId: role.id },
-      include: profileRoleInclude,
-    });
+    const { profile, emailSent, emailError } = await provisionStaffAccount(role.id, input.label, input);
+    return { role: serializeRole(role), profile, emailSent, emailError };
   } catch (err) {
-    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
     await prisma.role.delete({ where: { id: role.id } });
     throw err;
   }
+}
 
-  const { sent: emailSent, error: emailError } = await sendStaffCredentialsEmail({
-    to: input.email,
-    roleLabel: input.label,
-    email: input.email,
-    password: input.password,
-    message: input.message,
+// Adds another account under an already-existing role (e.g. a second finance
+// person) — the gap createRole alone doesn't cover, since it always mints a new role.
+export async function addStaffAccountToRole(roleId: string, input: ProvisionStaffAccountInput) {
+  const role = await prisma.role.findUnique({ where: { id: roleId } });
+  if (!role) throw new HttpError(404, "Rôle introuvable");
+  return provisionStaffAccount(roleId, role.label, input);
+}
+
+// Every real staff account (i.e. not hacker/entreprise, which have their own
+// self-service listing under /api/hackers and /api/entreprises) — backs the "Équipe"
+// tab. "Dernière connexion" is derived from the real Phase A audit log rather than a
+// new tracking column: PlatformLog already records every successful login.
+export async function listStaffAccounts() {
+  const profiles = await prisma.profile.findMany({
+    where: { role: { key: { notIn: ["hacker", "entreprise"] } } },
+    include: profileRoleInclude,
+    orderBy: { createdAt: "desc" },
   });
+
+  const loginLogs = await prisma.platformLog.findMany({
+    where: {
+      userId: { in: profiles.map((p) => p.id) },
+      type: "security",
+      message: { contains: "Connexion réussie" },
+    },
+    orderBy: { timestamp: "desc" },
+    select: { userId: true, timestamp: true },
+  });
+  const lastLoginByUserId = new Map<string, Date>();
+  for (const log of loginLogs) {
+    if (log.userId && !lastLoginByUserId.has(log.userId)) lastLoginByUserId.set(log.userId, log.timestamp);
+  }
+
+  return profiles.map((p) => ({
+    ...serializeProfile(p),
+    lastLoginAt: lastLoginByUserId.get(p.id)?.toISOString() ?? null,
+  }));
+}
+
+export async function deleteStaffAccount(profileId: string, actorId: string) {
+  if (profileId === actorId) throw new HttpError(400, "Vous ne pouvez pas supprimer votre propre compte");
+
+  const profile = await prisma.profile.findUnique({ where: { id: profileId }, include: { role: true } });
+  if (!profile) throw new HttpError(404, "Compte introuvable");
+  if (profile.role.key === "hacker" || profile.role.key === "entreprise") {
+    throw new HttpError(400, "Utilisez /api/hackers ou /api/entreprises pour ce type de compte");
+  }
+
+  await prisma.profile.delete({ where: { id: profileId } });
+  await supabaseAdmin.auth.admin.deleteUser(profileId);
 
   await createPlatformLog({
     type: "security",
-    level: "info",
-    message: `Compte staff créé pour le rôle "${input.label}" (${input.email})`,
+    level: "warning",
+    message: `Compte staff "${profile.email}" supprimé`,
     source: "rolesService",
-    userId: profile.id,
+    userId: actorId,
   });
-
-  return { role: serializeRole(role), profile: serializeProfile(profile), emailSent, emailError };
 }
 
 export async function updateRolePermissions(roleId: string, permissionKeys: string[]) {

@@ -193,3 +193,123 @@ describe("Roles & permissions", () => {
     expect(untouched.email).toBe(existing.email);
   });
 });
+
+describe("Adding a second account to an existing role", () => {
+  it("provisions a new account under an already-existing role, without creating a new role", async () => {
+    const admin = await createTestUser("admin");
+    const createRes = await request(app)
+      .post("/api/roles")
+      .set("Authorization", admin.authHeader)
+      .send(newRoleProvisioningBody({ label: `Finance Squad ${randomUUID()}`, permissionKeys: ["payouts.create"] }));
+    const roleId = createRes.body.role.id;
+
+    const rolesBefore = await request(app).get("/api/roles").set("Authorization", admin.authHeader);
+    const countBefore = rolesBefore.body.roles.length;
+
+    const addRes = await request(app)
+      .post(`/api/roles/${roleId}/accounts`)
+      .set("Authorization", admin.authHeader)
+      .send({ name: "Deuxième Personne", email: `second-${randomUUID()}@example.com`, password: "MotDePasse123!" });
+    expect(addRes.status).toBe(201);
+    expect(addRes.body.profile.role).toBe(createRes.body.role.key);
+    expect(addRes.body.emailSent).toBe(false);
+
+    const rolesAfter = await request(app).get("/api/roles").set("Authorization", admin.authHeader);
+    expect(rolesAfter.body.roles.length).toBe(countBefore);
+  });
+
+  it("404s adding an account to an unknown role", async () => {
+    const admin = await createTestUser("admin");
+    const res = await request(app)
+      .post("/api/roles/00000000-0000-0000-0000-000000000000/accounts")
+      .set("Authorization", admin.authHeader)
+      .send({ name: "Xavier Test", email: `x-${randomUUID()}@example.com`, password: "MotDePasse123!" });
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects without roles.manage", async () => {
+    const hacker = await createTestUser("hacker");
+    const res = await request(app)
+      .post("/api/roles/00000000-0000-0000-0000-000000000000/accounts")
+      .set("Authorization", hacker.authHeader)
+      .send({ name: "Xavier Test", email: `x-${randomUUID()}@example.com`, password: "MotDePasse123!" });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("Listing staff accounts", () => {
+  it("only lists non-hacker/entreprise profiles, and reflects a real last-login timestamp", async () => {
+    const admin = await createTestUser("admin");
+    const support = await createTestUser("support");
+    const hacker = await createTestUser("hacker");
+
+    // Simulate a real login being logged (same shape auth.routes.ts writes).
+    const { createPlatformLog } = await import("../src/services/platformLogs/logsService.js");
+    await createPlatformLog({
+      type: "security",
+      level: "info",
+      message: `Connexion réussie (${support.email})`,
+      source: "auth.routes",
+      userId: support.id,
+    });
+
+    const res = await request(app).get("/api/roles/accounts").set("Authorization", admin.authHeader);
+    expect(res.status).toBe(200);
+    const ids = res.body.accounts.map((a: { id: string }) => a.id);
+    expect(ids).toContain(support.id);
+    expect(ids).not.toContain(hacker.id);
+
+    const supportAccount = res.body.accounts.find((a: { id: string }) => a.id === support.id);
+    expect(supportAccount.lastLoginAt).toBeTruthy();
+
+    const adminAccount = res.body.accounts.find((a: { id: string }) => a.id === admin.id);
+    expect(adminAccount.lastLoginAt).toBeNull();
+  });
+
+  it("rejects without roles.manage", async () => {
+    const hacker = await createTestUser("hacker");
+    const res = await request(app).get("/api/roles/accounts").set("Authorization", hacker.authHeader);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("Deleting a staff account", () => {
+  it("deletes a staff account", async () => {
+    const admin = await createTestUser("admin");
+    const support = await createTestUser("support");
+
+    const res = await request(app).delete(`/api/roles/accounts/${support.id}`).set("Authorization", admin.authHeader);
+    expect(res.status).toBe(204);
+
+    const accountsRes = await request(app).get("/api/roles/accounts").set("Authorization", admin.authHeader);
+    expect(accountsRes.body.accounts.some((a: { id: string }) => a.id === support.id)).toBe(false);
+  });
+
+  it("refuses to delete your own account", async () => {
+    const admin = await createTestUser("admin");
+    const res = await request(app).delete(`/api/roles/accounts/${admin.id}`).set("Authorization", admin.authHeader);
+    expect(res.status).toBe(400);
+  });
+
+  it("refuses to delete a hacker/entreprise account through this route", async () => {
+    const admin = await createTestUser("admin");
+    const hacker = await createTestUser("hacker");
+    const res = await request(app).delete(`/api/roles/accounts/${hacker.id}`).set("Authorization", admin.authHeader);
+    expect(res.status).toBe(400);
+  });
+
+  it("404s deleting an unknown account", async () => {
+    const admin = await createTestUser("admin");
+    const res = await request(app)
+      .delete("/api/roles/accounts/00000000-0000-0000-0000-000000000000")
+      .set("Authorization", admin.authHeader);
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects without roles.manage", async () => {
+    const hacker = await createTestUser("hacker");
+    const support = await createTestUser("support");
+    const res = await request(app).delete(`/api/roles/accounts/${support.id}`).set("Authorization", hacker.authHeader);
+    expect(res.status).toBe(403);
+  });
+});

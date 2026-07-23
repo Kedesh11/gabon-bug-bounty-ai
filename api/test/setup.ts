@@ -25,6 +25,10 @@ process.env.CINETPAY_SITE_ID ||= "test-site-id";
 process.env.CINETPAY_TRANSFER_LOGIN ||= "test-login";
 process.env.CINETPAY_TRANSFER_PASSWORD ||= "test-password";
 process.env.STRIPE_WEBHOOK_SECRET ||= "whsec_test";
+// Force-disabled even if the developer's own api/.env has a real Resend key —
+// tests must never make a real network call. mailer.ts short-circuits cleanly
+// (sent:false) when this is empty, which is exactly what tests assert on.
+process.env.RESEND_API_KEY = "";
 
 // Auth is tested against Supabase's local stack in the "verification" step of the
 // roadmap item, but unit/integration tests here don't need a live GoTrue instance:

@@ -6,29 +6,39 @@ import { Label } from "@/components/ui/label";
 import { TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TEAM_MEMBERS } from "./useTeamMembers";
 import type { useTeamMembers } from "./useTeamMembers";
 import { useContent } from "@/hooks/api/content";
 
 type TeamMembersState = ReturnType<typeof useTeamMembers>;
 
+function formatLastLogin(lastLoginAt: string | null): string {
+  if (!lastLoginAt) return "Jamais connecté";
+  return `Dernière connexion : ${new Date(lastLoginAt).toLocaleString("fr-FR")}`;
+}
+
 export function TeamTab({
+  accounts,
+  roles,
   isAddMemberOpen,
   setIsAddMemberOpen,
   newMemberName,
   setNewMemberName,
   newMemberEmail,
   setNewMemberEmail,
-  newMemberRole,
-  setNewMemberRole,
+  newMemberPassword,
+  setNewMemberPassword,
+  newMemberRoleId,
+  setNewMemberRoleId,
   handleAddMember,
+  handleDeleteMember,
+  isAdding,
 }: TeamMembersState) {
   const heading = useContent("admin.parametres.team.heading", "Administrateurs du Système");
   const inviteDialogTitle = useContent("admin.parametres.team.invite-dialog.title", "Nouveau Membre");
   const inviteDialogDescription = useContent("admin.parametres.team.invite-dialog.description", "Invitez un nouvel administrateur à rejoindre l'équipe de gestion.");
   const invite2faHelp = useContent(
     "admin.parametres.team.invite-2fa-help",
-    "Le nouveau membre recevra une invitation par email pour configurer son mot de passe et son authentification 2FA.",
+    "Le nouveau membre recevra un email avec son mot de passe pour se connecter.",
   );
   return (
     <TabsContent value="team" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -74,16 +84,24 @@ export function TeamTab({
                   </div>
                 </div>
                 <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Mot de passe par défaut</Label>
+                  <Input
+                    placeholder="Min. 8 caractères"
+                    value={newMemberPassword}
+                    onChange={(e) => setNewMemberPassword(e.target.value)}
+                    className="h-12 bg-secondary/50 border-border"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Rôle & Permissions</Label>
-                  <Select value={newMemberRole} onValueChange={setNewMemberRole}>
+                  <Select value={newMemberRoleId} onValueChange={setNewMemberRoleId}>
                     <SelectTrigger className="h-12 bg-secondary/50 border-border font-bold">
                       <SelectValue placeholder="Sélectionner un rôle" />
                     </SelectTrigger>
                     <SelectContent className="glass-card border-border">
-                      <SelectItem value="superadmin" className="font-bold">Super Administrateur</SelectItem>
-                      <SelectItem value="triage" className="font-bold">Triage Lead</SelectItem>
-                      <SelectItem value="finance" className="font-bold">Gestionnaire Finances</SelectItem>
-                      <SelectItem value="support" className="font-bold">Support Technique</SelectItem>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id} className="font-bold">{role.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -96,36 +114,39 @@ export function TeamTab({
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddMemberOpen(false)} className="font-bold h-12">ANNULER</Button>
-                <Button onClick={handleAddMember} className="bg-primary text-primary-foreground font-bold gap-2 px-8 h-12">
-                  ENVOYER L'INVITATION
+                <Button onClick={handleAddMember} disabled={isAdding} className="bg-primary text-primary-foreground font-bold gap-2 px-8 h-12">
+                  AJOUTER
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
         <div className="divide-y divide-border">
-          {TEAM_MEMBERS.map((member, i) => (
-            <div key={i} className="p-6 flex items-center justify-between hover:bg-secondary/20 transition-colors">
+          {accounts.map((account) => (
+            <div key={account.id} className="p-6 flex items-center justify-between hover:bg-secondary/20 transition-colors">
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                  {member.name[0]}
+                  {account.name[0]}
                 </div>
                 <div>
-                  <p className="font-bold">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
+                  <p className="font-bold">{account.name}</p>
+                  <p className="text-xs text-muted-foreground">{account.email}</p>
                 </div>
               </div>
               <div className="flex items-center gap-8">
                 <div className="text-right">
-                  <Badge variant="outline" className="font-black text-[10px] uppercase">{member.role}</Badge>
-                  <p className="text-[10px] text-muted-foreground mt-1">Actif: {member.lastActive}</p>
+                  <Badge variant="outline" className="font-black text-[10px] uppercase">{account.roleLabel}</Badge>
+                  <p className="text-[10px] text-muted-foreground mt-1">{formatLastLogin(account.lastLoginAt)}</p>
                 </div>
-                <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive">
+                <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => handleDeleteMember(account.id)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </div>
           ))}
+          {accounts.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">Aucun compte staff pour le moment.</p>
+          )}
         </div>
       </div>
     </TabsContent>
