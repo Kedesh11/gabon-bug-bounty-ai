@@ -1,15 +1,18 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ProgrammeStatus, ProgrammeType, RewardCurrency, SafeHarbor, Severity, TestingPeriod } from "@prisma/client";
+import { ProgrammeStatus, ProgrammeType, ProgrammeValidationStatus, RewardCurrency, SafeHarbor, Severity, TestingPeriod } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import {
   listProgrammes,
+  listMyProgrammes,
+  listProgrammesForReview,
   getProgrammeById,
   createProgramme,
   updateProgramme,
   deleteProgramme,
+  validateProgramme,
 } from "../services/programmes/programmesService.js";
 
 export const programmesRouter = Router();
@@ -57,6 +60,30 @@ programmesRouter.get(
   }),
 );
 
+// An entreprise's own programmes, every validation status included (the public list
+// above only ever returns "valide" ones) — must be declared before "/:id" below.
+programmesRouter.get(
+  "/mine",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const programmes = await listMyProgrammes(req.user!.id);
+    res.json({ programmes });
+  }),
+);
+
+const reviewQuerySchema = z.object({ validationStatus: z.nativeEnum(ProgrammeValidationStatus).optional() });
+
+programmesRouter.get(
+  "/review",
+  requireAuth,
+  requirePermission("programmes.validate"),
+  asyncHandler(async (req, res) => {
+    const query = reviewQuerySchema.parse(req.query);
+    const programmes = await listProgrammesForReview(query);
+    res.json({ programmes });
+  }),
+);
+
 programmesRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
@@ -94,5 +121,21 @@ programmesRouter.delete(
   asyncHandler(async (req, res) => {
     await deleteProgramme(req.params.id);
     res.status(204).send();
+  }),
+);
+
+const validationSchema = z.object({
+  decision: z.enum(["valide", "refuse"]),
+  rejectionReason: z.string().optional(),
+});
+
+programmesRouter.patch(
+  "/:id/validation",
+  requireAuth,
+  requirePermission("programmes.validate"),
+  asyncHandler(async (req, res) => {
+    const body = validationSchema.parse(req.body);
+    const programme = await validateProgramme(req.params.id, req.user!.id, body);
+    res.json({ programme });
   }),
 );

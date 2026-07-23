@@ -1,9 +1,18 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useParams, useNavigate } from "react-router-dom";
-import { useHackers, useUpdateHacker } from "@/hooks/api/hackers";
-import { useEntreprises, useUpdateEntreprise } from "@/hooks/api/entreprises";
+import { useHackers, useUpdateHacker, useDeleteHacker } from "@/hooks/api/hackers";
+import { useEntreprises, useUpdateEntreprise, useDeleteEntreprise } from "@/hooks/api/entreprises";
+import { useReports } from "@/hooks/api/reports";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useLogs } from "@/hooks/api/logs";
+import { useKycDocuments, useReviewKycDocument, type KycDocumentType, type KycDocumentStatus } from "@/hooks/api/kyc";
+
+const KYC_TYPE_LABELS: Record<KycDocumentType, string> = {
+  passeport_recto: "Passeport (Recto)",
+  passeport_verso: "Passeport (Verso)",
+  justificatif_domicile: "Justificatif de domicile",
+  photo_identite: "Photo d'identité",
+};
 import {
   Mail,
   ShieldCheck,
@@ -15,11 +24,8 @@ import {
   Trash2,
   ChevronLeft,
   Calendar,
-  Globe,
   Award,
   Zap,
-  Info,
-  MessageSquare,
   Lock
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +49,8 @@ export default function AdminUserDetail() {
   const { data: entreprises = [] } = useEntreprises();
   const updateHacker = useUpdateHacker();
   const updateEntreprise = useUpdateEntreprise();
+  const deleteHacker = useDeleteHacker();
+  const deleteEntreprise = useDeleteEntreprise();
 
   const hacker = hackers.find(h => h.id === id);
   const entreprise = entreprises.find(e => e.id === id);
@@ -51,6 +59,9 @@ export default function AdminUserDetail() {
   // EntrepriseProfile id in the route param — PlatformLog.userId always references
   // Profile. Called before the early return below to respect the rules of hooks.
   const { data: logs = [] } = useLogs({ userId: userData?.profileId });
+  const { data: kycDocuments = [] } = useKycDocuments({ subjectId: userData?.profileId });
+  const reviewKyc = useReviewKycDocument();
+  const { data: allReports = [] } = useReports();
 
   if (!userData) {
     return (
@@ -67,6 +78,26 @@ export default function AdminUserDetail() {
   }
 
   const isHacker = !!hacker;
+
+  const kycLabel =
+    kycDocuments.length === 0
+      ? "KYC NON SOUMIS"
+      : kycDocuments.every((d) => d.status === "valide")
+        ? "KYC VÉRIFIÉ"
+        : "KYC EN ATTENTE";
+
+  const userReports = allReports
+    .filter((r) => (isHacker ? r.hackerId === userData.id : r.entrepriseId === userData.id))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const handleDelete = () => {
+    const onSettled = {
+      onSuccess: () => { toast.success("Compte supprimé"); navigate(-1); },
+      onError: (err: unknown) => toast.error(apiErrorMessage(err)),
+    };
+    if (isHacker) deleteHacker.mutate(userData.id, onSettled);
+    else deleteEntreprise.mutate(userData.id, onSettled);
+  };
 
   return (
     <DashboardLayout>
@@ -98,7 +129,7 @@ export default function AdminUserDetail() {
                     </p>
                  </div>
                  <div className="flex flex-wrap justify-center gap-2">
-                    <Badge className="bg-blue-600/10 text-blue-600 border-none px-3 py-1 text-[10px] font-black uppercase">KYC VÉRIFIÉ</Badge>
+                    <Badge className="bg-blue-600/10 text-blue-600 border-none px-3 py-1 text-[10px] font-black uppercase">{kycLabel}</Badge>
                     <Badge className={`px-3 py-1 text-[10px] font-black uppercase ${
                        userData.status === 'actif' ? 'bg-green-500/10 text-green-500' : 'bg-destructive/10 text-destructive'
                     }`}>{userData.status}</Badge>
@@ -107,15 +138,11 @@ export default function AdminUserDetail() {
 
               <div className="space-y-4 pt-6 border-t border-border">
                  <DetailItem icon={<Mail className="w-4 h-4" />} label="Email" value={userData.email} />
-                 <DetailItem icon={<Calendar className="w-4 h-4" />} label="Membre depuis" value="Janvier 2024" />
-                 <DetailItem icon={<Globe className="w-4 h-4" />} label="Pays" value="Gabon" />
+                 <DetailItem icon={<Calendar className="w-4 h-4" />} label="Membre depuis" value={new Date(userData.joinedAt).toLocaleDateString("fr-FR", { year: "numeric", month: "long" })} />
                  <DetailItem icon={<Award className="w-4 h-4" />} label="ID Unique" value={userData.id} />
               </div>
 
               <div className="pt-6 space-y-3">
-                 <Button className="w-full h-12 rounded-2xl bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-600/20">
-                    <MessageSquare className="w-4 h-4 mr-2" /> ENVOYER UN MESSAGE
-                 </Button>
                  <div className="grid grid-cols-2 gap-3">
                     <Button variant="outline" className="h-12 rounded-2xl border-border font-black text-[10px] uppercase" onClick={() => {
                        const newStatus = userData.status === 'actif' ? 'suspendu' : 'actif';
@@ -128,7 +155,7 @@ export default function AdminUserDetail() {
                     }}>
                        <Ban className="w-4 h-4 mr-2" /> {userData.status === 'actif' ? 'SUSPENDRE' : 'ACTIVER'}
                     </Button>
-                    <Button variant="outline" className="h-12 rounded-2xl border-border font-black text-[10px] uppercase text-destructive hover:bg-destructive hover:text-white transition-all">
+                    <Button variant="outline" className="h-12 rounded-2xl border-border font-black text-[10px] uppercase text-destructive hover:bg-destructive hover:text-white transition-all" onClick={handleDelete}>
                        <Trash2 className="w-4 h-4 mr-2" /> SUPPRIMER
                     </Button>
                  </div>
@@ -139,8 +166,8 @@ export default function AdminUserDetail() {
               {/* Top Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <StatWidget icon={<Zap className="w-5 h-5" />} label={isHacker ? "Score de Réputation" : "Programmes Actifs"} value={isHacker ? hacker.reputation.toString() : entreprise.programmesCount.toString()} color="blue" />
-                 <StatWidget icon={<DollarSign className="w-5 h-5" />} label="Total Gains/Investi" value={isHacker ? "850K FCFA" : (entreprise.totalPaid/1000).toFixed(0) + "K FCFA"} color="green" />
-                 <StatWidget icon={<Award className="w-5 h-5" />} label={isHacker ? "Bugs Corrigés" : "Rapports Reçus"} value={isHacker ? hacker.bugsFound.toString() : "42"} color="purple" />
+                 <StatWidget icon={<DollarSign className="w-5 h-5" />} label="Total Gains/Investi" value={isHacker ? (hacker.totalRewards / 1000).toFixed(0) + "K FCFA" : (entreprise.totalPaid/1000).toFixed(0) + "K FCFA"} color="green" />
+                 <StatWidget icon={<Award className="w-5 h-5" />} label={isHacker ? "Bugs Corrigés" : "Rapports Reçus"} value={isHacker ? hacker.bugsFound.toString() : userReports.length.toString()} color="purple" />
               </div>
 
               <Tabs defaultValue="activity" className="space-y-6">
@@ -160,31 +187,56 @@ export default function AdminUserDetail() {
                     <Card className="glass-card rounded-[32px] border-border overflow-hidden p-8 space-y-6">
                        <h3 className="text-xl font-black tracking-tight">{recentReportsHeading}</h3>
                        <div className="space-y-4">
-                          {[1, 2, 3].map(i => (
-                             <div key={i} className="p-5 rounded-3xl bg-secondary/20 border border-border flex items-center justify-between group hover:border-blue-500/30 transition-all">
+                          {userReports.slice(0, 5).map(report => (
+                             <div key={report.id} className="p-5 rounded-3xl bg-secondary/20 border border-border flex items-center justify-between group hover:border-blue-500/30 transition-all">
                                 <div className="flex items-center gap-4">
                                    <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                                       <FileText className="w-5 h-5" />
                                    </div>
                                    <div>
-                                      <p className="text-sm font-bold">Vulnérabilité SQLi sur l'endpoint /v1/auth</p>
-                                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">PROGRAMME: SEEG GABON • IL Y A 3 JOURS</p>
+                                      <p className="text-sm font-bold">{report.title}</p>
+                                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
+                                         PROGRAMME: {report.programmeName} • {new Date(report.createdAt).toLocaleDateString("fr-FR")}
+                                      </p>
                                    </div>
                                 </div>
-                                <Badge className="bg-orange-500 text-white text-[8px] font-black">CRITIQUE</Badge>
+                                <Badge className="bg-orange-500 text-white text-[8px] font-black uppercase">{report.severity}</Badge>
                              </div>
                           ))}
+                          {userReports.length === 0 && (
+                             <p className="text-sm text-muted-foreground text-center py-4">Aucun rapport pour le moment.</p>
+                          )}
                        </div>
-                       <Button variant="ghost" className="w-full text-blue-500 font-black text-[10px] uppercase tracking-widest">Voir tout l'historique</Button>
+                       <Button
+                          variant="ghost"
+                          className="w-full text-blue-500 font-black text-[10px] uppercase tracking-widest"
+                          onClick={() => navigate(isHacker ? `/admin/rapports?search=${encodeURIComponent(userData.name)}` : "/admin/rapports")}
+                       >
+                          Voir tout l'historique
+                       </Button>
                     </Card>
                  </TabsContent>
 
                  <TabsContent value="kyc">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <KycDocCard label="Passeport (Recto)" status="validé" />
-                       <KycDocCard label="Passeport (Verso)" status="validé" />
-                       <KycDocCard label="Justificatif de domicile" status="en_cours" />
-                       <KycDocCard label="Photo d'identité" status="validé" />
+                       {kycDocuments.map((doc) => (
+                          <KycDocCard
+                             key={doc.id}
+                             label={KYC_TYPE_LABELS[doc.type]}
+                             status={doc.status}
+                             onApprove={() => reviewKyc.mutate({ id: doc.id, status: "valide" }, {
+                                onSuccess: () => toast.success("Document approuvé"),
+                                onError: (err) => toast.error(apiErrorMessage(err)),
+                             })}
+                             onReject={() => reviewKyc.mutate({ id: doc.id, status: "rejete" }, {
+                                onSuccess: () => toast.error("Document rejeté"),
+                                onError: (err) => toast.error(apiErrorMessage(err)),
+                             })}
+                          />
+                       ))}
+                       {kycDocuments.length === 0 && (
+                          <p className="text-sm text-muted-foreground col-span-full text-center py-8">Aucun document soumis.</p>
+                       )}
                     </div>
                  </TabsContent>
 
@@ -251,24 +303,27 @@ function StatWidget({ icon, label, value, color }: { icon: React.ReactNode, labe
   );
 }
 
-function KycDocCard({ label, status }: { label: string, status: 'validé' | 'rejeté' | 'en_cours' }) {
+function KycDocCard({ label, status, onApprove, onReject }: { label: string, status: KycDocumentStatus, onApprove: () => void, onReject: () => void }) {
   return (
-    <Card className="p-6 rounded-[32px] border-border bg-secondary/10 space-y-4 group hover:border-blue-500/30 transition-all cursor-pointer">
+    <Card className="p-6 rounded-[32px] border-border bg-secondary/10 space-y-4 group hover:border-blue-500/30 transition-all">
        <div className="flex justify-between items-start">
           <div className="h-12 w-12 rounded-2xl bg-background border border-border flex items-center justify-center text-muted-foreground group-hover:text-blue-500 transition-colors">
              <FileText className="w-6 h-6" />
           </div>
           <Badge className={`text-[8px] font-black uppercase ${
-             status === 'validé' ? 'bg-green-500 text-white' : 
-             status === 'rejeté' ? 'bg-destructive text-white' : 'bg-orange-500 text-white'
+             status === 'valide' ? 'bg-green-500 text-white' :
+             status === 'rejete' ? 'bg-destructive text-white' : 'bg-orange-500 text-white'
           }`}>{status}</Badge>
        </div>
        <div>
           <p className="text-sm font-black">{label}</p>
-          <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1 mt-1">
-             <Info className="w-3 h-3" /> Cliquez pour prévisualiser
-          </p>
        </div>
+       {status === 'en_attente' && (
+          <div className="flex gap-2">
+             <Button size="sm" className="flex-1 h-9 rounded-xl bg-green-500 hover:bg-green-600 text-white text-[10px] font-black uppercase" onClick={onApprove}>Approuver</Button>
+             <Button size="sm" variant="outline" className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase text-destructive border-border" onClick={onReject}>Rejeter</Button>
+          </div>
+       )}
     </Card>
   );
 }

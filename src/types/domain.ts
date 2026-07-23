@@ -114,6 +114,11 @@ export interface Programme {
   resolutionDays?: number;
   isNew?: boolean;
   status: "actif" | "pause" | "fermé";
+  // Moderation gate a staff member with programmes.validate must clear before a
+  // submitted programme is publicly visible — distinct from `status` above.
+  validationStatus: "en_attente" | "valide" | "refuse";
+  rejectionReason?: string | null;
+  validatedAt?: string | null;
   createdAt: string;
   reportsCount: number;
 }

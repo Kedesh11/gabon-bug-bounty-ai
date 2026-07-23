@@ -144,3 +144,25 @@ describe("POST /api/payouts/reports/:id", () => {
     expect(second.status).toBe(409);
   });
 });
+
+describe("GET /api/payouts — finance transaction ledger", () => {
+  it("rejects a caller without dashboard.finance.view", async () => {
+    const hacker = await createTestUser("hacker");
+    const res = await request(app).get("/api/payouts").set("Authorization", hacker.authHeader);
+    expect(res.status).toBe(403);
+  });
+
+  it("lets finance list real payouts with report/programme names attached", async () => {
+    const finance = await createTestUser("finance");
+    const { hackerProfile, report } = await createAcceptedReport(150000);
+    await prisma.payout.create({
+      data: { reportId: report.id, hackerId: hackerProfile.id, provider: "cinetpay", status: "succeeded", amount: 150000, currency: "XAF", providerRef: "tr_test" },
+    });
+
+    const res = await request(app).get("/api/payouts").set("Authorization", finance.authHeader);
+    expect(res.status).toBe(200);
+    const match = res.body.payouts.find((p: { reportId: string }) => p.reportId === report.id);
+    expect(match).toBeTruthy();
+    expect(match.report.programme.name).toBeTruthy();
+  });
+});

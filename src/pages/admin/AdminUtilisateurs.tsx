@@ -13,7 +13,6 @@ import {
   FileText,
   User,
   Building2,
-  Eye,
   Check,
   X
 } from "lucide-react";
@@ -23,6 +22,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useContent } from "@/hooks/api/content";
+import { useKycDocuments, useReviewKycDocument, type KycDocumentType } from "@/hooks/api/kyc";
+
+const KYC_TYPE_LABELS: Record<KycDocumentType, string> = {
+  passeport_recto: "Passeport (Recto)",
+  passeport_verso: "Passeport (Verso)",
+  justificatif_domicile: "Justificatif de domicile",
+  photo_identite: "Photo d'identité",
+};
 
 export default function AdminUtilisateurs() {
   const pageTitle = useContent("admin.utilisateurs.title", "Gestion des Utilisateurs");
@@ -41,11 +48,8 @@ export default function AdminUtilisateurs() {
   const filteredHackers = useMemo(() => hackers.filter(h => h.name.toLowerCase().includes(search.toLowerCase()) || h.email.toLowerCase().includes(search.toLowerCase())), [hackers, search]);
   const filteredEntreprises = useMemo(() => entreprises.filter(entreprise => entreprise.name.toLowerCase().includes(search.toLowerCase()) || entreprise.email.toLowerCase().includes(search.toLowerCase())), [entreprises, search]);
   
-  const kycRequests = useMemo(() => [
-    { id: "kyc-1", user: "CyberPanther", userId: "hacker-1", type: "Passeport", status: "en_attente", date: "2024-07-20" },
-    { id: "kyc-2", user: "Gh0stNet", userId: "hacker-2", type: "CNI Gabon", status: "en_attente", date: "2024-07-21" },
-    { id: "kyc-3", user: "Hacker_Z", userId: "hacker-3", type: "Permis", status: "rejeté", date: "2024-07-19" },
-  ], []);
+  const { data: kycDocuments = [] } = useKycDocuments({ status: "en_attente" });
+  const reviewKyc = useReviewKycDocument();
 
   return (
     <DashboardLayout>
@@ -79,8 +83,8 @@ export default function AdminUtilisateurs() {
               <Building2 className="w-4 h-4 mr-2" /> Entreprises ({entreprises.length})
             </TabsTrigger>
             <TabsTrigger value="kyc" className="rounded-xl px-8 font-black uppercase text-[10px] data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              <ShieldCheck className="w-4 h-4 mr-2" /> Demandes KYC 
-              <Badge className="ml-2 bg-destructive/10 text-destructive border-none h-4 px-1 text-[8px]">2</Badge>
+              <ShieldCheck className="w-4 h-4 mr-2" /> Demandes KYC
+              <Badge className="ml-2 bg-destructive/10 text-destructive border-none h-4 px-1 text-[8px]">{kycDocuments.length}</Badge>
             </TabsTrigger>
           </TabsList>
 
@@ -190,31 +194,48 @@ export default function AdminUtilisateurs() {
                 <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-blue-500" /> {kycHeading}
                 </h3>
-                <Badge className="bg-orange-500/10 text-orange-500 border-none font-black text-[10px]">2 EN ATTENTE</Badge>
+                <Badge className="bg-orange-500/10 text-orange-500 border-none font-black text-[10px]">{kycDocuments.length} EN ATTENTE</Badge>
               </div>
               <div className="divide-y divide-border">
-                {kycRequests.map((req) => (
-                  <div key={req.id} className="p-6 flex items-center justify-between hover:bg-secondary/40 transition-all group border-l-4 border-l-transparent hover:border-l-blue-500 cursor-pointer" onClick={() => navigate(`/admin/utilisateurs/${req.userId}`)}>
+                {kycDocuments.map((doc) => {
+                  const hackerMatch = hackers.find((h) => h.profileId === doc.subjectId);
+                  const targetPath = hackerMatch ? `/admin/utilisateurs/${hackerMatch.id}` : undefined;
+                  return (
+                  <div key={doc.id} className={`p-6 flex items-center justify-between hover:bg-secondary/40 transition-all group border-l-4 border-l-transparent hover:border-l-blue-500 ${targetPath ? "cursor-pointer" : ""}`} onClick={() => targetPath && navigate(targetPath)}>
                     <div className="flex items-center gap-5">
                       <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center">
                         <FileText className="w-6 h-6 text-muted-foreground" />
                       </div>
                       <div>
                         <div className="flex items-center gap-3">
-                          <p className="text-sm font-black">{req.user}</p>
-                          <Badge variant="outline" className="text-[8px] font-black uppercase border-border">{req.type}</Badge>
+                          <p className="text-sm font-black">{doc.subject.name}</p>
+                          <Badge variant="outline" className="text-[8px] font-black uppercase border-border">{KYC_TYPE_LABELS[doc.type]}</Badge>
                         </div>
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-1 italic">Soumis le {req.date}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-1 italic">Soumis le {new Date(doc.createdAt).toLocaleDateString("fr-FR")}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Button variant="outline" size="sm" className="rounded-xl h-10 text-[10px] font-black uppercase border-border gap-2 group-hover:bg-blue-600 group-hover:text-white transition-all"><Eye className="w-4 h-4" /> ANALYSER DOSSIER</Button>
-                      <div className="h-8 w-[1px] bg-border mx-2" />
-                      <Button className="h-10 w-10 rounded-xl bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20" onClick={(e) => { e.stopPropagation(); toast.success("KYC Approuvé"); }}><Check className="w-5 h-5" /></Button>
-                      <Button className="h-10 w-10 rounded-xl bg-destructive hover:bg-destructive/110 text-white shadow-lg shadow-destructive/20" onClick={(e) => { e.stopPropagation(); toast.error("KYC Rejeté"); }}><X className="w-5 h-5" /></Button>
+                      <Button className="h-10 w-10 rounded-xl bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20" onClick={(e) => {
+                        e.stopPropagation();
+                        reviewKyc.mutate({ id: doc.id, status: "valide" }, {
+                          onSuccess: () => toast.success("KYC Approuvé"),
+                          onError: (err) => toast.error(apiErrorMessage(err)),
+                        });
+                      }}><Check className="w-5 h-5" /></Button>
+                      <Button className="h-10 w-10 rounded-xl bg-destructive hover:bg-destructive/110 text-white shadow-lg shadow-destructive/20" onClick={(e) => {
+                        e.stopPropagation();
+                        reviewKyc.mutate({ id: doc.id, status: "rejete" }, {
+                          onSuccess: () => toast.error("KYC Rejeté"),
+                          onError: (err) => toast.error(apiErrorMessage(err)),
+                        });
+                      }}><X className="w-5 h-5" /></Button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
+                {kycDocuments.length === 0 && (
+                  <p className="p-8 text-sm text-muted-foreground text-center">Aucun document en attente de validation.</p>
+                )}
               </div>
             </Card>
           </TabsContent>

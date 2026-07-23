@@ -40,6 +40,9 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: "content.manage", label: "Administrer le contenu du site", description: "CRUD navbar/footer/contenu de page (POST/PATCH/DELETE /api/content/*)" },
   { key: "tickets.manage", label: "Gérer les tickets support", description: "Répondre, résoudre ou supprimer un ticket support (POST/PATCH/DELETE /api/tickets/*)" },
   { key: "kyc.review", label: "Examiner les documents KYC", description: "Approuver ou rejeter un document d'identité soumis (PATCH /api/kyc/documents/:id)" },
+  { key: "compliance.manage", label: "Gérer la checklist de conformité", description: "CRUD des éléments de conformité (POST/PATCH/DELETE /api/compliance/items)" },
+  { key: "kb.manage", label: "Gérer la base de connaissances", description: "CRUD des articles de la base de connaissances support (POST/PATCH/DELETE /api/kb/articles)" },
+  { key: "programmes.validate", label: "Valider les programmes", description: "Approuver ou refuser un programme soumis par une entreprise avant sa publication publique (PATCH /api/programmes/:id/validation)" },
 
   // View permissions (frontend pages/nav — admin side only)
   { key: "dashboard.admin.view", label: "Voir le tableau de bord admin", description: "/admin" },
@@ -65,10 +68,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   // Finance already had reports.triage via the old requireRole("admin","triage","finance")
   // even though /admin/rapports was never in finance's frontend nav — preserved as-is,
   // not "fixed", since this migration must not change existing behaviour.
-  finance: ["payouts.create", "reports.triage", "reports.view.all", "dashboard.finance.view", "settings.view"],
+  finance: ["payouts.create", "reports.triage", "reports.view.all", "dashboard.finance.view", "settings.view", "compliance.manage"],
   // Support had no reports.* action permission before, but canView() let it read any
   // report via the API (role === "support" was in its hardcoded allow-list) — preserved.
-  support: ["reports.view.all", "dashboard.support.view", "users.view", "logs.view", "support.tickets.view", "support.kb.view", "settings.view", "tickets.manage", "fraud.review", "kyc.review"],
+  support: ["reports.view.all", "dashboard.support.view", "users.view", "logs.view", "support.tickets.view", "support.kb.view", "settings.view", "tickets.manage", "fraud.review", "kyc.review", "kb.manage"],
 };
 
 export const SYSTEM_ROLE_KEYS = Object.keys(DEFAULT_ROLE_PERMISSIONS);

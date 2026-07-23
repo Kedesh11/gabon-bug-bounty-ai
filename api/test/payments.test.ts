@@ -106,3 +106,27 @@ describe("POST /api/payments/programmes/:id/fund", () => {
     expect(payments[0].status).toBe("failed");
   });
 });
+
+describe("GET /api/payments — finance transaction ledger", () => {
+  it("rejects a caller without dashboard.finance.view", async () => {
+    const hacker = await createTestUser("hacker");
+    const res = await request(app).get("/api/payments").set("Authorization", hacker.authHeader);
+    expect(res.status).toBe(403);
+  });
+
+  it("lets finance list real payments with programme/entreprise names attached", async () => {
+    const finance = await createTestUser("finance");
+    const entreprise = await createTestUser("entreprise");
+    const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
+    const programme = await createTestProgramme(entrepriseProfile.id);
+    await prisma.payment.create({
+      data: { programmeId: programme.id, entrepriseId: entrepriseProfile.id, provider: "stripe", status: "succeeded", amount: 300000, currency: "XAF", providerRef: "cs_test" },
+    });
+
+    const res = await request(app).get("/api/payments").set("Authorization", finance.authHeader);
+    expect(res.status).toBe(200);
+    const match = res.body.payments.find((p: { programmeId: string }) => p.programmeId === programme.id);
+    expect(match).toBeTruthy();
+    expect(match.programme.name).toBe(programme.name);
+  });
+});

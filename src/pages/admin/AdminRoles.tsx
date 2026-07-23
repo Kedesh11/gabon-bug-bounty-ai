@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Shield, Plus, Trash2, Pencil, Lock } from "lucide-react";
+import { Shield, Plus, Trash2, Pencil, Lock, Dices } from "lucide-react";
 import { usePermissionCatalog, useRoles, useCreateRole, useUpdateRolePermissions, useDeleteRole, type RoleDef } from "@/hooks/api/roles";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useContent } from "@/hooks/api/content";
@@ -46,16 +47,25 @@ function PermissionChecklist({
   );
 }
 
+function generateStrongPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+  return Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
 function CreateRoleDialog() {
   const dialogTitle = useContent("admin.roles.create-dialog.title", "Créer un rôle");
   const dialogDescription = useContent(
     "admin.roles.create-dialog.description",
-    "Un nouveau rôle peut recevoir n'importe quelle combinaison des permissions existantes — aucun déploiement requis.",
+    "Créer un rôle provisionne aussitôt son premier compte : la personne reçoit ses identifiants par email.",
   );
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
   const [permissionKeys, setPermissionKeys] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
   const createRole = useCreateRole();
 
   const togglePermission = (key: string) => {
@@ -66,7 +76,18 @@ function CreateRoleDialog() {
     setLabel("");
     setDescription("");
     setPermissionKeys([]);
+    setName("");
+    setEmail("");
+    setPassword("");
+    setMessage("");
   };
+
+  const canSubmit =
+    label.trim().length >= 2 &&
+    name.trim().length >= 2 &&
+    /\S+@\S+\.\S+/.test(email) &&
+    password.length >= 8 &&
+    !createRole.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
@@ -84,7 +105,7 @@ function CreateRoleDialog() {
             {dialogDescription}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
           <div className="space-y-2">
             <Label className="text-xs font-black uppercase tracking-widest">Nom du rôle</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex: Auditeur Conformité" className="bg-secondary/50" />
@@ -94,6 +115,27 @@ function CreateRoleDialog() {
             <Input value={description} onChange={(e) => setDescription(e.target.value)} className="bg-secondary/50" />
           </div>
           <div className="space-y-2">
+            <Label className="text-xs font-black uppercase tracking-widest">Nom complet de la personne</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Jean Mbadinga" className="bg-secondary/50" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-black uppercase tracking-widest">Email</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jean@bugbounty.ga" className="bg-secondary/50" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-black uppercase tracking-widest">Mot de passe par défaut</Label>
+            <div className="flex gap-2">
+              <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 caractères" className="bg-secondary/50" />
+              <Button type="button" variant="outline" className="shrink-0 gap-1" onClick={() => setPassword(generateStrongPassword())}>
+                <Dices className="w-4 h-4" /> Générer
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-black uppercase tracking-widest">Message (optionnel)</Label>
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message inclus dans l'email envoyé à la personne" className="bg-secondary/50" rows={3} />
+          </div>
+          <div className="space-y-2">
             <Label className="text-xs font-black uppercase tracking-widest">Permissions</Label>
             <PermissionChecklist selected={permissionKeys} onToggle={togglePermission} />
           </div>
@@ -101,13 +143,25 @@ function CreateRoleDialog() {
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} className="font-bold">ANNULER</Button>
           <Button
-            disabled={!label.trim() || createRole.isPending}
+            disabled={!canSubmit}
             onClick={() => {
               createRole.mutate(
-                { label: label.trim(), description: description.trim() || undefined, permissionKeys },
                 {
-                  onSuccess: () => {
-                    toast.success("Rôle créé");
+                  label: label.trim(),
+                  description: description.trim() || undefined,
+                  permissionKeys,
+                  name: name.trim(),
+                  email: email.trim(),
+                  password,
+                  message: message.trim() || undefined,
+                },
+                {
+                  onSuccess: (result) => {
+                    toast.success(
+                      result.emailSent
+                        ? "Rôle et compte créés, email envoyé"
+                        : "Rôle et compte créés, mais l'email n'a pas pu être envoyé — transmettez les identifiants manuellement",
+                    );
                     setOpen(false);
                     reset();
                   },

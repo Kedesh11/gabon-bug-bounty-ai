@@ -70,7 +70,13 @@ describe("Real actions produce a platform log", () => {
     const res = await request(app)
       .post("/api/roles")
       .set("Authorization", admin.authHeader)
-      .send({ label: `Role de test ${Date.now()}`, permissionKeys: [] });
+      .send({
+        label: `Role de test ${Date.now()}`,
+        permissionKeys: [],
+        name: "Personne Test",
+        email: `role-test-${Date.now()}@example.com`,
+        password: "MotDePasse123!",
+      });
     expect(res.status).toBe(201);
 
     const logs = await listPlatformLogs({ userId: admin.id, type: "security" });

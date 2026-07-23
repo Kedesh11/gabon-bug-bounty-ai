@@ -86,6 +86,9 @@ export interface ApiProgramme {
   resolutionDays?: number | null;
   isNew: boolean;
   status: string;
+  validationStatus: string;
+  rejectionReason?: string | null;
+  validatedAt?: string | null;
   createdAt: string;
   reportsCount: number;
   activities?: ApiActivity[];
@@ -164,6 +167,9 @@ export function mapProgramme(api: ApiProgramme): Programme {
     resolutionDays: api.resolutionDays ?? undefined,
     isNew: api.isNew,
     status: PROGRAMME_STATUS_FROM_API[api.status] ?? "actif",
+    validationStatus: (api.validationStatus as Programme["validationStatus"]) ?? "en_attente",
+    rejectionReason: api.rejectionReason ?? undefined,
+    validatedAt: api.validatedAt ?? undefined,
     createdAt: api.createdAt,
     reportsCount: api.reportsCount,
     recentActivity: api.activities?.map(mapActivity),

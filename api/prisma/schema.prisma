@@ -76,6 +76,9 @@ model Profile {
   ticketMessages       TicketMessage[] @relation("TicketMessageAuthor")
   kycDocuments         KycDocument[]   @relation("KycDocumentSubject")
   reviewedKycDocuments KycDocument[]   @relation("KycDocumentReviewedBy")
+  completedComplianceItems ComplianceItem[] @relation("ComplianceItemCompletedBy")
+  kbArticles               KbArticle[]      @relation("KbArticleAuthor")
+  validatedProgrammes      Programme[]      @relation("ProgrammeValidatedBy")
 
   @@map("profiles")
 }
@@ -240,6 +243,15 @@ enum ProgrammeStatus {
   ferme
 }
 
+// Distinct from ProgrammeStatus (actif/pause/ferme, an operational state the
+// entreprise itself controls): this is the moderation gate a staff member with
+// programmes.validate must clear before a submitted programme is publicly visible.
+enum ProgrammeValidationStatus {
+  en_attente
+  valide
+  refuse
+}
+
 enum ProgrammeType {
   public
   private
@@ -334,6 +346,13 @@ model Programme {
   isNew              Boolean        @default(false)
 
   status          ProgrammeStatus  @default(actif)
+
+  validationStatus ProgrammeValidationStatus @default(en_attente)
+  validatedById    String?                   @db.Uuid
+  validatedBy      Profile?                  @relation("ProgrammeValidatedBy", fields: [validatedById], references: [id])
+  validatedAt      DateTime?
+  rejectionReason  String?
+
   createdAt       DateTime         @default(now())
   reportsCount    Int              @default(0)
 
@@ -958,4 +977,49 @@ model KycDocument {
   updatedAt DateTime @updatedAt
 
   @@map("kyc_documents")
+}
+
+// ---------------------------------------------------------------------------
+// Finance compliance checklist — real replacement for FinanceDashboard.tsx's
+// static "Compliance Status" bullets (Phase D of the mock-data-to-real effort).
+// Finance/admin define items and check them off manually; nothing here is
+// computed automatically (unlike KYC/fraud, there's no real signal that maps
+// to "tax withholding applied" etc. — this is deliberately a plain checklist).
+// ---------------------------------------------------------------------------
+
+model ComplianceItem {
+  id     String  @id @default(uuid()) @db.Uuid
+  label  String
+  isDone Boolean @default(false)
+
+  completedById String?   @db.Uuid
+  completedBy   Profile?  @relation("ComplianceItemCompletedBy", fields: [completedById], references: [id])
+  completedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("compliance_items")
+}
+
+// ---------------------------------------------------------------------------
+// Support knowledge base — real replacement for the fully decorative
+// AdminKnowledgeBase.tsx mock (hardcoded categories/articles, dead search,
+// dead links). Category is a free-text field, same reasoning as
+// Ticket.category: informal groupings, not a closed taxonomy.
+// ---------------------------------------------------------------------------
+
+model KbArticle {
+  id       String @id @default(uuid()) @db.Uuid
+  title    String
+  category String
+  body     String
+
+  authorId String  @db.Uuid
+  author   Profile @relation("KbArticleAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kb_articles")
 }

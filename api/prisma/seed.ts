@@ -366,6 +366,94 @@ async function main() {
     },
   });
 
+  console.log("Seeding KYC documents...");
+  await prisma.kycDocument.create({
+    data: { type: "passeport_recto", status: "en_attente", fileName: "passeport-recto.jpg", subjectId: ids["hacker@bugbounty.com"] },
+  });
+  await prisma.kycDocument.create({
+    data: { type: "photo_identite", status: "en_attente", fileName: "selfie.jpg", subjectId: ids["ghost@mail.com"] },
+  });
+  await prisma.kycDocument.create({
+    data: {
+      type: "justificatif_domicile",
+      status: "rejete",
+      fileName: "facture.pdf",
+      subjectId: ids["hacker@bugbounty.com"],
+      reviewedById: ids["support@bugbounty.com"],
+      reviewedAt: new Date(),
+      reviewNote: "Document illisible, merci de resoumettre.",
+    },
+  });
+  await prisma.kycDocument.create({
+    data: {
+      type: "passeport_verso",
+      status: "valide",
+      fileName: "passeport-verso.jpg",
+      subjectId: ids["hacker@bugbounty.com"],
+      reviewedById: ids["support@bugbounty.com"],
+      reviewedAt: new Date(),
+    },
+  });
+
+  console.log("Seeding compliance checklist...");
+  await prisma.complianceItem.create({
+    data: {
+      label: "Vérifier les KYC des hackers avant tout versement > 500 000 XAF",
+      isDone: true,
+      completedById: ids["finance@bugbounty.com"],
+      completedAt: new Date("2024-07-01"),
+    },
+  });
+  await prisma.complianceItem.create({
+    data: { label: "Déclaration trimestrielle des flux financiers à la DGI", isDone: false },
+  });
+  await prisma.complianceItem.create({
+    data: { label: "Revue annuelle des contrats prestataires (Stripe, CinetPay)", isDone: false },
+  });
+
+  console.log("Seeding knowledge base articles...");
+  const kbAuthorId = ids["support@bugbounty.com"];
+  await prisma.kbArticle.create({
+    data: {
+      title: "Détermination de la sévérité CVSS v3.1",
+      category: "Protocoles",
+      authorId: kbAuthorId,
+      body: "Pour trier un rapport, calculez le score CVSS v3.1 à partir du vecteur fourni par le hacker (ou reconstruit à partir de la preuve de concept). Un score >= 9.0 correspond à \"critique\", 7.0-8.9 à \"haute\", 4.0-6.9 à \"moyenne\", en dessous à \"basse\". En cas de doute sur un des huit facteurs du vecteur, privilégiez l'hypothèse la plus défavorable pour l'entreprise et documentez votre raisonnement dans la note de triage.",
+    },
+  });
+  await prisma.kbArticle.create({
+    data: {
+      title: "Gestion des duplicatas et collisions",
+      category: "Triage",
+      authorId: kbAuthorId,
+      body: "Avant de trier un rapport, recherchez dans les rapports existants du même programme une vulnérabilité sur le même endpoint/paramètre. En cas de collision, le premier rapport soumis (par horodatage) reste éligible à récompense ; les suivants sont marqués comme duplicatas et notifiés au hacker avec une référence vers le rapport original.",
+    },
+  });
+  await prisma.kbArticle.create({
+    data: {
+      title: "Politique de paiement Moov/Airtel",
+      category: "Finance",
+      authorId: kbAuthorId,
+      body: "Les versements Mobile Money (Moov, Airtel) sont traités par CinetPay sous 24 à 48h ouvrées après validation du rapport. En cas de retard signalé par un hacker, vérifiez d'abord le statut du versement via /admin/finance avant de contacter le support technique de l'opérateur.",
+    },
+  });
+  await prisma.kbArticle.create({
+    data: {
+      title: "Comment gérer un chercheur mécontent ?",
+      category: "Médiation",
+      authorId: kbAuthorId,
+      body: "Restez factuel et référencez toujours la politique du programme concerné. Si le désaccord porte sur la sévérité ou la récompense, proposez une réévaluation par un second membre de l'équipe triage plutôt que de trancher seul. Escaladez à l'administrateur principal uniquement si le ton devient irrespectueux ou si un ticket reste sans accord après trois échanges.",
+    },
+  });
+  await prisma.kbArticle.create({
+    data: {
+      title: "Anatomie d'un rapport de qualité",
+      category: "Guides",
+      authorId: kbAuthorId,
+      body: "Un bon rapport contient : une description claire de la vulnérabilité, les étapes de reproduction numérotées, une preuve de concept (capture, requête HTTP ou script), l'impact métier réel, et une suggestion de correctif. Un rapport qui manque de preuve de concept doit être renvoyé au hacker avec une demande de complément avant tout triage.",
+    },
+  });
+
   console.log("Seeding system config...");
   await prisma.systemConfig.create({
     data: {

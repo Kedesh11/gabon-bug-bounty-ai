@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Edit2, ExternalLink, Plus, Save, Trash2, X } from "lucide-react";
 
 import DashboardLayout from "@/components/DashboardLayout";
-import { useProgrammes, useCreateProgramme, useUpdateProgramme, useDeleteProgramme } from "@/hooks/api/programmes";
-import { useAuth } from "@/contexts/useAuth";
+import { useMyProgrammes, useCreateProgramme, useUpdateProgramme, useDeleteProgramme } from "@/hooks/api/programmes";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,12 +93,17 @@ const statusBadgeClass = (status: Programme["status"]) => {
   return "bg-destructive/20 text-destructive";
 };
 
+const validationBadge = (status: Programme["validationStatus"]) => {
+  if (status === "valide") return { label: "Validé", className: "bg-primary/20 text-primary" };
+  if (status === "refuse") return { label: "Refusé", className: "bg-destructive/20 text-destructive" };
+  return { label: "En attente de validation", className: "bg-yellow-500/20 text-yellow-400" };
+};
+
 export default function EntrepriseProgrammes() {
   const pageTitle = useContent("entreprise.programmes.title", "Mes programmes");
   const emptyStateText = useContent("entreprise.programmes.empty-state", "Aucun programme créé");
   const tiersHelp = useContent("entreprise.programmes.tiers-help", "Tiers de récompense par sévérité (optionnel)");
-  const { user } = useAuth();
-  const { data: programmes = [] } = useProgrammes();
+  const { data: myProgrammes = [] } = useMyProgrammes();
   const createProgramme = useCreateProgramme();
   const updateProgramme = useUpdateProgramme();
   const deleteProgramme = useDeleteProgramme();
@@ -107,11 +111,6 @@ export default function EntrepriseProgrammes() {
   const [editing, setEditing] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState<ProgrammeForm>(DEFAULT_FORM);
-
-  const myProgrammes = useMemo(
-    () => programmes.filter((programme) => programme.entrepriseId === user?.entrepriseProfileId),
-    [programmes, user?.entrepriseProfileId],
-  );
 
   const resetForm = () => {
     setForm(DEFAULT_FORM);
@@ -342,10 +341,16 @@ export default function EntrepriseProgrammes() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold text-foreground">{programme.name}</p>
                   <span className={`text-xs px-2 py-0.5 rounded font-mono ${statusBadgeClass(programme.status)}`}>{programme.status}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded font-mono ${validationBadge(programme.validationStatus).className}`}>
+                    {validationBadge(programme.validationStatus).label}
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground font-mono">
                   {programme.minReward.toLocaleString()} - {programme.maxReward.toLocaleString()} {programme.rewardCurrency || "FCFA"} · {programme.reportsCount} rapports
                 </p>
+                {programme.validationStatus === "refuse" && programme.rejectionReason && (
+                  <p className="text-xs text-destructive mt-1">Raison du refus : {programme.rejectionReason}</p>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Button asChild size="sm" variant="outline">
