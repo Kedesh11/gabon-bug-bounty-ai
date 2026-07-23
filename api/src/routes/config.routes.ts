@@ -5,6 +5,7 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { getOrCreateConfig, updateConfig } from "../services/config/configService.js";
+import { env } from "../env.js";
 
 export const configRouter = Router();
 
@@ -27,6 +28,25 @@ configRouter.get(
   asyncHandler(async (_req, res) => {
     const config = await getOrCreateConfig();
     res.json({ config });
+  }),
+);
+
+// Booleans only — never the actual secret values. Replaces the old "Intégrations"
+// tab's fake connect/disconnect toggles with the real configuration state of every
+// external provider this platform actually integrates with.
+configRouter.get(
+  "/integrations",
+  requirePermission("settings.view"),
+  asyncHandler(async (_req, res) => {
+    res.json({
+      integrations: {
+        stripe: Boolean(env.STRIPE_SECRET_KEY) && Boolean(env.STRIPE_WEBHOOK_SECRET),
+        cinetpayCheckout: Boolean(env.CINETPAY_API_KEY) && Boolean(env.CINETPAY_SITE_ID),
+        cinetpayTransfer: Boolean(env.CINETPAY_TRANSFER_LOGIN) && Boolean(env.CINETPAY_TRANSFER_PASSWORD),
+        openrouter: Boolean(env.OPENROUTER_API_KEY),
+        resend: Boolean(env.RESEND_API_KEY),
+      },
+    });
   }),
 );
 
