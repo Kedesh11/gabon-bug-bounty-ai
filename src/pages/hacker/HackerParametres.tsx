@@ -38,6 +38,7 @@ export default function HackerParametres() {
               setPreference={notifications.setNotificationPreference}
               onSave={notifications.saveNotificationPreferences}
               onSendTest={notifications.sendTestNotification}
+              isSaving={notifications.isSaving}
             />
           </div>
 

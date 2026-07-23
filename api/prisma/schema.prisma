@@ -67,6 +67,10 @@ model Profile {
   avatar    String?
   createdAt DateTime @default(now())
 
+  // Was localStorage-only (bb_notify_prefs_<userId>) — lost on a new device/browser.
+  // Shape is the frontend's NotificationPreferences (src/pages/hacker/parametres/types.ts).
+  notificationPreferences Json?
+
   hackerProfile     HackerProfile?
   entrepriseProfile EntrepriseProfile?
   logs              PlatformLog[]

@@ -3,6 +3,14 @@
 // roles are just named bundles of them) — see src/lib/permissions.ts.
 export type UserRole = string;
 
+export interface NotificationPreferences {
+  inAppEnabled: boolean;
+  emailEnabled: boolean;
+  paymentAlerts: boolean;
+  reportStatusAlerts: boolean;
+  securityAlerts: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -17,4 +25,5 @@ export interface User {
   // not the auth id, so any ownership comparison must use these fields instead of `id`.
   hackerProfileId?: string;
   entrepriseProfileId?: string;
+  notificationPreferences?: NotificationPreferences;
 }

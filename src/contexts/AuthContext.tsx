@@ -1,5 +1,5 @@
 import { useState, ReactNode, useCallback, useEffect } from "react";
-import { User } from "@/types/auth";
+import { User, NotificationPreferences } from "@/types/auth";
 import { AuthContext } from "./AuthContextObject";
 import { apiFetch, getSession, setSession, Session } from "@/lib/apiClient";
 
@@ -14,6 +14,7 @@ interface ApiProfile {
   createdAt: string;
   hackerProfile?: { id: string } | null;
   entrepriseProfile?: { id: string } | null;
+  notificationPreferences?: NotificationPreferences | null;
 }
 
 function toUser(profile: ApiProfile): User {
@@ -28,6 +29,7 @@ function toUser(profile: ApiProfile): User {
     createdAt: profile.createdAt,
     hackerProfileId: profile.hackerProfile?.id,
     entrepriseProfileId: profile.entrepriseProfile?.id,
+    notificationPreferences: profile.notificationPreferences ?? undefined,
   };
 }
 
@@ -81,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return createdUser;
   }, []);
 
-  const updateProfile = useCallback(async (data: Partial<Pick<User, "name" | "avatar">>) => {
+  const updateProfile = useCallback(async (data: Partial<Pick<User, "name" | "avatar" | "notificationPreferences">>) => {
     const { profile } = await apiFetch<{ profile: ApiProfile }>("/api/auth/me", { method: "PATCH", body: data });
     const updatedUser = toUser(profile);
     setUser(updatedUser);
