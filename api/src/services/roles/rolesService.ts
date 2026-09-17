@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../../lib/supabaseAdmin.js";
 import { serializeProfile, profileRoleInclude } from "../../lib/serializeProfile.js";
 import { sendStaffCredentialsEmail } from "../../lib/mailer.js";
 import { createPlatformLog } from "../platformLogs/logsService.js";
+import { getSystemPasswordComplexity, validatePasswordComplexity } from "../../lib/passwordPolicy.js";
 
 const roleInclude = { permissions: { include: { permission: true } } };
 
@@ -61,6 +62,10 @@ export interface ProvisionStaffAccountInput {
 // role has 0 profiles and is safe to roll back, while an existing role may already
 // have other accounts on it.
 async function provisionStaffAccount(roleId: string, roleLabel: string, input: ProvisionStaffAccountInput) {
+  const complexity = await getSystemPasswordComplexity();
+  const complexityError = validatePasswordComplexity(input.password, complexity);
+  if (complexityError) throw new HttpError(400, complexityError);
+
   const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email: input.email,
     password: input.password,

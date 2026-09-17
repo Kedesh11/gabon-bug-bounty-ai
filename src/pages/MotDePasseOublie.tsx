@@ -6,20 +6,32 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useContent } from "@/hooks/api/content";
+import { useAuth } from "@/contexts/useAuth";
+import { apiErrorMessage } from "@/lib/apiClient";
 
 const MotDePasseOublie = () => {
   const title = useContent("mot-de-passe-oublie.title", "Mot de passe oublié");
   const subtitle = useContent("mot-de-passe-oublie.subtitle", "Recevez un lien sécurisé de réinitialisation");
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!email) {
       toast.error("Saisissez votre email");
       return;
     }
-    setSent(true);
-    toast.success("Lien de réinitialisation envoyé");
+    setIsSubmitting(true);
+    try {
+      await forgotPassword(email);
+      setSent(true);
+      toast.success("Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé");
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -48,18 +60,19 @@ const MotDePasseOublie = () => {
               />
             </div>
 
-            <Button onClick={handleSubmit} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold cyber-glow">
-              Envoyer le lien
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || sent}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold cyber-glow"
+            >
+              {isSubmitting ? "Envoi..." : "Envoyer le lien"}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
 
             {sent && (
               <div className="rounded-lg border border-primary/40 bg-primary/10 p-3">
                 <p className="text-xs text-primary font-mono leading-relaxed">
-                  Email envoyé à {email}. Dans cette démo, vous pouvez continuer via{" "}
-                  <Link to="/reinitialiser-mot-de-passe" className="underline">
-                    le formulaire de réinitialisation
-                  </Link>.
+                  Si un compte existe pour {email}, un email vient d'être envoyé avec un lien de réinitialisation valable 1 heure.
                 </p>
               </div>
             )}

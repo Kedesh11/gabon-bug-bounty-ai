@@ -11,6 +11,10 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:8080"),
+  // Frontend's own base URL, used to build the password-reset link emailed to a user
+  // (see routes/auth.routes.ts) — distinct from CORS_ORIGIN, which is about the API's
+  // access control, not link construction, even though both point at the same origin today.
+  FRONTEND_URL: z.string().url().default("http://localhost:8080"),
 
   STRIPE_SECRET_KEY: z.string().min(1, "STRIPE_SECRET_KEY is required"),
   // Empty until the first `stripe listen` session; webhook route rejects requests until it's set.

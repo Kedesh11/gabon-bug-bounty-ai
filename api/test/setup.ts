@@ -65,10 +65,34 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
         // care about failure/rollback override with mockResolvedValueOnce/mockRejectedValueOnce.
         createUser: vi.fn(() => Promise.resolve({ data: { user: { id: randomUUID() } }, error: null })),
         deleteUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
+        updateUserById: vi.fn().mockResolvedValue({ data: { user: {} }, error: null }),
+        // Default: unconfirmed and no MFA factors, like a just-registered account —
+        // tests covering "already confirmed" or "has a verified TOTP factor" override
+        // with mockResolvedValueOnce.
+        getUserById: vi.fn().mockResolvedValue({ data: { user: { email_confirmed_at: null, factors: [] } }, error: null }),
         signOut: vi.fn(),
         listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
       },
-      signInWithPassword: vi.fn(),
+      // Default: succeeds like a real login would, resolving to whichever profile
+      // already exists for that email (register calls this right after creating one;
+      // a plain login call resolves to the existing profile Prisma already knows about)
+      // so the caller's later `prisma.profile.findUnique({ where: { id: data.user.id } })`
+      // finds a real row instead of 401ing on a random id. Tests exercising invalid
+      // credentials override this with mockResolvedValueOnce (see rateLimit.test.ts).
+      signInWithPassword: vi.fn(async ({ email }: { email: string }) => {
+        const profile = await prisma.profile.findUnique({ where: { email } });
+        return {
+          data: {
+            session: {
+              access_token: `mock-access-token-${email}`,
+              refresh_token: `mock-refresh-token-${email}`,
+              expires_at: Math.floor(Date.now() / 1000) + 3600,
+            },
+            user: { id: profile?.id ?? randomUUID() },
+          },
+          error: null,
+        };
+      }),
     },
     storage: {
       listBuckets: storageMocks.listBuckets,
@@ -122,8 +146,11 @@ vi.mock("../src/services/mcpAgents/openRouterClient.js", () => ({
 }));
 
 // Defaults to the real fetch so unrelated code that happens to call fetch (e.g.
-// @react-pdf/renderer's yoga-layout WASM loader) keeps working; CinetPay tests
-// override this explicitly per-call via mockResolvedValue(Once), which still wins.
+// @react-pdf/renderer's yoga-layout WASM loader) keeps working. Despite the name this
+// now stubs *every* global fetch call in tests, not just CinetPay's — gotrueMfa.ts also
+// calls fetch directly (GoTrue's REST API has no admin-key path for MFA, see its own
+// comment) and gets caught by this same stub. Individual tests override per-call via
+// mockResolvedValue(Once), which still wins over this default.
 const realFetch = globalThis.fetch;
 export const cinetpayFetchMock = vi.fn(realFetch);
 vi.stubGlobal("fetch", cinetpayFetchMock);
@@ -131,3 +158,19 @@ vi.stubGlobal("fetch", cinetpayFetchMock);
 export function jsonResponse(body: unknown, ok = true) {
   return { ok, status: ok ? 200 : 400, json: () => Promise.resolve(body) };
 }
+
+// Never hit real Resend from tests (RESEND_API_KEY is force-disabled above anyway, so
+// this mirrors the real short-circuit response) — mocked mainly so individual tests
+// (forgot-password) can inspect what was about to be sent, e.g. the reset link/token,
+// which is never returned by the API itself.
+export const mailerMocks = {
+  sendStaffCredentialsEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
+  sendPasswordResetEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
+  sendVerificationEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
+};
+
+vi.mock("../src/lib/mailer.js", () => ({
+  sendStaffCredentialsEmail: mailerMocks.sendStaffCredentialsEmail,
+  sendPasswordResetEmail: mailerMocks.sendPasswordResetEmail,
+  sendVerificationEmail: mailerMocks.sendVerificationEmail,
+}));

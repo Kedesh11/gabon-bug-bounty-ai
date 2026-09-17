@@ -7,17 +7,21 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useContent } from "@/hooks/api/content";
+import { useAuth } from "@/contexts/useAuth";
+import { apiErrorMessage } from "@/lib/apiClient";
 
 const ReinitialiserMotDePasse = () => {
   const title = useContent("reinitialiser-mot-de-passe.title", "Réinitialiser le mot de passe");
   const subtitle = useContent("reinitialiser-mot-de-passe.subtitle", "Définissez un nouveau mot de passe sécurisé");
+  const { resetPassword } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [token, setToken] = useState(searchParams.get("token") || "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!token || !password || !confirmPassword) {
       toast.error("Remplissez tous les champs");
       return;
@@ -26,8 +30,20 @@ const ReinitialiserMotDePasse = () => {
       toast.error("Les mots de passe ne correspondent pas");
       return;
     }
-    toast.success("Mot de passe réinitialisé");
-    navigate("/connexion");
+    if (password.length < 8) {
+      toast.error("Le mot de passe doit contenir au moins 8 caractères");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await resetPassword(token, password);
+      toast.success("Mot de passe réinitialisé");
+      navigate("/connexion");
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -75,14 +91,18 @@ const ReinitialiserMotDePasse = () => {
               />
             </div>
 
-            <Button onClick={handleSubmit} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold cyber-glow">
-              Enregistrer
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold cyber-glow"
+            >
+              {isSubmitting ? "Enregistrement..." : "Enregistrer"}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono justify-center">
               <KeyRound className="w-3 h-3" />
-              <span>Le token est vérifié côté serveur en production</span>
+              <span>Le lien expire 1 heure après son envoi</span>
             </div>
           </div>
 

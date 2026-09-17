@@ -83,8 +83,51 @@ model Profile {
   completedComplianceItems ComplianceItem[] @relation("ComplianceItemCompletedBy")
   kbArticles               KbArticle[]      @relation("KbArticleAuthor")
   validatedProgrammes      Programme[]      @relation("ProgrammeValidatedBy")
+  passwordResetTokens      PasswordResetToken[]
+  emailVerificationTokens  EmailVerificationToken[]
 
   @@map("profiles")
+}
+
+// Self-issued password reset tokens. Not Supabase's own recovery flow, which
+// assumes the frontend holds the anon key and completes the exchange client-side —
+// this app proxies all auth through the server with only the service-role key, so
+// it mints its own short-lived token, emails it via Resend (see lib/mailer.ts), then
+// uses supabaseAdmin.auth.admin.updateUserById to actually change the password. Only
+// the SHA-256 hash is stored, never the raw token, same reasoning as a session token.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  profileId String    @db.Uuid
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+// Self-issued email verification tokens, same shape/reasoning as PasswordResetToken
+// above. Self-registered accounts (hacker/entreprise) are created with
+// Supabase's email_confirm: false — supabase/config.toml sets
+// auth.email.enable_confirmations = true, so GoTrue itself refuses signInWithPassword
+// until the account is confirmed. This app doesn't rely on Supabase's own SMTP to
+// deliver that confirmation (no [auth.email.smtp] configured, and every other
+// transactional email already goes through Resend) — it mints its own token, emails
+// it, and POST /api/auth/verify-email flips email_confirm to true via
+// supabaseAdmin.auth.admin.updateUserById once the token checks out. Longer TTL than
+// a password reset token (24h vs 1h): confirming an email is lower-stakes than
+// resetting a password, and a signup link sitting in an inbox overnight is normal.
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  profileId String    @db.Uuid
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("email_verification_tokens")
 }
 
 // ---------------------------------------------------------------------------

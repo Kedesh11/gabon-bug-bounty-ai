@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import request from "supertest";
 import { app } from "../src/index.js";
 import { createTestUser } from "./helpers.js";
@@ -311,5 +311,27 @@ describe("Deleting a staff account", () => {
     const support = await createTestUser("support");
     const res = await request(app).delete(`/api/roles/accounts/${support.id}`).set("Authorization", hacker.authHeader);
     expect(res.status).toBe(403);
+  });
+});
+
+describe("Staff account provisioning — password complexity", () => {
+  afterEach(async () => {
+    await prisma.systemConfig.upsert({ where: { id: 1 }, update: { passwordComplexity: "standard" }, create: { id: 1 } });
+  });
+
+  it("rejects a staff password that doesn't meet the configured 'military' complexity", async () => {
+    await prisma.systemConfig.upsert({
+      where: { id: 1 },
+      update: { passwordComplexity: "military" },
+      create: { id: 1, passwordComplexity: "military" },
+    });
+    const admin = await createTestUser("admin");
+
+    const res = await request(app)
+      .post("/api/roles")
+      .set("Authorization", admin.authHeader)
+      .send(newRoleProvisioningBody({ password: "MotDePasse123!" })); // 14 chars — below military's 16 minimum
+
+    expect(res.status).toBe(400);
   });
 });

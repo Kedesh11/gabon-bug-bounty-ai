@@ -10,6 +10,8 @@ import { SecuritySettingsTab } from "./parametres/SecuritySettingsTab";
 import { IntegrationsTab } from "./parametres/IntegrationsTab";
 import { TeamTab } from "./parametres/TeamTab";
 import { useContent } from "@/hooks/api/content";
+import { MfaSection } from "@/components/MfaSection";
+import { TabsContent } from "@/components/ui/tabs";
 
 export default function AdminParametres() {
   const pageTitle = useContent("admin.parametres.title", "Configuration Système");
@@ -63,6 +65,14 @@ export default function AdminParametres() {
             setSecuritySettings={security.setSecuritySettings}
             onSave={security.handleSaveSecurity}
           />
+
+          {/* Personal MFA enrollment for the logged-in admin — distinct from the
+              require2FA toggle above (a platform-wide policy for other accounts),
+              same "security" tab since both are security-related, same value so both
+              render together. */}
+          <TabsContent value="security" className="space-y-6">
+            <MfaSection />
+          </TabsContent>
 
           <IntegrationsTab {...integrations} />
 

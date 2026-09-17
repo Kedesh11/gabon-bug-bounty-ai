@@ -3,6 +3,7 @@ import cors from "cors";
 import { env } from "./env.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./routes/auth.routes.js";
+import { mfaRouter } from "./routes/mfa.routes.js";
 import { programmesRouter } from "./routes/programmes.routes.js";
 import { reportsRouter } from "./routes/reports.routes.js";
 import { hackersRouter } from "./routes/hackers.routes.js";
@@ -39,6 +40,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/auth/mfa", mfaRouter);
 app.use("/api/programmes", programmesRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/hackers", hackersRouter);

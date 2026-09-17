@@ -175,4 +175,6 @@ Job `api` dans `.github/workflows/ci.yml` : lint, typecheck, migrations Prisma c
 Non couvert par ce chantier. Pour passer d'un dev local à un vrai environnement :
 1. Créer un vrai projet Supabase (cloud) et y appliquer les migrations (`prisma migrate deploy`).
 2. Remplacer les clés sandbox Stripe/CinetPay par des clés live, et reconfigurer le webhook Stripe sur l'URL publique réelle.
-3. Renseigner `API_BASE_URL`/`CORS_ORIGIN` avec les vraies URLs de production.
+3. Renseigner `API_BASE_URL`/`CORS_ORIGIN`/`FRONTEND_URL` avec les vraies URLs de production.
+4. Activer "Confirm email" dans Authentication → Providers → Email du dashboard Supabase cloud — `supabase/config.toml` ne s'applique qu'à la stack locale ; sans ça, l'inscription crée des comptes non confirmés qu'aucun réglage cloud ne bloquera à la connexion.
+5. MFA (TOTP) : rien à activer côté dashboard cloud, contrairement à `supabase/config.toml` en local (`[auth.mfa.totp]`) — TOTP standard est disponible sur le plan Free de Supabase, aucun palier payant requis (seul le MFA par téléphone/SMS est un add-on payant, non utilisé ici).

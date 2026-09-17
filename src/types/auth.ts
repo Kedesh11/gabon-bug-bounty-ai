@@ -26,4 +26,11 @@ export interface User {
   hackerProfileId?: string;
   entrepriseProfileId?: string;
   notificationPreferences?: NotificationPreferences;
+  // Whether this account has a verified TOTP factor — from GET /api/auth/me or a
+  // successful login, never stored/editable client-side.
+  mfaEnabled?: boolean;
+  // True when SystemConfig.require2FA is on, this role is covered by it (everything
+  // except hacker — see api/src/lib/mfaPolicy.ts), and mfaEnabled is still false.
+  // Drives the enrollment nudge — not a hard block, see MfaSection.tsx.
+  mfaEnrollmentRequired?: boolean;
 }

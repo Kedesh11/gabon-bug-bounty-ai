@@ -19,6 +19,7 @@ const Connexion = lazy(() => import("./pages/Connexion"));
 const Inscription = lazy(() => import("./pages/Inscription"));
 const MotDePasseOublie = lazy(() => import("./pages/MotDePasseOublie"));
 const ReinitialiserMotDePasse = lazy(() => import("./pages/ReinitialiserMotDePasse"));
+const VerifierEmail = lazy(() => import("./pages/VerifierEmail"));
 const Hackers = lazy(() => import("./pages/Hackers"));
 const Documentation = lazy(() => import("./pages/Documentation"));
 const MCPAgents = lazy(() => import("./pages/MCPAgents"));
@@ -86,6 +87,7 @@ const App = () => (
                   <Route path="/inscription" element={<Inscription />} />
                   <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
                   <Route path="/reinitialiser-mot-de-passe" element={<ReinitialiserMotDePasse />} />
+                  <Route path="/verifier-email" element={<VerifierEmail />} />
                   <Route path="/hackers" element={<Hackers />} />
                   <Route path="/documentation" element={<Documentation />} />
                   <Route path="/mcp-agents" element={<MCPAgents />} />

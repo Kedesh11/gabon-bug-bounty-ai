@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useContent } from "@/hooks/api/content";
+import { MfaSection } from "@/components/MfaSection";
 
 export default function EntrepriseParametres() {
   const pageTitle = useContent("entreprise.parametres.title", "Paramètres");
@@ -65,6 +66,8 @@ export default function EntrepriseParametres() {
             }
           }}>Sauvegarder</Button>
         </div>
+
+        <MfaSection />
       </div>
     </DashboardLayout>
   );
