@@ -57,6 +57,26 @@ describe("POST /api/auth/mfa/enroll", () => {
     expect(String(url)).toContain("/auth/v1/factors");
     expect(init.headers.Authorization).toBe(hacker.authHeader);
   });
+
+  it("clears out a stale unverified factor before enrolling again (retry after cancelling)", async () => {
+    const hacker = await createTestUser("hacker");
+    vi.mocked(supabaseAdmin.auth.admin.getUserById).mockResolvedValueOnce({
+      data: { user: { factors: [{ id: "stale-factor", factor_type: "totp", status: "unverified" }] } },
+      error: null,
+    } as never);
+    cinetpayFetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "stale-factor" })) // DELETE of the stale factor
+      .mockResolvedValueOnce(
+        jsonResponse({ id: "factor-2", type: "totp", totp: { qr_code: "<svg/>", secret: "SECRET2", uri: "otpauth://totp/y" } }),
+      );
+
+    const res = await request(app).post("/api/auth/mfa/enroll").set("Authorization", hacker.authHeader);
+
+    expect(res.status).toBe(201);
+    expect(res.body.factorId).toBe("factor-2");
+    expect(cinetpayFetchMock.mock.calls[0][1].method).toBe("DELETE");
+    expect(String(cinetpayFetchMock.mock.calls[0][0])).toContain("/factors/stale-factor");
+  });
 });
 
 describe("POST /api/auth/mfa/enroll/confirm", () => {
@@ -79,7 +99,7 @@ describe("POST /api/auth/mfa/enroll/confirm", () => {
     expect(cinetpayFetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("surfaces GoTrue's rejection of a wrong code as a client error", async () => {
+  it("surfaces GoTrue's rejection of a wrong code as a client error, translated to French", async () => {
     const hacker = await createTestUser("hacker");
     cinetpayFetchMock
       .mockResolvedValueOnce(jsonResponse({ id: "challenge-1", expires_at: Math.floor(Date.now() / 1000) + 60 }))
@@ -91,7 +111,7 @@ describe("POST /api/auth/mfa/enroll/confirm", () => {
       .send({ factorId: "factor-1", code: "000000" });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toContain("Invalid TOTP code");
+    expect(res.body.error).toBe("Code invalide ou expiré");
   });
 });
 
@@ -194,6 +214,16 @@ describe("GET /api/auth/me — MFA fields", () => {
 
     const res = await request(app).get("/api/auth/me").set("Authorization", entreprise.authHeader);
     expect(res.body.mfaEnrollmentRequired).toBe(true);
+
+    await setRequire2FA(false);
+  });
+
+  it("does not flag a staff role without settings.view (e.g. triage) — no page exists for them to act on it", async () => {
+    await setRequire2FA(true);
+    const triage = await createTestUser("triage");
+
+    const res = await request(app).get("/api/auth/me").set("Authorization", triage.authHeader);
+    expect(res.body.mfaEnrollmentRequired).toBe(false);
 
     await setRequire2FA(false);
   });

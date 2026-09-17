@@ -20,6 +20,21 @@ function bearerToken(req: Request): string {
   return req.headers.authorization!.slice("Bearer ".length);
 }
 
+// Shared by /enroll/confirm and /login-verify — both are "challenge then verify a
+// 6-digit code" and both need the same French error message on failure. GoTrue's own
+// message ("Invalid TOTP code entered") is accurate but English, inconsistent with
+// every other error in this API; this keeps the real HTTP status (GoTrue itself
+// distinguishes a wrong code from an expired challenge) while replacing the text.
+async function verifyCode(accessToken: string, factorId: string, code: string) {
+  const challenge = await challengeFactor(accessToken, factorId);
+  try {
+    return await verifyFactor(accessToken, factorId, challenge.id, code);
+  } catch (err) {
+    if (err instanceof HttpError) throw new HttpError(err.status, "Code invalide ou expiré");
+    throw err;
+  }
+}
+
 mfaRouter.get(
   "/status",
   requireAuth,
@@ -34,7 +49,20 @@ mfaRouter.post(
   "/enroll",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const factor = await enrollTotpFactor(bearerToken(req), `Gabon Bug Bounty (${req.user!.email})`);
+    const token = bearerToken(req);
+
+    // Enrolling twice with the same friendly_name is rejected by GoTrue as a
+    // conflict — a real path here, not just a theoretical one: cancelling
+    // enrollment (closing the QR screen, navigating away) leaves an unverified
+    // factor behind, and a fixed friendly_name means the next attempt 409s. Clear
+    // out any unverified TOTP factor(s) first so retrying always works.
+    const { data } = await supabaseAdmin.auth.admin.getUserById(req.user!.id);
+    const stale = data.user?.factors?.filter((f) => f.factor_type === "totp" && f.status === "unverified") ?? [];
+    for (const factor of stale) {
+      await unenrollFactor(token, factor.id).catch(() => {});
+    }
+
+    const factor = await enrollTotpFactor(token, `Gabon Bug Bounty (${req.user!.email})`);
     res.status(201).json({ factorId: factor.id, qrCode: factor.totp.qr_code, secret: factor.totp.secret, uri: factor.totp.uri });
   }),
 );
@@ -51,8 +79,7 @@ mfaRouter.post(
     const body = confirmEnrollSchema.parse(req.body);
     const token = bearerToken(req);
 
-    const challenge = await challengeFactor(token, body.factorId);
-    const verified = await verifyFactor(token, body.factorId, challenge.id, body.code);
+    const verified = await verifyCode(token, body.factorId, body.code);
 
     await createPlatformLog({
       type: "security",
@@ -110,8 +137,7 @@ mfaRouter.post(
   asyncHandler(async (req, res) => {
     const body = loginVerifySchema.parse(req.body);
 
-    const challenge = await challengeFactor(body.aal1AccessToken, body.factorId);
-    const verified = await verifyFactor(body.aal1AccessToken, body.factorId, challenge.id, body.code);
+    const verified = await verifyCode(body.aal1AccessToken, body.factorId, body.code);
 
     const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(verified.access_token);
     if (userError || !userData.user) throw new HttpError(401, "Session invalide");

@@ -1,6 +1,6 @@
 import { useState, ReactNode, useCallback, useEffect } from "react";
 import { User, NotificationPreferences } from "@/types/auth";
-import { AuthContext } from "./AuthContextObject";
+import { AuthContext, LoginResult } from "./AuthContextObject";
 import { apiFetch, getSession, setSession, Session } from "@/lib/apiClient";
 
 interface ApiProfile {
@@ -17,7 +17,12 @@ interface ApiProfile {
   notificationPreferences?: NotificationPreferences | null;
 }
 
-function toUser(profile: ApiProfile): User {
+interface MfaFields {
+  mfaEnabled?: boolean;
+  mfaEnrollmentRequired?: boolean;
+}
+
+function toUser(profile: ApiProfile, mfaFields: MfaFields = {}): User {
   return {
     id: profile.id,
     email: profile.email,
@@ -30,6 +35,8 @@ function toUser(profile: ApiProfile): User {
     hackerProfileId: profile.hackerProfile?.id,
     entrepriseProfileId: profile.entrepriseProfile?.id,
     notificationPreferences: profile.notificationPreferences ?? undefined,
+    mfaEnabled: mfaFields.mfaEnabled,
+    mfaEnrollmentRequired: mfaFields.mfaEnrollmentRequired,
   };
 }
 
@@ -46,8 +53,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       try {
-        const { profile } = await apiFetch<{ profile: ApiProfile }>("/api/auth/me");
-        if (!cancelled) setUser(toUser(profile));
+        const { profile, mfaEnabled, mfaEnrollmentRequired } = await apiFetch<{
+          profile: ApiProfile;
+          mfaEnabled: boolean;
+          mfaEnrollmentRequired: boolean;
+        }>("/api/auth/me");
+        if (!cancelled) setUser(toUser(profile, { mfaEnabled, mfaEnrollmentRequired }));
       } catch {
         setSession(null);
       } finally {
@@ -61,13 +72,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { profile, session } = await apiFetch<{ profile: ApiProfile; session: Session }>("/api/auth/login", {
+  const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
+    const res = await apiFetch<{
+      profile?: ApiProfile;
+      session?: Session;
+      mfaEnrollmentRequired?: boolean;
+      mfaRequired?: boolean;
+      factorId?: string;
+      aal1AccessToken?: string;
+    }>("/api/auth/login", { method: "POST", body: { email, password } });
+
+    if (res.mfaRequired) {
+      // Not a session yet — password was right, but a verified TOTP factor means the
+      // caller must finish with verifyLoginMfa before there's a user to log in as.
+      return { status: "mfa_required", factorId: res.factorId!, aal1AccessToken: res.aal1AccessToken! };
+    }
+
+    setSession(res.session!);
+    const loggedUser = toUser(res.profile!, { mfaEnabled: false, mfaEnrollmentRequired: res.mfaEnrollmentRequired });
+    setUser(loggedUser);
+    return { status: "success", user: loggedUser };
+  }, []);
+
+  const verifyLoginMfa = useCallback(async (factorId: string, code: string, aal1AccessToken: string) => {
+    const { profile, session } = await apiFetch<{ profile: ApiProfile; session: Session }>("/api/auth/mfa/login-verify", {
       method: "POST",
-      body: { email, password },
+      body: { factorId, code, aal1AccessToken },
     });
     setSession(session);
-    const loggedUser = toUser(profile);
+    // A factor was just used to authenticate, so both are necessarily true — no
+    // extra round trip to /me needed just to learn what this call already proves.
+    const loggedUser = toUser(profile, { mfaEnabled: true, mfaEnrollmentRequired: false });
     setUser(loggedUser);
     return loggedUser;
   }, []);
@@ -86,8 +121,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateProfile = useCallback(async (data: Partial<Pick<User, "name" | "avatar" | "notificationPreferences">>) => {
     const { profile } = await apiFetch<{ profile: ApiProfile }>("/api/auth/me", { method: "PATCH", body: data });
-    const updatedUser = toUser(profile);
-    setUser(updatedUser);
+    // PATCH /me doesn't echo the MFA fields back — carry the current ones forward via
+    // the updater's `prev` rather than the closed-over `user`, which could be stale.
+    let updatedUser!: User;
+    setUser((prev) => {
+      updatedUser = toUser(profile, { mfaEnabled: prev?.mfaEnabled, mfaEnrollmentRequired: prev?.mfaEnrollmentRequired });
+      return updatedUser;
+    });
     return updatedUser;
   }, []);
 
@@ -117,6 +157,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await apiFetch("/api/auth/resend-verification", { method: "POST", body: { email } });
   }, []);
 
+  const confirmMfaEnrollment = useCallback(async (factorId: string, code: string) => {
+    const { session } = await apiFetch<{ session: Session }>("/api/auth/mfa/enroll/confirm", {
+      method: "POST",
+      body: { factorId, code },
+    });
+    setSession(session);
+    setUser((prev) => (prev ? { ...prev, mfaEnabled: true, mfaEnrollmentRequired: false } : prev));
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -124,6 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!user,
         isLoading,
         login,
+        verifyLoginMfa,
         register,
         updateProfile,
         logout,
@@ -131,6 +181,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         resetPassword,
         verifyEmail,
         resendVerification,
+        confirmMfaEnrollment,
       }}
     >
       {children}

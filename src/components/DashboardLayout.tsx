@@ -270,6 +270,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
+        {user.mfaEnrollmentRequired && (
+          <div className="sticky top-14 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <div className="flex items-center gap-3 text-amber-500">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <p className="text-sm font-bold">
+                L'authentification à deux facteurs est obligatoire pour votre type de compte.
+              </p>
+            </div>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="border-amber-500/40 text-amber-500 hover:bg-amber-500/10 font-bold shrink-0"
+            >
+              <Link to={user.role === "admin" ? "/admin/parametres" : "/entreprise/parametres"}>ACTIVER LE 2FA</Link>
+            </Button>
+          </div>
+        )}
+
         {user.role === "admin" && config.maintenanceMode && (
           <div className="sticky top-14 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/10 px-4 py-3">
             <div className="flex items-center gap-3 text-destructive">

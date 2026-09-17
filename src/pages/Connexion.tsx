@@ -1,5 +1,5 @@
 import Navbar from "@/components/Navbar";
-import { Shield, ArrowRight, ShieldCheck } from "lucide-react";
+import { Shield, ArrowRight, ShieldCheck, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -10,6 +10,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { apiErrorMessage, ApiError } from "@/lib/apiClient";
 import { useContent } from "@/hooks/api/content";
+import { User } from "@/types/auth";
 
 const Connexion = () => {
   const title = useContent("connexion.title", "Accès Sécurisé");
@@ -17,11 +18,26 @@ const Connexion = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [needsVerification, setNeedsVerification] = useState(false);
-  const { login, resendVerification } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set once /login responds mfaRequired instead of a session — switches the form to
+  // the "enter your authenticator code" step. aal1AccessToken only authorizes the one
+  // follow-up call (verifyLoginMfa); it's never adopted as this app's session.
+  const [mfaChallenge, setMfaChallenge] = useState<{ factorId: string; aal1AccessToken: string } | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const { login, verifyLoginMfa, resendVerification } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requiredRole = searchParams.get("role");
   const redirectPath = searchParams.get("redirect");
+
+  const completeLogin = (loggedUser: User) => {
+    if (requiredRole && loggedUser.role !== requiredRole) {
+      toast.error(`Accès refusé. Veuillez vous connecter avec un compte ${requiredRole}.`);
+      return;
+    }
+    toast.success(`Bienvenue, ${loggedUser.name} !`);
+    navigate(redirectPath || resolveDashboardPath(loggedUser));
+  };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -31,16 +47,14 @@ const Connexion = () => {
     }
 
     setNeedsVerification(false);
+    setIsSubmitting(true);
     try {
-      const loggedUser = await login(email, password);
-
-      if (requiredRole && loggedUser.role !== requiredRole) {
-        toast.error(`Accès refusé. Veuillez vous connecter avec un compte ${requiredRole}.`);
+      const result = await login(email, password);
+      if (result.status === "mfa_required") {
+        setMfaChallenge({ factorId: result.factorId, aal1AccessToken: result.aal1AccessToken });
         return;
       }
-
-      toast.success(`Bienvenue, ${loggedUser.name} !`);
-      navigate(redirectPath || resolveDashboardPath(loggedUser));
+      completeLogin(result.user);
     } catch (err) {
       // The backend distinguishes "account not confirmed yet" (403) from a plain
       // wrong password (401) — see auth.routes.ts's login handler — so this can offer
@@ -49,6 +63,25 @@ const Connexion = () => {
         setNeedsVerification(true);
       }
       toast.error(apiErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMfaSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!mfaChallenge || mfaCode.length !== 6) {
+      toast.error("Saisissez le code à 6 chiffres");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const loggedUser = await verifyLoginMfa(mfaChallenge.factorId, mfaCode, mfaChallenge.aal1AccessToken);
+      completeLogin(loggedUser);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -72,57 +105,104 @@ const Connexion = () => {
         <div className="relative z-10 w-full max-w-2xl px-4">
           <div className="text-center mb-8 space-y-2">
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary border border-border shadow-2xl mb-4 group hover:border-primary/50 transition-all">
-              <Shield className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+              {mfaChallenge ? (
+                <KeyRound className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+              ) : (
+                <Shield className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+              )}
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight">{title}</h1>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight">{mfaChallenge ? "Code de vérification" : title}</h1>
             <p className="text-muted-foreground font-medium max-w-sm mx-auto">
-              {requiredRole ? `Veuillez vous connecter à votre compte ${requiredRole} pour continuer.` : subtitle}
+              {mfaChallenge
+                ? "Entrez le code à 6 chiffres généré par votre application d'authentification."
+                : requiredRole
+                ? `Veuillez vous connecter à votre compte ${requiredRole} pour continuer.`
+                : subtitle}
             </p>
           </div>
 
           <div className="glass-card rounded-2xl border-glow p-8 shadow-2xl space-y-8">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {mfaChallenge ? (
+              <form onSubmit={handleMfaSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Adresse Email</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Code à 6 chiffres</label>
                   <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nom@exemple.ga"
-                    className="h-12 bg-secondary/50 border-border focus:ring-primary/20"
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="123456"
+                    inputMode="numeric"
+                    autoFocus
+                    className="h-14 bg-secondary/50 border-border focus:ring-primary/20 text-center text-2xl tracking-[0.5em] font-mono"
                   />
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center ml-1">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Mot de passe</label>
-                    <Link to="/mot-de-passe-oublie" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter">Oublié ?</Link>
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full h-12 bg-primary text-primary-foreground font-black text-lg hover:bg-primary/90 transition-all active:scale-[0.98]"
+                >
+                  {isSubmitting ? "Vérification..." : "VALIDER"} <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMfaChallenge(null);
+                    setMfaCode("");
+                  }}
+                  className="w-full text-center text-xs font-bold text-muted-foreground hover:text-primary hover:underline underline-offset-4"
+                >
+                  Retour à la connexion
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Adresse Email</label>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="nom@exemple.ga"
+                      className="h-12 bg-secondary/50 border-border focus:ring-primary/20"
+                    />
                   </div>
-                  <PasswordInput
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="h-12 bg-secondary/50 border-border focus:ring-primary/20"
-                  />
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center ml-1">
+                      <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Mot de passe</label>
+                      <Link to="/mot-de-passe-oublie" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter">Oublié ?</Link>
+                    </div>
+                    <PasswordInput
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="h-12 bg-secondary/50 border-border focus:ring-primary/20"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <Button type="submit" className="w-full h-12 bg-primary text-primary-foreground font-black text-lg hover:bg-primary/90 transition-all active:scale-[0.98]">
-                SE CONNECTER <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full h-12 bg-primary text-primary-foreground font-black text-lg hover:bg-primary/90 transition-all active:scale-[0.98]"
+                >
+                  {isSubmitting ? "Connexion..." : "SE CONNECTER"} <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
 
-              {needsVerification && (
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    className="text-xs font-bold text-primary hover:underline underline-offset-4"
-                  >
-                    Renvoyer l'email de confirmation
-                  </button>
-                </div>
-              )}
-            </form>
+                {needsVerification && (
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      className="text-xs font-bold text-primary hover:underline underline-offset-4"
+                    >
+                      Renvoyer l'email de confirmation
+                    </button>
+                  </div>
+                )}
+              </form>
+            )}
           </div>
 
           <div className="mt-8 text-center space-y-4">
