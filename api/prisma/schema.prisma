@@ -83,8 +83,27 @@ model Profile {
   completedComplianceItems ComplianceItem[] @relation("ComplianceItemCompletedBy")
   kbArticles               KbArticle[]      @relation("KbArticleAuthor")
   validatedProgrammes      Programme[]      @relation("ProgrammeValidatedBy")
+  passwordResetTokens      PasswordResetToken[]
 
   @@map("profiles")
+}
+
+// Self-issued password reset tokens. Not Supabase's own recovery flow, which
+// assumes the frontend holds the anon key and completes the exchange client-side —
+// this app proxies all auth through the server with only the service-role key, so
+// it mints its own short-lived token, emails it via Resend (see lib/mailer.ts), then
+// uses supabaseAdmin.auth.admin.updateUserById to actually change the password. Only
+// the SHA-256 hash is stored, never the raw token, same reasoning as a session token.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  profileId String    @db.Uuid
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("password_reset_tokens")
 }
 
 // ---------------------------------------------------------------------------

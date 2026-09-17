@@ -1,12 +1,16 @@
+import { randomBytes, createHash } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
+import { env } from "../env.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { serializeProfile, profileRoleInclude } from "../lib/serializeProfile.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
+import { sendPasswordResetEmail } from "../lib/mailer.js";
+import { loginRateLimit, forgotPasswordRateLimit } from "../middleware/rateLimit.js";
 
 export const authRouter = Router();
 
@@ -78,6 +82,7 @@ const loginSchema = z.object({
 
 authRouter.post(
   "/login",
+  loginRateLimit,
   asyncHandler(async (req, res) => {
     const body = loginSchema.parse(req.body);
 
@@ -184,5 +189,95 @@ authRouter.patch(
       include: profileInclude,
     });
     res.json({ profile: serializeProfile(profile) });
+  }),
+);
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+function hashResetToken(rawToken: string) {
+  return createHash("sha256").update(rawToken).digest("hex");
+}
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+// Always responds 200 with the same message whether or not the email is known —
+// an attacker probing this endpoint must not learn which emails have accounts.
+authRouter.post(
+  "/forgot-password",
+  forgotPasswordRateLimit,
+  asyncHandler(async (req, res) => {
+    const body = forgotPasswordSchema.parse(req.body);
+
+    const profile = await prisma.profile.findUnique({ where: { email: body.email } });
+    if (profile) {
+      const rawToken = randomBytes(32).toString("hex");
+      await prisma.passwordResetToken.create({
+        data: {
+          profileId: profile.id,
+          tokenHash: hashResetToken(rawToken),
+          expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+        },
+      });
+
+      const resetUrl = `${env.FRONTEND_URL}/reinitialiser-mot-de-passe?token=${rawToken}`;
+      const { sent, error } = await sendPasswordResetEmail({ to: profile.email, resetUrl });
+
+      await createPlatformLog({
+        type: "security",
+        level: "info",
+        message: `Demande de réinitialisation de mot de passe (${profile.email})`,
+        source: "auth.routes",
+        userId: profile.id,
+        metadata: { emailSent: sent, emailError: error },
+      });
+    }
+
+    res.status(200).json({
+      message: "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé.",
+    });
+  }),
+);
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+});
+
+authRouter.post(
+  "/reset-password",
+  asyncHandler(async (req, res) => {
+    const body = resetPasswordSchema.parse(req.body);
+    const tokenHash = hashResetToken(body.token);
+
+    const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+    if (!resetToken || resetToken.usedAt || resetToken.expiresAt.getTime() < Date.now()) {
+      throw new HttpError(400, "Lien de réinitialisation invalide ou expiré");
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(resetToken.profileId, {
+      password: body.password,
+    });
+    if (error) throw new HttpError(500, "Impossible de réinitialiser le mot de passe");
+
+    await prisma.$transaction([
+      prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+      // Any other outstanding links for this account are now moot — one successful
+      // reset should invalidate every reset email still sitting in an inbox.
+      prisma.passwordResetToken.deleteMany({
+        where: { profileId: resetToken.profileId, id: { not: resetToken.id } },
+      }),
+    ]);
+
+    await createPlatformLog({
+      type: "security",
+      level: "info",
+      message: "Mot de passe réinitialisé via lien email",
+      source: "auth.routes",
+      userId: resetToken.profileId,
+    });
+
+    res.status(200).json({ message: "Mot de passe réinitialisé avec succès" });
   }),
 );

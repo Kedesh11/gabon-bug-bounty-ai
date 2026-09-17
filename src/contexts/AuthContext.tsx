@@ -100,9 +100,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   }, []);
 
+  const forgotPassword = useCallback(async (email: string) => {
+    await apiFetch("/api/auth/forgot-password", { method: "POST", body: { email } });
+  }, []);
+
+  const resetPassword = useCallback(async (token: string, password: string) => {
+    await apiFetch("/api/auth/reset-password", { method: "POST", body: { token, password } });
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, isLoading, login, register, updateProfile, logout }}
+      value={{ user, isAuthenticated: !!user, isLoading, login, register, updateProfile, logout, forgotPassword, resetPassword }}
     >
       {children}
     </AuthContext.Provider>

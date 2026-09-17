@@ -37,6 +37,45 @@ export async function sendStaffCredentialsEmail(input: StaffCredentialsEmailInpu
   }
 }
 
+export interface PasswordResetEmailInput {
+  to: string;
+  resetUrl: string;
+}
+
+// Same never-throws contract as sendStaffCredentialsEmail: a delivery failure must
+// never surface as a 500 to the caller, since /forgot-password always returns 200
+// regardless of whether the account exists, let alone whether the email sent.
+export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Promise<SendResult> {
+  if (!env.RESEND_API_KEY) {
+    return { sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" };
+  }
+
+  try {
+    const resend = new Resend(env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: env.RESEND_FROM_EMAIL,
+      to: input.to,
+      subject: "Réinitialisation de votre mot de passe — Gabon Bug Bounty",
+      html: renderPasswordResetEmailHtml(input),
+    });
+    if (error) return { sent: false, error: error.message };
+    return { sent: true };
+  } catch (err) {
+    return { sent: false, error: err instanceof Error ? err.message : "Erreur d'envoi inconnue" };
+  }
+}
+
+function renderPasswordResetEmailHtml(input: PasswordResetEmailInput): string {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px;">
+      <h2>Réinitialisation de mot de passe</h2>
+      <p>Vous avez demandé à réinitialiser votre mot de passe sur Gabon Bug Bounty.</p>
+      <p><a href="${escapeHtml(input.resetUrl)}">Cliquez ici pour choisir un nouveau mot de passe</a></p>
+      <p>Ce lien expire dans 1 heure. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+    </div>
+  `;
+}
+
 function renderEmailHtml(input: StaffCredentialsEmailInput): string {
   const messageBlock = input.message
     ? `<p><strong>Message de l'administrateur :</strong></p><p>${escapeHtml(input.message)}</p>`

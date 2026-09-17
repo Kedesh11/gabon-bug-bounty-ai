@@ -11,6 +11,8 @@ export interface AuthContextType {
   register: (name: string, email: string, password: string, role: "hacker" | "entreprise") => Promise<User>;
   updateProfile: (data: Partial<Pick<User, "name" | "avatar" | "notificationPreferences">>) => Promise<User>;
   logout: () => void;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, password: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({} as AuthContextType);

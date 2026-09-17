@@ -29,6 +29,8 @@ function renderProtected(authValue: Partial<AuthContextType>, guard: { roles?: s
     register: async () => noop(),
     updateProfile: async () => noop(),
     logout: () => {},
+    forgotPassword: async () => noop(),
+    resetPassword: async () => noop(),
     ...authValue,
   };
 
