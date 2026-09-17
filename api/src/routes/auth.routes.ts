@@ -11,6 +11,7 @@ import { serializeProfile, profileRoleInclude } from "../lib/serializeProfile.js
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 import { sendPasswordResetEmail } from "../lib/mailer.js";
 import { loginRateLimit, forgotPasswordRateLimit } from "../middleware/rateLimit.js";
+import { getSystemPasswordComplexity, validatePasswordComplexity } from "../lib/passwordPolicy.js";
 
 export const authRouter = Router();
 
@@ -30,6 +31,10 @@ authRouter.post(
   "/register",
   asyncHandler(async (req, res) => {
     const body = registerSchema.parse(req.body);
+
+    const complexity = await getSystemPasswordComplexity();
+    const complexityError = validatePasswordComplexity(body.password, complexity);
+    if (complexityError) throw new HttpError(400, complexityError);
 
     const role = await prisma.role.findUnique({ where: { key: body.role } });
     if (!role) throw new HttpError(500, `Rôle "${body.role}" introuvable — la base n'est pas correctement initialisée`);
@@ -198,12 +203,50 @@ function hashResetToken(rawToken: string) {
   return createHash("sha256").update(rawToken).digest("hex");
 }
 
+// The actual work of issuing a reset token/email, split out of the route handler and
+// exported so tests can await it directly (see test/auth.test.ts) — the same reasoning
+// as orchestrator.ts's runMcpPipeline vs. its fire-and-forget HTTP trigger. Deletes this
+// profile's previous tokens first: at most one outstanding reset link per account at a
+// time, both so an old email link can never coexist with a newer one and so this table
+// never accumulates stale rows without needing a separate cleanup job.
+export async function issuePasswordResetToken(profile: { id: string; email: string }) {
+  await prisma.passwordResetToken.deleteMany({ where: { profileId: profile.id } });
+
+  const rawToken = randomBytes(32).toString("hex");
+  await prisma.passwordResetToken.create({
+    data: {
+      profileId: profile.id,
+      tokenHash: hashResetToken(rawToken),
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    },
+  });
+
+  const resetUrl = `${env.FRONTEND_URL}/reinitialiser-mot-de-passe?token=${rawToken}`;
+  const { sent, error } = await sendPasswordResetEmail({ to: profile.email, resetUrl });
+
+  await createPlatformLog({
+    type: "security",
+    level: "info",
+    message: `Demande de réinitialisation de mot de passe (${profile.email})`,
+    source: "auth.routes",
+    userId: profile.id,
+    metadata: { emailSent: sent, emailError: error },
+  });
+
+  return rawToken;
+}
+
 const forgotPasswordSchema = z.object({
   email: z.string().email(),
 });
 
-// Always responds 200 with the same message whether or not the email is known —
-// an attacker probing this endpoint must not learn which emails have accounts.
+// Always responds 200 with the same message *and, critically, the same latency*
+// whether or not the email is known. The token INSERT and the email send (a real
+// network call to Resend once configured) used to run only on the "known email"
+// branch and were awaited before responding — response time alone let a caller
+// distinguish the two cases even though the JSON body was identical. Firing
+// issuePasswordResetToken without awaiting it removes that gap: both branches now
+// do the same amount of work (a single SELECT) before responding.
 authRouter.post(
   "/forgot-password",
   forgotPasswordRateLimit,
@@ -212,25 +255,8 @@ authRouter.post(
 
     const profile = await prisma.profile.findUnique({ where: { email: body.email } });
     if (profile) {
-      const rawToken = randomBytes(32).toString("hex");
-      await prisma.passwordResetToken.create({
-        data: {
-          profileId: profile.id,
-          tokenHash: hashResetToken(rawToken),
-          expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
-        },
-      });
-
-      const resetUrl = `${env.FRONTEND_URL}/reinitialiser-mot-de-passe?token=${rawToken}`;
-      const { sent, error } = await sendPasswordResetEmail({ to: profile.email, resetUrl });
-
-      await createPlatformLog({
-        type: "security",
-        level: "info",
-        message: `Demande de réinitialisation de mot de passe (${profile.email})`,
-        source: "auth.routes",
-        userId: profile.id,
-        metadata: { emailSent: sent, emailError: error },
+      issuePasswordResetToken(profile).catch((err) => {
+        console.error("[auth] failed to issue password reset token:", err);
       });
     }
 
@@ -249,6 +275,11 @@ authRouter.post(
   "/reset-password",
   asyncHandler(async (req, res) => {
     const body = resetPasswordSchema.parse(req.body);
+
+    const complexity = await getSystemPasswordComplexity();
+    const complexityError = validatePasswordComplexity(body.password, complexity);
+    if (complexityError) throw new HttpError(400, complexityError);
+
     const tokenHash = hashResetToken(body.token);
 
     const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
@@ -261,14 +292,10 @@ authRouter.post(
     });
     if (error) throw new HttpError(500, "Impossible de réinitialiser le mot de passe");
 
-    await prisma.$transaction([
-      prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
-      // Any other outstanding links for this account are now moot — one successful
-      // reset should invalidate every reset email still sitting in an inbox.
-      prisma.passwordResetToken.deleteMany({
-        where: { profileId: resetToken.profileId, id: { not: resetToken.id } },
-      }),
-    ]);
+    // issuePasswordResetToken deletes any prior row for this profile before creating a
+    // new one, so this is always the only row for the account — marking it used is
+    // enough, no sibling rows to invalidate alongside it.
+    await prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } });
 
     await createPlatformLog({
       type: "security",

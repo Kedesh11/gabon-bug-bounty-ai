@@ -1,8 +1,11 @@
 import rateLimit from "express-rate-limit";
 
-// Skipped entirely in tests: keyed by IP, and supertest's requests all share one,
-// so a normal test run (login/forgot-password exercised across several test files)
-// would otherwise trip the ceiling and fail on suite composition, not on a real bug.
+// Both limiters below use express-rate-limit's default MemoryStore — counters live in
+// this process's memory. Correct for the single-instance deployment this app has today
+// (see api/README.md's Déploiement section), but if the API is ever scaled to more than
+// one instance behind a load balancer, each instance gets its own counter and the real
+// ceiling becomes limit × instance count. At that point these need a shared store
+// (e.g. the `rate-limit-redis` package) instead — no such need currently exists.
 const skipInTests = () => process.env.NODE_ENV === "test";
 
 // Guards the one endpoint that lets an attacker test passwords against a known

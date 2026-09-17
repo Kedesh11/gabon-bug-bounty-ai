@@ -69,7 +69,26 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
         signOut: vi.fn(),
         listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
       },
-      signInWithPassword: vi.fn(),
+      // Default: succeeds like a real login would, resolving to whichever profile
+      // already exists for that email (register calls this right after creating one;
+      // a plain login call resolves to the existing profile Prisma already knows about)
+      // so the caller's later `prisma.profile.findUnique({ where: { id: data.user.id } })`
+      // finds a real row instead of 401ing on a random id. Tests exercising invalid
+      // credentials override this with mockResolvedValueOnce (see rateLimit.test.ts).
+      signInWithPassword: vi.fn(async ({ email }: { email: string }) => {
+        const profile = await prisma.profile.findUnique({ where: { email } });
+        return {
+          data: {
+            session: {
+              access_token: `mock-access-token-${email}`,
+              refresh_token: `mock-refresh-token-${email}`,
+              expires_at: Math.floor(Date.now() / 1000) + 3600,
+            },
+            user: { id: profile?.id ?? randomUUID() },
+          },
+          error: null,
+        };
+      }),
     },
     storage: {
       listBuckets: storageMocks.listBuckets,
