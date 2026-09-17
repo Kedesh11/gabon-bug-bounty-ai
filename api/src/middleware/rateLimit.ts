@@ -31,3 +31,14 @@ export const forgotPasswordRateLimit = rateLimit({
   skip: skipInTests,
   message: { error: "Trop de demandes de réinitialisation. Réessayez dans quelques minutes." },
 });
+
+// Same reasoning as forgotPasswordRateLimit — guards POST /api/auth/resend-verification
+// against being used as a free email bomb against a signup address.
+export const resendVerificationRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipInTests,
+  message: { error: "Trop de demandes de renvoi. Réessayez dans quelques minutes." },
+});

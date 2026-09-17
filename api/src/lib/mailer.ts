@@ -76,6 +76,44 @@ function renderPasswordResetEmailHtml(input: PasswordResetEmailInput): string {
   `;
 }
 
+export interface VerificationEmailInput {
+  to: string;
+  verifyUrl: string;
+}
+
+// Same never-throws contract as the other two — a failed send must never block
+// registration itself (see POST /api/auth/register), only degrade emailSent in the response.
+export async function sendVerificationEmail(input: VerificationEmailInput): Promise<SendResult> {
+  if (!env.RESEND_API_KEY) {
+    return { sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" };
+  }
+
+  try {
+    const resend = new Resend(env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: env.RESEND_FROM_EMAIL,
+      to: input.to,
+      subject: "Confirmez votre email — Gabon Bug Bounty",
+      html: renderVerificationEmailHtml(input),
+    });
+    if (error) return { sent: false, error: error.message };
+    return { sent: true };
+  } catch (err) {
+    return { sent: false, error: err instanceof Error ? err.message : "Erreur d'envoi inconnue" };
+  }
+}
+
+function renderVerificationEmailHtml(input: VerificationEmailInput): string {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px;">
+      <h2>Confirmez votre adresse email</h2>
+      <p>Bienvenue sur Gabon Bug Bounty ! Confirmez votre adresse email pour activer votre compte.</p>
+      <p><a href="${escapeHtml(input.verifyUrl)}">Cliquez ici pour confirmer votre email</a></p>
+      <p>Ce lien expire dans 24 heures. Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email.</p>
+    </div>
+  `;
+}
+
 function renderEmailHtml(input: StaffCredentialsEmailInput): string {
   const messageBlock = input.message
     ? `<p><strong>Message de l'administrateur :</strong></p><p>${escapeHtml(input.message)}</p>`

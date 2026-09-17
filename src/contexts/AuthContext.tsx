@@ -72,15 +72,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return loggedUser;
   }, []);
 
+  // No session returned: Supabase itself now refuses signInWithPassword until the
+  // account is confirmed (auth.email.enable_confirmations = true), so there is
+  // nothing to log the caller into yet — see Inscription.tsx for the "check your
+  // email" screen this leads into instead of an immediate dashboard redirect.
   const register = useCallback(async (name: string, email: string, password: string, role: "hacker" | "entreprise") => {
-    const { profile, session } = await apiFetch<{ profile: ApiProfile; session: Session }>("/api/auth/register", {
+    const { emailSent } = await apiFetch<{ emailSent: boolean }>("/api/auth/register", {
       method: "POST",
       body: { name, email, password, role },
     });
-    setSession(session);
-    const createdUser = toUser(profile);
-    setUser(createdUser);
-    return createdUser;
+    return { emailSent };
   }, []);
 
   const updateProfile = useCallback(async (data: Partial<Pick<User, "name" | "avatar" | "notificationPreferences">>) => {
@@ -108,9 +109,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await apiFetch("/api/auth/reset-password", { method: "POST", body: { token, password } });
   }, []);
 
+  const verifyEmail = useCallback(async (token: string) => {
+    await apiFetch("/api/auth/verify-email", { method: "POST", body: { token } });
+  }, []);
+
+  const resendVerification = useCallback(async (email: string) => {
+    await apiFetch("/api/auth/resend-verification", { method: "POST", body: { email } });
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, isLoading, login, register, updateProfile, logout, forgotPassword, resetPassword }}
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        register,
+        updateProfile,
+        logout,
+        forgotPassword,
+        resetPassword,
+        verifyEmail,
+        resendVerification,
+      }}
     >
       {children}
     </AuthContext.Provider>

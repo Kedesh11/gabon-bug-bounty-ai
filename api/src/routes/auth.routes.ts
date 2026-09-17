@@ -9,8 +9,8 @@ import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { serializeProfile, profileRoleInclude } from "../lib/serializeProfile.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
-import { sendPasswordResetEmail } from "../lib/mailer.js";
-import { loginRateLimit, forgotPasswordRateLimit } from "../middleware/rateLimit.js";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../lib/mailer.js";
+import { loginRateLimit, forgotPasswordRateLimit, resendVerificationRateLimit } from "../middleware/rateLimit.js";
 import { getSystemPasswordComplexity, validatePasswordComplexity } from "../lib/passwordPolicy.js";
 
 export const authRouter = Router();
@@ -39,10 +39,14 @@ authRouter.post(
     const role = await prisma.role.findUnique({ where: { key: body.role } });
     if (!role) throw new HttpError(500, `Rôle "${body.role}" introuvable — la base n'est pas correctement initialisée`);
 
+    // email_confirm: false — GoTrue itself then refuses signInWithPassword until the
+    // account is confirmed (supabase/config.toml: auth.email.enable_confirmations =
+    // true). No auto-login after this anymore: there is no session to hand back until
+    // the address is verified, see issueEmailVerificationToken below.
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: body.email,
       password: body.password,
-      email_confirm: true,
+      email_confirm: false,
     });
     if (createError || !created.user) {
       throw new HttpError(400, createError?.message ?? "Impossible de créer le compte");
@@ -60,23 +64,18 @@ authRouter.post(
       include: profileInclude,
     });
 
-    const { data: session, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-      email: body.email,
-      password: body.password,
-    });
-    if (signInError || !session.session) {
-      throw new HttpError(500, "Compte créé mais échec de connexion automatique");
-    }
+    const { sent: emailSent } = await issueEmailVerificationToken(profile);
 
     await createPlatformLog({
       type: "security",
       level: "info",
-      message: `Nouveau compte ${body.role} créé (${body.email})`,
+      message: `Nouveau compte ${body.role} créé, en attente de confirmation email (${body.email})`,
       source: "auth.routes",
       userId: profile.id,
+      metadata: { emailSent },
     });
 
-    res.status(201).json({ profile: serializeProfile(profile), session: session.session });
+    res.status(201).json({ profile: serializeProfile(profile), emailSent, requiresEmailVerification: true });
   }),
 );
 
@@ -101,8 +100,15 @@ authRouter.post(
         level: "warning",
         message: "Tentative de connexion échouée",
         source: "auth.routes",
-        metadata: { email: body.email },
+        metadata: { email: body.email, code: error?.code },
       });
+      // GoTrue itself enforces this (auth.email.enable_confirmations = true) — this
+      // is a real "your credentials are fine, your account just isn't usable yet"
+      // case, worth telling the caller apart from a wrong password so the frontend
+      // can point them at /renvoyer-verification instead of a generic error.
+      if (error?.code === "email_not_confirmed") {
+        throw new HttpError(403, "Confirmez votre email avant de vous connecter — vérifiez votre boîte de réception.");
+      }
       throw new HttpError(401, "Email ou mot de passe invalide");
     }
 
@@ -198,8 +204,11 @@ authRouter.patch(
 );
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-function hashResetToken(rawToken: string) {
+// Shared by both self-issued token flows below (reset and email verification) —
+// SHA-256 hashing has nothing flow-specific about it.
+function hashToken(rawToken: string) {
   return createHash("sha256").update(rawToken).digest("hex");
 }
 
@@ -216,7 +225,7 @@ export async function issuePasswordResetToken(profile: { id: string; email: stri
   await prisma.passwordResetToken.create({
     data: {
       profileId: profile.id,
-      tokenHash: hashResetToken(rawToken),
+      tokenHash: hashToken(rawToken),
       expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
     },
   });
@@ -280,7 +289,7 @@ authRouter.post(
     const complexityError = validatePasswordComplexity(body.password, complexity);
     if (complexityError) throw new HttpError(400, complexityError);
 
-    const tokenHash = hashResetToken(body.token);
+    const tokenHash = hashToken(body.token);
 
     const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
     if (!resetToken || resetToken.usedAt || resetToken.expiresAt.getTime() < Date.now()) {
@@ -306,5 +315,88 @@ authRouter.post(
     });
 
     res.status(200).json({ message: "Mot de passe réinitialisé avec succès" });
+  }),
+);
+
+// Same shape/reasoning as issuePasswordResetToken: exported so tests can await it
+// directly, deletes this profile's previous verification tokens first (at most one
+// outstanding link at a time, table stays bounded without a separate cleanup job).
+export async function issueEmailVerificationToken(profile: { id: string; email: string }) {
+  await prisma.emailVerificationToken.deleteMany({ where: { profileId: profile.id } });
+
+  const rawToken = randomBytes(32).toString("hex");
+  await prisma.emailVerificationToken.create({
+    data: {
+      profileId: profile.id,
+      tokenHash: hashToken(rawToken),
+      expiresAt: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
+    },
+  });
+
+  const verifyUrl = `${env.FRONTEND_URL}/verifier-email?token=${rawToken}`;
+  return sendVerificationEmail({ to: profile.email, verifyUrl });
+}
+
+const verifyEmailSchema = z.object({
+  token: z.string().min(1),
+});
+
+authRouter.post(
+  "/verify-email",
+  asyncHandler(async (req, res) => {
+    const body = verifyEmailSchema.parse(req.body);
+    const tokenHash = hashToken(body.token);
+
+    const verificationToken = await prisma.emailVerificationToken.findUnique({ where: { tokenHash } });
+    if (!verificationToken || verificationToken.usedAt || verificationToken.expiresAt.getTime() < Date.now()) {
+      throw new HttpError(400, "Lien de confirmation invalide ou expiré");
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(verificationToken.profileId, {
+      email_confirm: true,
+    });
+    if (error) throw new HttpError(500, "Impossible de confirmer l'email");
+
+    await prisma.emailVerificationToken.update({ where: { id: verificationToken.id }, data: { usedAt: new Date() } });
+
+    await createPlatformLog({
+      type: "security",
+      level: "info",
+      message: "Email confirmé via lien",
+      source: "auth.routes",
+      userId: verificationToken.profileId,
+    });
+
+    res.status(200).json({ message: "Email confirmé avec succès" });
+  }),
+);
+
+const resendVerificationSchema = z.object({
+  email: z.string().email(),
+});
+
+// Same anti-enumeration posture as /forgot-password: identical response whether the
+// account exists, is unknown, or is already confirmed — and the actual work fires
+// without being awaited so response latency can't be used to tell those apart either.
+authRouter.post(
+  "/resend-verification",
+  resendVerificationRateLimit,
+  asyncHandler(async (req, res) => {
+    const body = resendVerificationSchema.parse(req.body);
+
+    const profile = await prisma.profile.findUnique({ where: { email: body.email } });
+    if (profile) {
+      supabaseAdmin.auth.admin.getUserById(profile.id).then(({ data }) => {
+        if (data.user && !data.user.email_confirmed_at) {
+          return issueEmailVerificationToken(profile);
+        }
+      }).catch((err) => {
+        console.error("[auth] failed to resend verification email:", err);
+      });
+    }
+
+    res.status(200).json({
+      message: "Si un compte non confirmé existe pour cet email, un lien de confirmation vient d'être envoyé.",
+    });
   }),
 );

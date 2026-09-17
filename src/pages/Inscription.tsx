@@ -1,12 +1,11 @@
 import Navbar from "@/components/Navbar";
-import { Building2, ArrowRight, Shield, ShieldCheck, Terminal } from "lucide-react";
+import { Building2, ArrowRight, Shield, ShieldCheck, Terminal, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/useAuth";
-import { resolveDashboardPath } from "@/lib/roleNav";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useContent } from "@/hooks/api/content";
@@ -17,6 +16,9 @@ const Inscription = () => {
   const [searchParams] = useSearchParams();
   const forcedRole = searchParams.get("role");
   const isEntrepriseFlow = forcedRole === "entreprise";
+  // Carried through to the post-registration "go to login" link (not auto-navigated
+  // anymore — see handleSubmit) so an entreprise arriving via ?redirect=/soumettre-programme
+  // still lands there once they've verified their email and logged in for real.
   const redirectPath = searchParams.get("redirect");
 
   const [role, setRole] = useState<"hacker" | "entreprise">(isEntrepriseFlow ? "entreprise" : "hacker");
@@ -24,8 +26,9 @@ const Inscription = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const { register } = useAuth();
-  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const { register, resendVerification } = useAuth();
 
   useEffect(() => {
     if (isEntrepriseFlow) {
@@ -46,19 +49,57 @@ const Inscription = () => {
 
     const effectiveRole = isEntrepriseFlow ? "entreprise" : role;
 
+    setIsSubmitting(true);
     try {
-      const createdUser = await register(name, email, password, effectiveRole);
+      // No auto-login: the account can't sign in until its email is confirmed
+      // (Supabase itself refuses it — see AuthContext.register). Switch to a
+      // "check your email" screen instead of navigating into a dashboard.
+      await register(name, email, password, effectiveRole);
+      setRegistered(true);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-      toast.success("Bienvenue dans l'aventure !");
-      if (redirectPath && createdUser.role === "entreprise") {
-        navigate(redirectPath);
-        return;
-      }
-      navigate(resolveDashboardPath(createdUser));
+  const handleResend = async () => {
+    try {
+      await resendVerification(email);
+      toast.success("Email de confirmation renvoyé");
     } catch (err) {
       toast.error(apiErrorMessage(err));
     }
   };
+
+  if (registered) {
+    return (
+      <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
+        <Navbar />
+        <section className="pt-24 pb-16 min-h-screen flex items-center justify-center relative overflow-hidden">
+          <div className="absolute inset-0 grid-pattern opacity-20" />
+          <div className="relative z-10 w-full max-w-xl px-4 text-center">
+            <div className="glass-card rounded-2xl border-glow p-8 shadow-2xl space-y-4">
+              <Mail className="w-10 h-10 text-primary mx-auto" />
+              <h1 className="text-2xl font-black">Vérifiez votre boîte mail</h1>
+              <p className="text-muted-foreground">
+                Un email de confirmation a été envoyé à <strong>{email}</strong>. Cliquez sur le lien qu'il contient pour activer votre compte, puis connectez-vous.
+              </p>
+              <div className="flex flex-col items-center gap-3 pt-2">
+                <Button onClick={handleResend} variant="outline">Renvoyer l'email</Button>
+                <Link
+                  to={redirectPath ? `/connexion?redirect=${encodeURIComponent(redirectPath)}` : "/connexion"}
+                  className="text-primary font-black hover:underline underline-offset-4 text-sm"
+                >
+                  ALLER À LA CONNEXION
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
@@ -163,8 +204,12 @@ const Inscription = () => {
               </div>
 
               <div className="pt-4">
-                <Button type="submit" className="w-full h-12 bg-primary text-primary-foreground font-black text-lg hover:bg-primary/90 transition-all shadow-xl active:scale-[0.98]">
-                  CRÉER MON COMPTE <ArrowRight className="w-5 h-5 ml-2" />
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full h-12 bg-primary text-primary-foreground font-black text-lg hover:bg-primary/90 transition-all shadow-xl active:scale-[0.98]"
+                >
+                  {isSubmitting ? "CRÉATION..." : "CRÉER MON COMPTE"} <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
             </form>

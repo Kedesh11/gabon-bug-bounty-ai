@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/useAuth";
 import { resolveDashboardPath } from "@/lib/roleNav";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { apiErrorMessage } from "@/lib/apiClient";
+import { apiErrorMessage, ApiError } from "@/lib/apiClient";
 import { useContent } from "@/hooks/api/content";
 
 const Connexion = () => {
@@ -16,7 +16,8 @@ const Connexion = () => {
   const subtitle = useContent("connexion.subtitle", "Gérez vos vulnérabilités et vos programmes avec l'IA.");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login } = useAuth();
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const { login, resendVerification } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requiredRole = searchParams.get("role");
@@ -29,6 +30,7 @@ const Connexion = () => {
       return;
     }
 
+    setNeedsVerification(false);
     try {
       const loggedUser = await login(email, password);
 
@@ -39,6 +41,21 @@ const Connexion = () => {
 
       toast.success(`Bienvenue, ${loggedUser.name} !`);
       navigate(redirectPath || resolveDashboardPath(loggedUser));
+    } catch (err) {
+      // The backend distinguishes "account not confirmed yet" (403) from a plain
+      // wrong password (401) — see auth.routes.ts's login handler — so this can offer
+      // a resend link instead of just repeating a generic error.
+      if (err instanceof ApiError && err.status === 403) {
+        setNeedsVerification(true);
+      }
+      toast.error(apiErrorMessage(err));
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      await resendVerification(email);
+      toast.success("Email de confirmation renvoyé");
     } catch (err) {
       toast.error(apiErrorMessage(err));
     }
@@ -93,6 +110,18 @@ const Connexion = () => {
               <Button type="submit" className="w-full h-12 bg-primary text-primary-foreground font-black text-lg hover:bg-primary/90 transition-all active:scale-[0.98]">
                 SE CONNECTER <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
+
+              {needsVerification && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    className="text-xs font-bold text-primary hover:underline underline-offset-4"
+                  >
+                    Renvoyer l'email de confirmation
+                  </button>
+                </div>
+              )}
             </form>
           </div>
 

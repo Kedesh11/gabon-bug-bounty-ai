@@ -66,6 +66,9 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
         createUser: vi.fn(() => Promise.resolve({ data: { user: { id: randomUUID() } }, error: null })),
         deleteUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
         updateUserById: vi.fn().mockResolvedValue({ data: { user: {} }, error: null }),
+        // Default: unconfirmed, like a just-registered account — tests covering the
+        // "already confirmed, don't resend" branch override with mockResolvedValueOnce.
+        getUserById: vi.fn().mockResolvedValue({ data: { user: { email_confirmed_at: null } }, error: null }),
         signOut: vi.fn(),
         listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
       },
@@ -159,9 +162,11 @@ export function jsonResponse(body: unknown, ok = true) {
 export const mailerMocks = {
   sendStaffCredentialsEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
   sendPasswordResetEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
+  sendVerificationEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
 };
 
 vi.mock("../src/lib/mailer.js", () => ({
   sendStaffCredentialsEmail: mailerMocks.sendStaffCredentialsEmail,
   sendPasswordResetEmail: mailerMocks.sendPasswordResetEmail,
+  sendVerificationEmail: mailerMocks.sendVerificationEmail,
 }));
