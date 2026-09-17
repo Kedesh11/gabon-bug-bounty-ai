@@ -42,3 +42,15 @@ export const resendVerificationRateLimit = rateLimit({
   skip: skipInTests,
   message: { error: "Trop de demandes de renvoi. Réessayez dans quelques minutes." },
 });
+
+// Guards POST /api/auth/mfa/login-verify — a 6-digit TOTP code is 1 in a million,
+// brute-forceable in bulk without a limit here even though GoTrue itself also
+// time-boxes the underlying challenge.
+export const mfaVerifyRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipInTests,
+  message: { error: "Trop de tentatives. Réessayez dans quelques minutes." },
+});

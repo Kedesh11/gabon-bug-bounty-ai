@@ -12,10 +12,13 @@ import { createPlatformLog } from "../services/platformLogs/logsService.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../lib/mailer.js";
 import { loginRateLimit, forgotPasswordRateLimit, resendVerificationRateLimit } from "../middleware/rateLimit.js";
 import { getSystemPasswordComplexity, validatePasswordComplexity } from "../lib/passwordPolicy.js";
+import { isMfaEnrollmentRequired } from "../lib/mfaPolicy.js";
 
 export const authRouter = Router();
 
-const profileInclude = { hackerProfile: true, entrepriseProfile: true, ...profileRoleInclude };
+// Exported for mfa.routes.ts's login-verify (the second step of a step-up login),
+// which needs the exact same shape once it resolves its own profile.
+export const profileInclude = { hackerProfile: true, entrepriseProfile: true, ...profileRoleInclude };
 
 // Self-registration only ever creates a hacker or an entreprise account — the only two
 // roles wired to a public signup flow in the frontend (Inscription.tsx). Staff roles
@@ -120,6 +123,16 @@ authRouter.post(
       throw new HttpError(401, "Profil introuvable pour cet utilisateur");
     }
 
+    // Password verified, but a verified TOTP factor means the caller isn't done yet:
+    // signInWithPassword only ever returns an aal1 session (see mfa.routes.ts's
+    // /login-verify for the step-up). Not a full login response — no `profile`, and
+    // the token handed back is only ever valid for that one follow-up call.
+    const verifiedFactor = data.user.factors?.find((f) => f.factor_type === "totp" && f.status === "verified");
+    if (verifiedFactor) {
+      res.json({ mfaRequired: true, factorId: verifiedFactor.id, aal1AccessToken: data.session.access_token });
+      return;
+    }
+
     await createPlatformLog({
       type: "security",
       level: "info",
@@ -128,7 +141,9 @@ authRouter.post(
       userId: profile.id,
     });
 
-    res.json({ profile: serializeProfile(profile), session: data.session });
+    const mfaEnrollmentRequired = await isMfaEnrollmentRequired(profile.role.key, false);
+
+    res.json({ profile: serializeProfile(profile), session: data.session, mfaEnrollmentRequired });
   }),
 );
 
@@ -169,7 +184,12 @@ authRouter.get(
       where: { id: req.user!.id },
       include: profileInclude,
     });
-    res.json({ profile: serializeProfile(profile) });
+
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(req.user!.id);
+    const hasVerifiedTotp = !!userData.user?.factors?.some((f) => f.factor_type === "totp" && f.status === "verified");
+    const mfaEnrollmentRequired = await isMfaEnrollmentRequired(profile.role.key, hasVerifiedTotp);
+
+    res.json({ profile: serializeProfile(profile), mfaEnabled: hasVerifiedTotp, mfaEnrollmentRequired });
   }),
 );
 

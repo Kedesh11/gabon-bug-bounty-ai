@@ -66,9 +66,10 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
         createUser: vi.fn(() => Promise.resolve({ data: { user: { id: randomUUID() } }, error: null })),
         deleteUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
         updateUserById: vi.fn().mockResolvedValue({ data: { user: {} }, error: null }),
-        // Default: unconfirmed, like a just-registered account — tests covering the
-        // "already confirmed, don't resend" branch override with mockResolvedValueOnce.
-        getUserById: vi.fn().mockResolvedValue({ data: { user: { email_confirmed_at: null } }, error: null }),
+        // Default: unconfirmed and no MFA factors, like a just-registered account —
+        // tests covering "already confirmed" or "has a verified TOTP factor" override
+        // with mockResolvedValueOnce.
+        getUserById: vi.fn().mockResolvedValue({ data: { user: { email_confirmed_at: null, factors: [] } }, error: null }),
         signOut: vi.fn(),
         listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
       },
@@ -145,8 +146,11 @@ vi.mock("../src/services/mcpAgents/openRouterClient.js", () => ({
 }));
 
 // Defaults to the real fetch so unrelated code that happens to call fetch (e.g.
-// @react-pdf/renderer's yoga-layout WASM loader) keeps working; CinetPay tests
-// override this explicitly per-call via mockResolvedValue(Once), which still wins.
+// @react-pdf/renderer's yoga-layout WASM loader) keeps working. Despite the name this
+// now stubs *every* global fetch call in tests, not just CinetPay's — gotrueMfa.ts also
+// calls fetch directly (GoTrue's REST API has no admin-key path for MFA, see its own
+// comment) and gets caught by this same stub. Individual tests override per-call via
+// mockResolvedValue(Once), which still wins over this default.
 const realFetch = globalThis.fetch;
 export const cinetpayFetchMock = vi.fn(realFetch);
 vi.stubGlobal("fetch", cinetpayFetchMock);
