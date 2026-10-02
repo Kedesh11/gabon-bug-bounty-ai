@@ -18,6 +18,8 @@ export interface CollectionResult {
 
 export interface CreatePayoutInput {
   payoutId: string;
+  // Which try this is — only CinetPay needs it (a unique client_transaction_id per try).
+  attempt?: number;
   amount: number;
   currency: string;
   hackerName: string;
@@ -34,4 +36,7 @@ export interface CinetPayPayoutInput extends CreatePayoutInput {
 
 export interface PayoutResult {
   providerRef: string;
+  // "succeeded": money is gone (Stripe transfers are synchronous). "pending": accepted by the
+  // provider but not settled (CinetPay mobile money) — resolved later, see cinetpay/transferStatus.ts.
+  status: "succeeded" | "pending";
 }

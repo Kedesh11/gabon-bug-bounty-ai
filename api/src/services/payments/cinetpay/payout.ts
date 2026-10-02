@@ -1,4 +1,6 @@
+import { env } from "../../../env.js";
 import { cinetpayTransferRequest } from "./client.js";
+import { clientTransactionId, mapTreatmentStatus } from "./transferStatus.js";
 import type { CinetPayPayoutInput, PayoutResult } from "../types.js";
 
 interface CinetPayGenericResponse {
@@ -25,21 +27,35 @@ async function ensureContact(hackerName: string, phoneNumber: string): Promise<v
   });
 }
 
+// CinetPay only accepts amounts that are a multiple of 5 for a transfer.
+export const CINETPAY_TRANSFER_STEP = 5;
+
+// A mobile-money transfer is asynchronous: code 0 means CinetPay ACCEPTED the order (it comes
+// back as treatment_status NEW), not that the money arrived. So this returns "pending" and the
+// outcome is settled later by the notify_url callback or the reconciliation job (see
+// services/payments/cinetpay/payoutSync.ts) — never assumed here.
 export async function createCinetpayPayout(input: CinetPayPayoutInput): Promise<PayoutResult> {
   await ensureContact(input.hackerName, input.phoneNumber);
   const { prefix, number } = splitPhoneNumber(input.phoneNumber);
+  const clientTxId = clientTransactionId(input.payoutId, input.attempt ?? 1);
 
   const response = await cinetpayTransferRequest<CinetPayGenericResponse>("/transfer/money/send/contact", {
     prefix,
     phone: number,
     amount: input.amount,
-    notify_url: "",
-    client_transaction_id: input.payoutId,
+    notify_url: `${env.API_BASE_URL}/api/webhooks/cinetpay-transfer`,
+    client_transaction_id: clientTxId,
   });
 
   if (Number(response.code) !== 0) {
     throw new Error(`CinetPay payout failed: ${response.message}`);
   }
 
-  return { providerRef: input.payoutId };
+  const outcome = mapTreatmentStatus(response.data?.treatment_status);
+  if (outcome === "failed") {
+    throw new Error(`CinetPay a rejeté le transfert (${String(response.data?.treatment_status)})`);
+  }
+
+  const providerRef = typeof response.data?.transaction_id === "string" ? response.data.transaction_id : clientTxId;
+  return { providerRef, status: outcome };
 }

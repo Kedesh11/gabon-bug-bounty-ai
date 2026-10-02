@@ -768,6 +768,10 @@ model Payout {
   // Stripe Transfer id, or CinetPay transfer transaction id
   providerRef String?
 
+  // Which try this is (1 = first). A failed payout is retried on the same row; CinetPay needs
+  // a fresh client_transaction_id per try, derived from this (see cinetpay/payout.ts).
+  attempt Int @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

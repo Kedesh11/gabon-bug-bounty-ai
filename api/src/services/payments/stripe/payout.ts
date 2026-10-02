@@ -29,5 +29,5 @@ export async function createStripePayout(input: StripePayoutInput): Promise<Payo
     { idempotencyKey: `payout-${input.payoutId}` },
   );
 
-  return { providerRef: transfer.id };
+  return { providerRef: transfer.id, status: "succeeded" };
 }

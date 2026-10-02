@@ -5,6 +5,9 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import { syncCinetpayPayout } from "../services/payments/cinetpay/payoutSync.js";
+import { checkCinetpayTransferStatus, clientTransactionId } from "../services/payments/cinetpay/transferStatus.js";
+import { CINETPAY_TRANSFER_STEP } from "../services/payments/cinetpay/payout.js";
 import { isRecipientTransfersActive } from "../services/payments/stripe/connect.js";
 import { getProgrammeBalance } from "../services/payments/programmeBalance.js";
 import { createPayout } from "../services/payments/paymentService.js";
@@ -75,6 +78,25 @@ payoutsRouter.post(
 
     const provider = stripeAccountId ? "stripe" : "cinetpay";
 
+    // CinetPay rejects a transfer whose amount isn't a multiple of 5 — tell the caller up
+    // front instead of creating a payout row that is bound to fail at the provider.
+    if (provider === "cinetpay" && report.reward % CINETPAY_TRANSFER_STEP !== 0) {
+      throw new HttpError(422, `Le mobile money exige un montant multiple de ${CINETPAY_TRANSFER_STEP} : ${report.reward} ${currency} ne peut pas être envoyé tel quel`);
+    }
+
+    // A failed CinetPay payout may not really have failed: a timeout after CinetPay accepted
+    // the order looks the same as a refusal to us. Before sending a fresh transfer, ask CinetPay
+    // about the previous attempt so a retry can never pay the hacker twice. If CinetPay can't be
+    // reached the retry stops here — better a delayed payout than a double one.
+    if (report.payout?.status === "failed" && report.payout.provider === "cinetpay") {
+      const previous = await checkCinetpayTransferStatus(clientTransactionId(report.payout.id, report.payout.attempt));
+      if (previous === "succeeded" || previous === "pending") {
+        const adopted = await prisma.payout.update({ where: { id: report.payout.id }, data: { status: previous } });
+        res.status(previous === "succeeded" ? 200 : 202).json({ payout: adopted, adopted: true });
+        return;
+      }
+    }
+
     // Funding check + claim in ONE transaction, serialised per programme by an advisory lock:
     // without it two simultaneous payouts could each see enough balance and together overspend.
     // The pending row created/claimed here is what the next caller's balance already counts.
@@ -83,9 +105,9 @@ payoutsRouter.post(
     // idempotency key): if that attempt actually moved money before failing to record it,
     // Stripe returns the original transfer instead of paying twice. The conditional
     // updateMany claims the retry atomically — two concurrent retries can't both win.
-    let payoutId: string;
+    let claimed: { id: string; attempt: number };
     try {
-      payoutId = await prisma.$transaction(async (tx) => {
+      claimed = await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${report.programmeId}))`;
 
         const balance = await getProgrammeBalance(tx, report.programmeId, currency);
@@ -97,18 +119,19 @@ payoutsRouter.post(
         }
 
         if (report.payout) {
-          const claimed = await tx.payout.updateMany({
+          const reclaimed = await tx.payout.updateMany({
             where: { id: report.payout.id, status: "failed" },
-            data: { status: "pending", provider, amount: report.reward, currency },
+            data: { status: "pending", provider, amount: report.reward, currency, attempt: { increment: 1 } },
           });
-          if (claimed.count === 0) throw new HttpError(409, "Un versement est déjà en cours pour ce rapport");
-          return report.payout.id;
+          if (reclaimed.count === 0) throw new HttpError(409, "Un versement est déjà en cours pour ce rapport");
+          const row = await tx.payout.findUniqueOrThrow({ where: { id: report.payout.id }, select: { id: true, attempt: true } });
+          return row;
         }
 
-        const created = await tx.payout.create({
+        return tx.payout.create({
           data: { reportId: report.id, hackerId: report.hackerId, provider, amount: report.reward, currency },
+          select: { id: true, attempt: true },
         });
-        return created.id;
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -117,27 +140,33 @@ payoutsRouter.post(
       throw err;
     }
 
+    const payoutId = claimed.id;
+
     try {
       const result = await createPayout(payoutId, report.reward, currency, {
         hackerName: report.hacker.profile.name,
         stripeAccountId,
         mobileMoneyPhoneNumber: usesMobileMoney ? (config!.phoneNumber as string) : null,
         mobileMoneyProvider: usesMobileMoney ? (config!.mobileMoneyProvider as string) : null,
-      });
+      }, claimed.attempt);
 
       const updated = await prisma.payout.update({
         where: { id: payoutId },
-        data: { status: "succeeded", provider: result.provider, providerRef: result.providerRef },
+        data: { status: result.status, provider: result.provider, providerRef: result.providerRef },
       });
 
       await createPlatformLog({
         type: "system",
         level: "info",
-        message: `Versement de ${report.reward} ${currency} effectué pour le rapport "${report.title}"`,
+        message:
+          result.status === "succeeded"
+            ? `Versement de ${report.reward} ${currency} effectué pour le rapport "${report.title}"`
+            : `Versement de ${report.reward} ${currency} envoyé à CinetPay pour le rapport "${report.title}", en attente de confirmation`,
         source: "payouts.routes",
         userId: req.user!.id,
       });
 
+      // 201 even when "pending": the transfer was created, its settlement comes later.
       res.status(201).json({ payout: updated });
     } catch (err) {
       await prisma.payout.update({ where: { id: payoutId }, data: { status: "failed" } });
@@ -150,5 +179,22 @@ payoutsRouter.post(
       });
       throw err;
     }
+  }),
+);
+
+// Asks CinetPay for the real status of a mobile-money payout still "pending" — the manual
+// counterpart of the notification callback and of the reconciliation job, for when finance
+// doesn't want to wait for either.
+payoutsRouter.post(
+  "/:id/sync",
+  requirePermission("payouts.create"),
+  asyncHandler(async (req, res) => {
+    const payout = await prisma.payout.findUnique({ where: { id: req.params.id } });
+    if (!payout) throw new HttpError(404, "Versement introuvable");
+    if (payout.provider !== "cinetpay") throw new HttpError(400, "Seuls les versements mobile money (CinetPay) ont un statut à synchroniser");
+
+    const result = await syncCinetpayPayout(payout.id);
+    const updated = await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } });
+    res.json({ payout: updated, result });
   }),
 );

@@ -6,6 +6,7 @@ import { stripe } from "../services/payments/stripe/client.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 import { toStripeAmount } from "../services/payments/stripe/collection.js";
 import { checkCinetpayTransactionStatus } from "../services/payments/cinetpay/collection.js";
+import { syncCinetpayPayout } from "../services/payments/cinetpay/payoutSync.js";
 
 // Mounted BEFORE the global express.json() parser in index.ts: Stripe's signature
 // verification (stripe.webhooks.constructEvent) needs the exact raw request body.
@@ -85,11 +86,57 @@ cinetpayWebhookRouter.post(
       return;
     }
 
-    const status = await checkCinetpayTransactionStatus(transactionId);
-    if (status !== "pending") {
-      await prisma.payment.updateMany({ where: { id: transactionId, status: "pending" }, data: { status } });
+    const verified = await checkCinetpayTransactionStatus(transactionId);
+    if (verified.status === "pending") {
+      res.status(200).send("OK");
+      return;
     }
 
+    // Money received for a different amount/currency than the one we recorded must never
+    // mark the funding as paid — same rule as the Stripe webhook.
+    const payment = await prisma.payment.findUnique({ where: { id: transactionId } });
+    if (payment && payment.status === "pending") {
+      const mismatch =
+        verified.status === "succeeded" &&
+        ((verified.amount !== null && verified.amount !== payment.amount) ||
+          (verified.currency !== null && verified.currency.toUpperCase() !== payment.currency.toUpperCase()));
+      if (mismatch) {
+        await createPlatformLog({
+          type: "security",
+          level: "error",
+          message: `Paiement ${payment.id} : montant CinetPay (${verified.amount} ${verified.currency}) différent du montant attendu (${payment.amount} ${payment.currency}) — non marqué comme reçu`,
+          source: "webhooks.routes",
+        });
+      } else {
+        await prisma.payment.updateMany({ where: { id: payment.id, status: "pending" }, data: { status: verified.status } });
+      }
+    }
+
+    res.status(200).send("OK");
+  }),
+);
+
+// CinetPay calls this when a mobile-money TRANSFER (a hacker payout) settles. The form body
+// has no signature, so it is used only to find the payout: the real status is then fetched
+// from CinetPay's own check endpoint (see payoutSync.ts). Always answers 200 for a well-formed
+// call — a transient failure to reach CinetPay is retried by the reconciliation job anyway.
+cinetpayWebhookRouter.post(
+  "/cinetpay-transfer",
+  urlencoded({ extended: true }),
+  asyncHandler(async (req, res) => {
+    const clientTxId = req.body?.client_transaction_id as string | undefined;
+    // Payout ids are UUIDs; a retry's id is "<uuid>-<attempt>".
+    const payoutId = clientTxId?.match(/^[0-9a-f-]{36}/i)?.[0];
+    if (!payoutId) {
+      res.status(400).send("client_transaction_id manquant ou invalide");
+      return;
+    }
+
+    try {
+      await syncCinetpayPayout(payoutId);
+    } catch (err) {
+      console.error(`[cinetpay] transfer notification for payout ${payoutId} could not be verified:`, err);
+    }
     res.status(200).send("OK");
   }),
 );

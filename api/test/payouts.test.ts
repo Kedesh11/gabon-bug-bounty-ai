@@ -272,7 +272,8 @@ describe("POST /api/payouts/reports/:id", () => {
     const res = await request(app).post(`/api/payouts/reports/${report.id}`).set("Authorization", admin.authHeader);
 
     expect(res.status).toBe(201);
-    expect(res.body.payout.status).toBe("succeeded");
+    // Accepted by CinetPay, not settled: mobile-money transfers are asynchronous.
+    expect(res.body.payout.status).toBe("pending");
     expect(res.body.payout.provider).toBe("cinetpay");
   });
 

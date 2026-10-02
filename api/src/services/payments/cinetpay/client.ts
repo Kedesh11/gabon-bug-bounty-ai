@@ -70,4 +70,17 @@ export async function cinetpayTransferRequest<T>(path: string, body: Record<stri
   return json;
 }
 
+// Read-only calls of the Transfer API (status checks) are GETs with the token in the query.
+export async function cinetpayTransferGet<T>(path: string, params: Record<string, string>): Promise<T> {
+  const token = await getTransferToken();
+  const query = new URLSearchParams({ ...params, token });
+  const res = await fetch(`${TRANSFER_BASE}${path}?${query.toString()}`, { method: "GET" });
+
+  const json = (await res.json()) as T;
+  if (!res.ok) {
+    throw new Error(`CinetPay transfer error on ${path}: ${res.status} ${JSON.stringify(json)}`);
+  }
+  return json;
+}
+
 export { CHECKOUT_BASE };

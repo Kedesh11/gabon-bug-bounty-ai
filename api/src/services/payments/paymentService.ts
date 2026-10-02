@@ -33,6 +33,7 @@ export async function createPayout(
   amount: number,
   currency: string,
   hacker: HackerPayoutContext,
+  attempt = 1,
 ): Promise<{ provider: Provider } & PayoutResult> {
   if (hacker.stripeAccountId) {
     const result = await createStripePayout({
@@ -48,6 +49,7 @@ export async function createPayout(
   if (hacker.mobileMoneyPhoneNumber && hacker.mobileMoneyProvider) {
     const result = await createCinetpayPayout({
       payoutId,
+      attempt,
       amount,
       currency,
       hackerName: hacker.hackerName,

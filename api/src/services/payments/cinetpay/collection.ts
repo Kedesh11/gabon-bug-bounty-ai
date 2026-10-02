@@ -41,20 +41,35 @@ interface CinetPayCheckResponse {
   code: string;
   message: string;
   data?: {
-    status: "ACCEPTED" | "REFUSED" | "CANCELLED" | "PENDING" | string;
+    // ACCEPTED / REFUSED are final; PENDING / INITIATED / UNKNOWN are not; EXPIRED and
+    // CANCELLED mean the customer never paid.
+    status: "ACCEPTED" | "REFUSED" | "CANCELLED" | "EXPIRED" | "PENDING" | "INITIATED" | string;
+    amount?: string | number;
+    currency?: string;
   };
+}
+
+export interface CinetpayCheckResult {
+  status: "succeeded" | "failed" | "pending";
+  // What CinetPay itself says was paid — compared against our Payment row by the webhook.
+  amount: number | null;
+  currency: string | null;
 }
 
 // CinetPay's notification POST body is NOT trustworthy on its own (no verifiable
 // signature) — CinetPay's own docs say to always re-check the authoritative
 // status via this endpoint before updating anything.
-export async function checkCinetpayTransactionStatus(transactionId: string): Promise<"succeeded" | "failed" | "pending"> {
+export async function checkCinetpayTransactionStatus(transactionId: string): Promise<CinetpayCheckResult> {
   const response = await cinetpayCheckoutRequest<CinetPayCheckResponse>("/payment/check", {
     transaction_id: transactionId,
   });
 
   const status = response.data?.status;
-  if (status === "ACCEPTED") return "succeeded";
-  if (status === "REFUSED" || status === "CANCELLED") return "failed";
-  return "pending";
+  const rawAmount = response.data?.amount;
+  const amount = rawAmount === undefined || rawAmount === "" ? null : Number(rawAmount);
+  const base = { amount: Number.isFinite(amount) ? amount : null, currency: response.data?.currency ?? null };
+
+  if (status === "ACCEPTED") return { status: "succeeded", ...base };
+  if (status === "REFUSED" || status === "CANCELLED" || status === "EXPIRED") return { status: "failed", ...base };
+  return { status: "pending", ...base };
 }

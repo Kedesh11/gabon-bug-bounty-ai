@@ -25,6 +25,7 @@ import { maintenanceRouter } from "./routes/maintenance.routes.js";
 import { systemStatusRouter } from "./routes/systemStatus.routes.js";
 import { paymentsRouter } from "./routes/payments.routes.js";
 import { payoutsRouter } from "./routes/payouts.routes.js";
+import { reconcilePendingCinetpayPayouts } from "./services/payments/cinetpay/payoutSync.js";
 import { stripeWebhookRouter, cinetpayWebhookRouter } from "./routes/webhooks.routes.js";
 
 export const app = express();
@@ -78,4 +79,11 @@ if (process.env.NODE_ENV !== "test") {
   app.listen(env.PORT, () => {
     console.log(`API listening on http://localhost:${env.PORT}`);
   });
+
+  // Safety net for CinetPay transfer notifications that never arrive. Single-instance like
+  // the rest of this deployment; with several instances it is idempotent (only pending
+  // payouts move, once) but would repeat the checks.
+  setInterval(() => {
+    reconcilePendingCinetpayPayouts().catch((err) => console.error("[cinetpay] reconciliation run failed:", err));
+  }, 5 * 60 * 1000).unref();
 }
