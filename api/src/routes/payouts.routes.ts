@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
@@ -10,6 +11,12 @@ import { checkCinetpayTransferStatus, clientTransactionId } from "../services/pa
 import { CINETPAY_TRANSFER_STEP } from "../services/payments/cinetpay/payout.js";
 import { isRecipientTransfersActive } from "../services/payments/stripe/connect.js";
 import { getProgrammeBalance } from "../services/payments/programmeBalance.js";
+import { env } from "../env.js";
+import { isPvitConfigured } from "../services/payments/pvit/client.js";
+import { isDefinitiveRefusal } from "../services/payments/pvit/transaction.js";
+import { pvitReference, toPvitMsisdn, toPvitOperator } from "../services/payments/pvit/identifiers.js";
+import { getPvitBalance, getPvitTransactionStatus } from "../services/payments/pvit/status.js";
+import { syncPvitPayout } from "../services/payments/pvit/sync.js";
 import { createPayout } from "../services/payments/paymentService.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 import { listPayouts } from "../services/payments/paymentsQueryService.js";
@@ -76,7 +83,8 @@ payoutsRouter.post(
       );
     }
 
-    const provider = stripeAccountId ? "stripe" : "cinetpay";
+    // Whichever aggregator MOBILE_MONEY_PROVIDER names handles the mobile-money case (PVit in Gabon).
+    const provider = stripeAccountId ? "stripe" : env.MOBILE_MONEY_PROVIDER;
 
     // CinetPay rejects a transfer whose amount isn't a multiple of 5 — tell the caller up
     // front instead of creating a payout row that is bound to fail at the provider.
@@ -84,12 +92,38 @@ payoutsRouter.post(
       throw new HttpError(422, `Le mobile money exige un montant multiple de ${CINETPAY_TRANSFER_STEP} : ${report.reward} ${currency} ne peut pas être envoyé tel quel`);
     }
 
+    // PVit pays Airtel Money and Moov Money wallets from the platform's operation account. Every
+    // check that can be made without calling PVit is made here, before a payout row exists.
+    if (provider === "pvit") {
+      if (!isPvitConfigured()) throw new HttpError(503, "Le paiement mobile money n'est pas encore configuré sur cette plateforme");
+      if (!toPvitOperator(config!.mobileMoneyProvider)) {
+        throw new HttpError(422, `${report.hacker.profile.name} utilise un opérateur que PVit ne dessert pas (seuls Airtel Money et Moov Money le sont)`);
+      }
+      if (!toPvitMsisdn(config!.phoneNumber)) {
+        throw new HttpError(422, `Le numéro mobile money de ${report.hacker.profile.name} n'est pas un numéro gabonais valide`);
+      }
+      // GIVE_CHANGE draws on the operation account: with no money in it the payout would only fail.
+      const balance = await getPvitBalance();
+      if (balance !== null && balance < report.reward) {
+        throw new HttpError(409, `Solde du compte PVit insuffisant : ${balance} XAF disponibles, ${report.reward} XAF requis. Approvisionnez le compte avant de verser.`);
+      }
+    }
+
     // A failed CinetPay payout may not really have failed: a timeout after CinetPay accepted
     // the order looks the same as a refusal to us. Before sending a fresh transfer, ask CinetPay
     // about the previous attempt so a retry can never pay the hacker twice. If CinetPay can't be
     // reached the retry stops here — better a delayed payout than a double one.
-    if (report.payout?.status === "failed" && report.payout.provider === "cinetpay") {
-      const previous = await checkCinetpayTransferStatus(clientTransactionId(report.payout.id, report.payout.attempt));
+    if (report.payout?.status === "failed" && (report.payout.provider === "cinetpay" || report.payout.provider === "pvit")) {
+      let previous: "succeeded" | "failed" | "pending" | "unknown";
+      if (report.payout.provider === "cinetpay") {
+        previous = await checkCinetpayTransferStatus(clientTransactionId(report.payout.id, report.payout.attempt));
+      } else if (report.payout.providerTxId) {
+        // A PVit payout is only ever "failed" on an explicit refusal; if PVit nonetheless gave
+        // it an id, its answer settles whether that attempt went through.
+        previous = (await getPvitTransactionStatus(report.payout.providerTxId, "GIVE_CHANGE"))?.outcome ?? "unknown";
+      } else {
+        previous = "unknown";
+      }
       if (previous === "succeeded" || previous === "pending") {
         const adopted = await prisma.payout.update({ where: { id: report.payout.id }, data: { status: previous } });
         res.status(previous === "succeeded" ? 200 : 202).json({ payout: adopted, adopted: true });
@@ -152,7 +186,7 @@ payoutsRouter.post(
 
       const updated = await prisma.payout.update({
         where: { id: payoutId },
-        data: { status: result.status, provider: result.provider, providerRef: result.providerRef },
+        data: { status: result.status, provider: result.provider, providerRef: result.providerRef, providerTxId: result.providerTxId ?? null },
       });
 
       await createPlatformLog({
@@ -161,7 +195,7 @@ payoutsRouter.post(
         message:
           result.status === "succeeded"
             ? `Versement de ${report.reward} ${currency} effectué pour le rapport "${report.title}"`
-            : `Versement de ${report.reward} ${currency} envoyé à CinetPay pour le rapport "${report.title}", en attente de confirmation`,
+            : `Versement de ${report.reward} ${currency} envoyé à ${result.provider === "pvit" ? "PVit" : "CinetPay"} pour le rapport "${report.title}", en attente de confirmation`,
         source: "payouts.routes",
         userId: req.user!.id,
       });
@@ -169,6 +203,27 @@ payoutsRouter.post(
       // 201 even when "pending": the transfer was created, its settlement comes later.
       res.status(201).json({ payout: updated });
     } catch (err) {
+      // PVit: a request that MAY have been executed (timeout, 5xx) must not become "failed" —
+      // that would allow a retry, i.e. a second payment. It stays pending, keyed by the
+      // reference PVit would echo back, until a callback, the status API or a human decides.
+      if (provider === "pvit" && !isDefinitiveRefusal(err)) {
+        const pending = await prisma.payout.update({
+          where: { id: payoutId },
+          data: { providerRef: pvitReference("P", payoutId, claimed.attempt) },
+        });
+        await createPlatformLog({
+          type: "system",
+          level: "error",
+          message: `Versement PVit pour le rapport "${report.title}" : issue incertaine (${err instanceof Error ? err.message : String(err)}). Laissé en attente — vérifier dans le tableau de bord PVit avant toute relance.`,
+          source: "payouts.routes",
+          userId: req.user!.id,
+        });
+        res.status(202).json({
+          payout: pending,
+          warning: "L'issue du versement est incertaine : il reste en attente et ne sera pas relancé automatiquement. Vérifiez-le dans PVit.",
+        });
+        return;
+      }
       await prisma.payout.update({ where: { id: payoutId }, data: { status: "failed" } });
       await createPlatformLog({
         type: "system",
@@ -182,7 +237,7 @@ payoutsRouter.post(
   }),
 );
 
-// Asks CinetPay for the real status of a mobile-money payout still "pending" — the manual
+// Asks the mobile-money aggregator for the real status of a payout still "pending" — the manual
 // counterpart of the notification callback and of the reconciliation job, for when finance
 // doesn't want to wait for either.
 payoutsRouter.post(
@@ -191,10 +246,41 @@ payoutsRouter.post(
   asyncHandler(async (req, res) => {
     const payout = await prisma.payout.findUnique({ where: { id: req.params.id } });
     if (!payout) throw new HttpError(404, "Versement introuvable");
-    if (payout.provider !== "cinetpay") throw new HttpError(400, "Seuls les versements mobile money (CinetPay) ont un statut à synchroniser");
+    if (payout.provider === "stripe") throw new HttpError(400, "Seuls les versements mobile money ont un statut à synchroniser");
 
-    const result = await syncCinetpayPayout(payout.id);
+    const result = payout.provider === "pvit" ? await syncPvitPayout(payout.id) : await syncCinetpayPayout(payout.id);
     const updated = await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } });
     res.json({ payout: updated, result });
+  }),
+);
+
+const resolveSchema = z.object({ outcome: z.enum(["succeeded", "failed"]), note: z.string().trim().min(5, "Une justification d'au moins 5 caractères est requise") });
+
+// A PVit payout whose request timed out has no PVit transaction id, so nothing can be asked of
+// PVit about it. Someone with payouts.create checks the PVit dashboard and records what they
+// found. Only for that exact case — a payout PVit can be asked about must go through /sync.
+// Marking it "failed" is what re-opens the door to a retry, hence the audit trail.
+payoutsRouter.post(
+  "/:id/resolve",
+  requirePermission("payouts.create"),
+  asyncHandler(async (req, res) => {
+    const body = resolveSchema.parse(req.body);
+    const payout = await prisma.payout.findUnique({ where: { id: req.params.id }, include: { report: { select: { title: true } } } });
+    if (!payout) throw new HttpError(404, "Versement introuvable");
+    if (payout.provider !== "pvit" || payout.status !== "pending" || payout.providerTxId) {
+      throw new HttpError(409, "Seul un versement PVit en attente, sans identifiant de transaction PVit, peut être tranché à la main");
+    }
+
+    const moved = await prisma.payout.updateMany({ where: { id: payout.id, status: "pending", providerTxId: null }, data: { status: body.outcome } });
+    if (moved.count === 0) throw new HttpError(409, "Ce versement a changé entre-temps");
+
+    await createPlatformLog({
+      type: "security",
+      level: "warning",
+      message: `Versement PVit du rapport "${payout.report.title}" tranché à la main : ${body.outcome} (${body.note})`,
+      source: "payouts.routes",
+      userId: req.user!.id,
+    });
+    res.json({ payout: await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } }) });
   }),
 );

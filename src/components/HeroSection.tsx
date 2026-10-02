@@ -19,10 +19,10 @@ const HeroSection = () => {
 
       <div className="container relative z-10 text-center px-4 py-20">
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 glass-card rounded-full px-4 py-2 mb-8 border-glow">
+        {/* <div className="inline-flex items-center gap-2 glass-card rounded-full px-4 py-2 mb-8 border-glow">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
           <span className="text-sm font-mono text-primary">PLATEFORME NATIONALE</span>
-        </div>
+        </div> */}
 
         {/* Title */}
         <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight mb-6 leading-[0.95]">

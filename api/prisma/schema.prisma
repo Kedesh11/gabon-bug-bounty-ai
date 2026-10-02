@@ -714,6 +714,8 @@ model PlatformLog {
 enum PaymentProvider {
   stripe
   cinetpay
+  // PVit (mypvit.pro): the mobile-money aggregator for Gabon — Airtel Money and Moov Money.
+  pvit
 }
 
 enum PaymentStatus {
@@ -741,8 +743,12 @@ model Payment {
   amount    Int
   currency  String
 
-  // Stripe Checkout Session id, or CinetPay transaction_id
+  // Stripe Checkout Session id, or CinetPay transaction_id, or our own PVit merchant reference
+  // (what PVit's callback echoes back as merchantReferenceId — the lookup key).
   providerRef String
+  // PVit's own transaction id (reference_id), needed to ask its status API. Null until PVit
+  // has acknowledged the request.
+  providerTxId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -765,8 +771,10 @@ model Payout {
   amount   Int
   currency String
 
-  // Stripe Transfer id, or CinetPay transfer transaction id
+  // Stripe Transfer id, or CinetPay transfer transaction id, or our own PVit merchant reference
   providerRef String?
+  // PVit's own transaction id (reference_id) once acknowledged — see Payment.providerTxId.
+  providerTxId String?
 
   // Which try this is (1 = first). A failed payout is retried on the same row; CinetPay needs
   // a fresh client_transaction_id per try, derived from this (see cinetpay/payout.ts).

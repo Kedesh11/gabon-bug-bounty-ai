@@ -6,6 +6,7 @@ import { stripe } from "../services/payments/stripe/client.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 import { toStripeAmount } from "../services/payments/stripe/collection.js";
 import { checkCinetpayTransactionStatus } from "../services/payments/cinetpay/collection.js";
+import { syncPvitPayment, syncPvitPayout } from "../services/payments/pvit/sync.js";
 import { syncCinetpayPayout } from "../services/payments/cinetpay/payoutSync.js";
 
 // Mounted BEFORE the global express.json() parser in index.ts: Stripe's signature
@@ -138,5 +139,54 @@ cinetpayWebhookRouter.post(
       console.error(`[cinetpay] transfer notification for payout ${payoutId} could not be verified:`, err);
     }
     res.status(200).send("OK");
+  }),
+);
+
+// PVit calls this when a transaction reaches its final state. PVit documents two requirements:
+//  - the reply must be HTTP 200 with a JSON echo of the received `transactionId` and `code`,
+//    taken from the payload (never hardcoded), or PVit flags a "Notification Failure";
+//  - there is no signature on the body, so it is NOT believed: it only says which payment or
+//    payout to look at, whose real state is then fetched from PVit's status API (services/
+//    payments/pvit/sync.ts), which also checks it is the same transaction, same reference.
+// Optionally restricted to PVit's published source IPs (PVIT_CALLBACK_IP_ALLOWLIST).
+export const pvitWebhookRouter = Router();
+
+interface PvitCallbackPayload {
+  transactionId?: string;
+  merchantReferenceId?: string;
+  code?: number | string;
+  transactionOperation?: string;
+}
+
+pvitWebhookRouter.post(
+  "/pvit",
+  asyncHandler(async (req, res) => {
+    const allowlist = env.PVIT_CALLBACK_IP_ALLOWLIST.split(",").map((ip) => ip.trim()).filter(Boolean);
+    if (allowlist.length > 0 && !allowlist.includes(req.ip ?? "")) {
+      res.status(403).json({ error: "Source non autorisée" });
+      return;
+    }
+
+    const payload = (req.body ?? {}) as PvitCallbackPayload;
+    const { transactionId, merchantReferenceId } = payload;
+    if (typeof transactionId !== "string" || typeof merchantReferenceId !== "string") {
+      res.status(400).json({ error: "transactionId et merchantReferenceId requis" });
+      return;
+    }
+
+    try {
+      if (payload.transactionOperation === "GIVE_CHANGE") {
+        const payout = await prisma.payout.findFirst({ where: { provider: "pvit", providerRef: merchantReferenceId } });
+        if (payout) await syncPvitPayout(payout.id, transactionId);
+      } else {
+        const payment = await prisma.payment.findFirst({ where: { provider: "pvit", providerRef: merchantReferenceId } });
+        if (payment) await syncPvitPayment(payment.id, transactionId);
+      }
+    } catch (err) {
+      // Still acknowledged: PVit delivered it, and the reconciliation job re-checks what stays pending.
+      console.error(`[pvit] callback for ${merchantReferenceId} could not be verified:`, err);
+    }
+
+    res.status(200).json({ transactionId, responseCode: payload.code });
   }),
 );

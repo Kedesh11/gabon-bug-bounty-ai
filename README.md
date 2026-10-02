@@ -33,7 +33,7 @@ Les deux services ne partagent aucun code ni build : ils ne communiqueront que v
 **Backend** (`api/`) — détails complets dans [api/README.md](api/README.md) :
 - Express + TypeScript, Prisma ORM, PostgreSQL
 - Supabase (Postgres, authentification, Storage privé pour les pièces jointes et le KYC)
-- Stripe (carte, Connect) et CinetPay (mobile money : Airtel/Moov/MTN)
+- Stripe (carte, Connect) et PVit (mobile money Gabon : Airtel Money, Moov Money)
 - Resend (emails transactionnels), OpenRouter (agents d'analyse de rapports)
 - Vitest + Supertest
 

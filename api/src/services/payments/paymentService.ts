@@ -2,9 +2,12 @@ import { createStripeCollection } from "./stripe/collection.js";
 import { createCinetpayCollection } from "./cinetpay/collection.js";
 import { createStripePayout } from "./stripe/payout.js";
 import { createCinetpayPayout } from "./cinetpay/payout.js";
+import { createPvitCollection } from "./pvit/collection.js";
+import { createPvitPayout } from "./pvit/payout.js";
+import { env } from "../../env.js";
 import type { CollectionMethod, CollectionResult, CreateCollectionInput, PayoutResult } from "./types.js";
 
-export type Provider = "stripe" | "cinetpay";
+export type Provider = "stripe" | "cinetpay" | "pvit";
 
 // Routes an entreprise's programme funding to the right provider sub-service
 // based on the payment method they chose.
@@ -14,6 +17,10 @@ export async function createCollection(
 ): Promise<{ provider: Provider } & CollectionResult> {
   if (method === "card") {
     return { provider: "stripe", ...(await createStripeCollection(input)) };
+  }
+  // Mobile money goes through whichever aggregator MOBILE_MONEY_PROVIDER names (PVit for Gabon).
+  if (env.MOBILE_MONEY_PROVIDER === "pvit") {
+    return { provider: "pvit", ...(await createPvitCollection(input)) };
   }
   return { provider: "cinetpay", ...(await createCinetpayCollection(input)) };
 }
@@ -44,6 +51,19 @@ export async function createPayout(
       stripeAccountId: hacker.stripeAccountId,
     });
     return { provider: "stripe", ...result };
+  }
+
+  if (hacker.mobileMoneyPhoneNumber && hacker.mobileMoneyProvider && env.MOBILE_MONEY_PROVIDER === "pvit") {
+    const result = await createPvitPayout({
+      payoutId,
+      attempt,
+      amount,
+      currency,
+      hackerName: hacker.hackerName,
+      phoneNumber: hacker.mobileMoneyPhoneNumber,
+      mobileMoneyProvider: hacker.mobileMoneyProvider,
+    });
+    return { provider: "pvit", ...result };
   }
 
   if (hacker.mobileMoneyPhoneNumber && hacker.mobileMoneyProvider) {

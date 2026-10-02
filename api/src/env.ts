@@ -38,6 +38,26 @@ const envSchema = z.object({
   CINETPAY_TRANSFER_LOGIN: z.string().optional().default(""),
   CINETPAY_TRANSFER_PASSWORD: z.string().optional().default(""),
 
+  // Which aggregator handles mobile money (collections from entreprises, payouts to hackers).
+  // PVit serves Gabon (Airtel Money, Moov Money); CinetPay does not.
+  MOBILE_MONEY_PROVIDER: z.enum(["pvit", "cinetpay"]).default("pvit"),
+
+  // PVit (https://docs.mypvit.pro). Each API has its OWN URL, copied from the merchant dashboard
+  // (APIs menu) — they are configured whole rather than rebuilt, since the docs themselves are
+  // inconsistent about the /v2 prefix. Optional until a merchant account exists; the PVit
+  // sub-service throws a clear error at call time naming whatever is missing.
+  PVIT_OPERATION_ACCOUNT_CODE: z.string().optional().default(""), // ACC_xxx, the settlement account
+  PVIT_SECRET_PASSWORD: z.string().optional().default(""), // password set for the Renew Secret API
+  PVIT_RENEW_SECRET_URL: z.string().optional().default(""),
+  PVIT_PAYMENT_URL: z.string().optional().default(""), // the REST payment API (PAYMENT and GIVE_CHANGE)
+  PVIT_STATUS_URL: z.string().optional().default(""),
+  PVIT_BALANCE_URL: z.string().optional().default(""), // optional: enables the pre-payout balance check
+  PVIT_CALLBACK_URL_CODE: z.string().optional().default(""), // code of the Callback URL (max 12 chars)
+  // Optional comma-separated source IPs allowed to call /api/webhooks/pvit (PVit publishes its
+  // addresses). Needs TRUST_PROXY_HOPS right behind a proxy. Callbacks are re-verified against
+  // PVit's status API regardless, so this is defence in depth, not the authentication.
+  PVIT_CALLBACK_IP_ALLOWLIST: z.string().optional().default(""),
+
   // Optional until a real OpenRouter account is available; the MCP agents pipeline
   // throws a clear error at call time if this is missing (see mcpAgents/openRouterClient.ts).
   OPENROUTER_API_KEY: z.string().optional().default(""),

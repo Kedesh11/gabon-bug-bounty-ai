@@ -25,8 +25,9 @@ import { maintenanceRouter } from "./routes/maintenance.routes.js";
 import { systemStatusRouter } from "./routes/systemStatus.routes.js";
 import { paymentsRouter } from "./routes/payments.routes.js";
 import { payoutsRouter } from "./routes/payouts.routes.js";
+import { reconcilePendingPvit } from "./services/payments/pvit/sync.js";
 import { reconcilePendingCinetpayPayouts } from "./services/payments/cinetpay/payoutSync.js";
-import { stripeWebhookRouter, cinetpayWebhookRouter } from "./routes/webhooks.routes.js";
+import { stripeWebhookRouter, cinetpayWebhookRouter, pvitWebhookRouter } from "./routes/webhooks.routes.js";
 
 export const app = express();
 
@@ -72,6 +73,7 @@ app.use("/api/system-status", systemStatusRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/payouts", payoutsRouter);
 app.use("/api/webhooks", cinetpayWebhookRouter);
+app.use("/api/webhooks", pvitWebhookRouter);
 
 app.use(errorHandler);
 
@@ -85,5 +87,6 @@ if (process.env.NODE_ENV !== "test") {
   // payouts move, once) but would repeat the checks.
   setInterval(() => {
     reconcilePendingCinetpayPayouts().catch((err) => console.error("[cinetpay] reconciliation run failed:", err));
+    reconcilePendingPvit().catch((err) => console.error("[pvit] reconciliation run failed:", err));
   }, 5 * 60 * 1000).unref();
 }

@@ -9,11 +9,18 @@ export interface CreateCollectionInput {
   customerName: string;
   successUrl: string;
   cancelUrl: string;
+  // Mobile money (PVit): the paying customer's wallet.
+  customerPhone?: string;
+  customerOperator?: string; // our MobileMoneyProvider value: "airtel" | "moov"
 }
 
 export interface CollectionResult {
   providerRef: string;
-  redirectUrl: string;
+  // null when there is nothing to redirect to: a PVit mobile-money request is approved by a
+  // PIN prompt on the customer's own phone.
+  redirectUrl: string | null;
+  // The provider's own transaction id when it has one (PVit) — what its status API is asked about.
+  providerTxId?: string | null;
 }
 
 export interface CreatePayoutInput {
@@ -34,8 +41,14 @@ export interface CinetPayPayoutInput extends CreatePayoutInput {
   mobileMoneyProvider: string; // "airtel" | "mtn" | "moov" | "orange"
 }
 
+export interface PvitPayoutInput extends CreatePayoutInput {
+  phoneNumber: string;
+  mobileMoneyProvider: string;
+}
+
 export interface PayoutResult {
   providerRef: string;
+  providerTxId?: string | null;
   // "succeeded": money is gone (Stripe transfers are synchronous). "pending": accepted by the
   // provider but not settled (CinetPay mobile money) — resolved later, see cinetpay/transferStatus.ts.
   status: "succeeded" | "pending";

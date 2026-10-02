@@ -10,6 +10,10 @@ try {
   // CI injects env vars directly; no .env file present there.
 }
 process.env.NODE_ENV = "test";
+// PVit is the default mobile-money aggregator in production, but the older suites exercise the
+// CinetPay code path: pin them to it. The PVit suite (pvit.test.ts) switches the provider on for
+// its own duration.
+process.env.MOBILE_MONEY_PROVIDER = "cinetpay";
 
 // Profile.roleId is a required FK — tests (createTestUser in test/helpers.ts) need the
 // 6 system roles + permission catalog to exist before creating any profile. Idempotent,

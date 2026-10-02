@@ -1,6 +1,6 @@
 # Bug Bounty Gabon — API
 
-Backend Express + Prisma + PostgreSQL de la plateforme Bug Bounty Gabon, **séparé du frontend** (`../src`, SPA React/Vite qui l'appelle en HTTP). Base de données et authentification hébergées sur **Supabase**. Paiements via **Stripe** (carte) et **CinetPay** (mobile money).
+Backend Express + Prisma + PostgreSQL de la plateforme Bug Bounty Gabon, **séparé du frontend** (`../src`, SPA React/Vite qui l'appelle en HTTP). Base de données et authentification hébergées sur **Supabase**. Paiements via **Stripe** (carte) et **PVit** (mobile money Gabon : Airtel Money, Moov Money).
 
 ## Sommaire
 
@@ -97,7 +97,7 @@ Voir `.env.example` pour la liste complète et à jour. Résumé :
 | Variable | Requise | Description |
 |---|---|---|
 | `PORT` | non (défaut 4000) | Port d'écoute de l'API |
-| `API_BASE_URL` | non (défaut `http://localhost:4000`) | Base URL publique de l'API, utilisée pour construire les callbacks `notify_url` (CinetPay) |
+| `API_BASE_URL` | non (défaut `http://localhost:4000`) | Base URL publique de l'API, utilisée pour construire les callbacks (`notify_url` CinetPay) |
 | `CORS_ORIGIN` | non (défaut `http://localhost:8080`) | Origine autorisée en CORS (le frontend) |
 | `FRONTEND_URL` | non (défaut `http://localhost:8080`) | Base des liens envoyés par email (reset, vérification, activation staff) |
 | `TRUST_PROXY_HOPS` | non (défaut `0`) | Nombre de reverse proxies devant l'API (1 derrière nginx/un load balancer) |
@@ -108,8 +108,12 @@ Voir `.env.example` pour la liste complète et à jour. Résumé :
 | `SUPABASE_SERVICE_ROLE_KEY` | **oui** | Clé service_role — jamais côté client |
 | `STRIPE_SECRET_KEY` | **oui** | Clé secrète/restreinte Stripe (sandbox ou live) |
 | `STRIPE_WEBHOOK_SECRET` | non* | Secret de signature webhook (`stripe listen` en local) — sans elle, l'endpoint webhook Stripe répond 400 |
-| `CINETPAY_API_KEY` / `CINETPAY_SITE_ID` | non* | Identifiants Checkout CinetPay (encaissement mobile money) |
-| `CINETPAY_TRANSFER_LOGIN` / `CINETPAY_TRANSFER_PASSWORD` | non* | Identifiants Transfer CinetPay (reversement mobile money) |
+| `MOBILE_MONEY_PROVIDER` | non (défaut `pvit`) | Agrégateur mobile money : `pvit` (Gabon) ou `cinetpay` (ne dessert pas le Gabon) |
+| `PVIT_OPERATION_ACCOUNT_CODE`, `PVIT_SECRET_PASSWORD`, `PVIT_RENEW_SECRET_URL`, `PVIT_PAYMENT_URL`, `PVIT_STATUS_URL`, `PVIT_CALLBACK_URL_CODE` | non* | PVit — à copier depuis le tableau de bord mypvit.pro (URL complètes, telles qu'affichées dans le menu APIs) |
+| `PVIT_BALANCE_URL` | non | Active la vérification du solde avant un versement |
+| `PVIT_CALLBACK_IP_ALLOWLIST` | non | IP sources autorisées sur le webhook PVit (liste séparée par des virgules) |
+| `CINETPAY_API_KEY` / `CINETPAY_SITE_ID` | non* | Identifiants Checkout CinetPay (inutiles avec PVit) |
+| `CINETPAY_TRANSFER_LOGIN` / `CINETPAY_TRANSFER_PASSWORD` | non* | Identifiants Transfer CinetPay (inutiles avec PVit) |
 
 \* Non requises pour démarrer l'app, mais les endpoints correspondants échouent explicitement tant qu'elles ne sont pas renseignées — pas d'échec silencieux.
 
@@ -165,17 +169,27 @@ L'auth est déléguée à **Supabase Auth** (hash de mot de passe, émission JWT
 `src/services/payments/` — deux sous-services indépendants derrière un orchestrateur commun (`paymentService.ts`) :
 
 - **`stripe/`** — encaissement via Checkout Sessions (l'entreprise finance un programme) ; reversement via **Connect v2, comptes Recipient** (`stripe/connect.ts` + `stripe/payout.ts`). Pattern "separate charges and transfers / hold-and-release" : l'entreprise finance en amont, la plateforme retient, et reverse plus tard au hacker sur un rapport accepté précis.
-- **`cinetpay/`** — mêmes deux sens via l'agrégateur mobile money CinetPay (Airtel/Moov/MTN au Gabon). Le webhook CinetPay ne fait **jamais confiance** à la notification brute — il revérifie systématiquement via l'API de vérification CinetPay avant de mettre à jour quoi que ce soit.
+- **`pvit/`** — mobile money au Gabon (Airtel Money, Moov Money) : encaissement (`PAYMENT`) et versement (`GIVE_CHANGE`) via l'agrégateur PVit. Voir « PVit » plus bas. **Agrégateur par défaut** (`MOBILE_MONEY_PROVIDER=pvit`).
+- **`cinetpay/`** — mêmes deux sens via CinetPay. **CinetPay ne dessert pas le Gabon** (ni sa liste de pays officielle, ni son SDK) : conservé, non utilisé par défaut, pour un autre marché éventuel. Le webhook CinetPay ne fait **jamais confiance** à la notification brute — il revérifie systématiquement via l'API de vérification CinetPay avant de mettre à jour quoi que ce soit.
 
 Flux :
-- `POST /api/payments/programmes/:id/fund` (`entreprise` propriétaire ou `admin`) — crée un `Payment` et renvoie une URL de paiement hébergée (Stripe ou CinetPay selon `method`).
+- `POST /api/payments/programmes/:id/fund` (`entreprise` propriétaire ou `admin`) — crée un `Payment`. Carte (Stripe) : renvoie une URL de paiement hébergée. Mobile money (PVit) : exige `phoneNumber` et `operator` (`airtel`/`moov`), XAF uniquement, et renvoie `awaitingPhoneConfirmation` (pas d'URL : le payeur valide par code PIN sur son téléphone).
 - `POST /api/payments/onboarding/stripe` (`hacker`) — crée/lie un compte Stripe Connect et renvoie un lien d'onboarding hébergé.
-- `POST /api/payouts/reports/:id` (permission `payouts.create`) — déclenche le reversement de `Report.reward`, dans la devise du programme : Stripe si le compte Connect du hacker a réellement la capacité de transfert active, sinon CinetPay s'il a du mobile money (XAF uniquement), sinon `422` explicite *sans créer de versement*. Un versement `failed` se relance sur la même ligne (même clé d'idempotence Stripe : pas de double paiement) ; `pending`/`succeeded` renvoient `409`.
-- Webhooks : `POST /api/webhooks/stripe` (signature vérifiée, monté **avant** `express.json()` car Stripe a besoin du corps brut) et `POST /api/webhooks/cinetpay`. Stripe : un paiement ne passe à `succeeded` que si la session est payée **et** que montant/devise correspondent à ceux enregistrés ; `expired`/`async_payment_failed` le passent à `failed` ; un paiement déjà réglé n'est jamais rétrogradé.
+- `POST /api/payouts/reports/:id` (permission `payouts.create`) — déclenche le reversement de `Report.reward`, dans la devise du programme : Stripe si le compte Connect du hacker a réellement la capacité de transfert active, sinon le mobile money (PVit par défaut) s'il a du mobile money (XAF uniquement), sinon `422` explicite *sans créer de versement*. Un versement `failed` se relance sur la même ligne (même clé d'idempotence Stripe : pas de double paiement) ; `pending`/`succeeded` renvoient `409`.
+- Webhooks : `POST /api/webhooks/stripe` (signature vérifiée, monté **avant** `express.json()` car Stripe a besoin du corps brut) `POST /api/webhooks/pvit` et `POST /api/webhooks/cinetpay`. Stripe : un paiement ne passe à `succeeded` que si la session est payée **et** que montant/devise correspondent à ceux enregistrés ; `expired`/`async_payment_failed` le passent à `failed` ; un paiement déjà réglé n'est jamais rétrogradé.
 
 **État des intégrations** : Stripe est vérifié avec de vraies clés sandbox (Checkout Session réelle créée, webhook signé réellement vérifié). **CinetPay n'a pas encore de clés de test réelles** — la logique est couverte par des tests avec les appels HTTP mockés ; les noms exacts de champs de réponse de leur API sont à confirmer contre un vrai compte sandbox avant mise en production.
 
-**CinetPay, versements mobile money (asynchrones)** : l'ordre de transfert est « accepté » (`pending`), jamais présumé réglé. Le règlement arrive par le callback `POST /api/webhooks/cinetpay-transfer` (`notify_url`), dont le corps n'est **pas** cru — il sert seulement à identifier le versement, dont le vrai statut est relu via `GET /transfer/check/money` (`VAL` → `succeeded`, `REJ` → `failed`, `NEW`/`REC` → toujours `pending`). Filet de sécurité : une tâche toutes les 5 minutes revérifie les versements restés `pending` plus de 2 minutes (notification perdue), et `POST /api/payouts/:id/sync` le fait à la demande. Montant : multiple de 5 exigé (422 avant tout envoi). Relance d'un versement `failed` : un nouvel `client_transaction_id` est utilisé (`<id>-<tentative>`), mais **après** avoir demandé à CinetPay ce qu'il est advenu de la tentative précédente — si elle a abouti ou est en cours, elle est adoptée et rien n'est renvoyé ; si CinetPay est injoignable, la relance s'arrête (mieux vaut un retard qu'un double paiement). Côté encaissement, le montant et la devise confirmés par CinetPay doivent correspondre au paiement enregistré, et `EXPIRED`/`CANCELLED`/`REFUSED` passent le paiement à `failed`.
+**PVit (Gabon)** — documentation : [docs.mypvit.pro](https://docs.mypvit.pro). Authentification par clé `X-Secret` valable 1 h, renouvelée automatiquement. Chaque API a sa propre URL, copiée du tableau de bord (la doc est incohérente sur le préfixe `/v2`). Commencer avec le « Compte TEST » : un montant < 1000 XAF réussit, > 1000 XAF échoue, et PVit exige au moins 2 simulations de chaque (avec accusé de réception du callback) avant d'ouvrir la production.
+- *Encaissement* : `PAYMENT`, statut `PENDING` immédiat, statut final par callback. Le payeur ne paie que `amount` + commission (`owner_charge: CUSTOMER`).
+- *Versement* : `GIVE_CHANGE`, traité **de façon synchrone** (la réponse porte le statut final). La plateforme supporte les frais (`MERCHANT`) pour que le hacker reçoive la récompense entière. Une vérification de solde (`PVIT_BALANCE_URL`) a lieu avant l'envoi.
+- *Callback* `POST /api/webhooks/pvit` : l'accusé exigé par PVit (HTTP 200 + écho dynamique de `transactionId` et `code`) est renvoyé ; le corps n'est **pas** cru (aucune signature) — il sert à identifier la transaction, dont l'état est relu via l'API de statut, en vérifiant référence, compte et montant. Filtre d'IP optionnel.
+- *Références* : 20 caractères alphanumériques max, dérivées de l'id (`C…` encaissement, `P…<tentative>` versement).
+- *Issue incertaine* (timeout, 5xx) : un versement reste `pending` et n'est **jamais** relancé automatiquement (risque de double paiement) ; il se tranche à la main, après vérification dans le tableau de bord PVit, par `POST /api/payouts/:id/resolve` (justification obligatoire, journalisée). Seul un refus explicite de PVit passe un versement en `failed`.
+- *Réconciliation* : toutes les 5 minutes, les transactions PVit en attente depuis plus de 3 minutes sont revérifiées.
+- *Non exercé contre PVit en réel* (pas de compte marchand) : seul le contrat OpenAPI de la documentation a servi. À confirmer en sandbox : le format exact des numéros (`077123456`), et surtout que PVit autorise `GIVE_CHANGE` vers un numéro qui n'a jamais payé (la doc le décrit comme un remboursement/rendu de monnaie).
+
+**CinetPay (non utilisé par défaut), versements mobile money (asynchrones)** : l'ordre de transfert est « accepté » (`pending`), jamais présumé réglé. Le règlement arrive par le callback `POST /api/webhooks/cinetpay-transfer` (`notify_url`), dont le corps n'est **pas** cru — il sert seulement à identifier le versement, dont le vrai statut est relu via `GET /transfer/check/money` (`VAL` → `succeeded`, `REJ` → `failed`, `NEW`/`REC` → toujours `pending`). Filet de sécurité : une tâche toutes les 5 minutes revérifie les versements restés `pending` plus de 2 minutes (notification perdue), et `POST /api/payouts/:id/sync` le fait à la demande. Montant : multiple de 5 exigé (422 avant tout envoi). Relance d'un versement `failed` : un nouvel `client_transaction_id` est utilisé (`<id>-<tentative>`), mais **après** avoir demandé à CinetPay ce qu'il est advenu de la tentative précédente — si elle a abouti ou est en cours, elle est adoptée et rien n'est renvoyé ; si CinetPay est injoignable, la relance s'arrête (mieux vaut un retard qu'un double paiement). Côté encaissement, le montant et la devise confirmés par CinetPay doivent correspondre au paiement enregistré, et `EXPIRED`/`CANCELLED`/`REFUSED` passent le paiement à `failed`.
 
 **Non vérifié en réel** : aucune clé CinetPay n'est disponible, donc cette intégration n'a été exercée que contre des réponses simulées, dont la forme vient de la documentation publique de CinetPay (lue via des extraits de recherche, les pages elles-mêmes n'étant pas joignables depuis cet environnement). Le point le plus incertain est la forme exacte de la réponse de `/transfer/check/money` (objet ou liste, lue des deux façons) : à confirmer contre un compte sandbox avant la production.
 
@@ -187,7 +201,7 @@ Flux :
 npm test
 ```
 
-Vitest + supertest contre une **vraie base Postgres** (celle de `supabase start`) — seuls Supabase Auth et les SDK Stripe/CinetPay sont mockés (`test/setup.ts`), tout le reste (Prisma, RBAC, validation Zod) s'exécute réellement. `npm test` réutilise la base de dev configurée dans `.env` et ne la nettoie pas après coup — relancer `npm run prisma:seed` si les tests ont laissé des données de test qui gênent.
+Vitest + supertest contre une **vraie base Postgres** (celle de `supabase start`) — seuls Supabase Auth et les SDK Stripe/CinetPay/PVit sont mockés (`test/setup.ts`), tout le reste (Prisma, RBAC, validation Zod) s'exécute réellement. `npm test` réutilise la base de dev configurée dans `.env` et ne la nettoie pas après coup — relancer `npm run prisma:seed` si les tests ont laissé des données de test qui gênent.
 
 ## CI
 
@@ -197,7 +211,7 @@ Job `api` dans `.github/workflows/ci.yml` : lint, typecheck, migrations Prisma c
 
 Non couvert par ce chantier. Pour passer d'un dev local à un vrai environnement :
 1. Créer un vrai projet Supabase (cloud) et y appliquer les migrations (`prisma migrate deploy`).
-2. Remplacer les clés sandbox Stripe/CinetPay par des clés live, et reconfigurer le webhook Stripe sur l'URL publique réelle.
+2. Remplacer les clés sandbox Stripe/PVit par des clés live (PVit : créer les comptes d'opération de production, déclarer l'IP sortante du serveur dans « Adresses IP », autoriser les IP de PVit en entrée), et reconfigurer le webhook Stripe sur l'URL publique réelle.
 3. Renseigner `API_BASE_URL`/`CORS_ORIGIN`/`FRONTEND_URL` avec les vraies URLs de production.
 4. Activer "Confirm email" dans Authentication → Providers → Email du dashboard Supabase cloud — `supabase/config.toml` ne s'applique qu'à la stack locale ; sans ça, l'inscription crée des comptes non confirmés qu'aucun réglage cloud ne bloquera à la connexion.
 5. MFA (TOTP) : rien à activer côté dashboard cloud, contrairement à `supabase/config.toml` en local (`[auth.mfa.totp]`) — TOTP standard est disponible sur le plan Free de Supabase, aucun palier payant requis (seul le MFA par téléphone/SMS est un add-on payant, non utilisé ici).

@@ -26,10 +26,15 @@ export function MobileMoneyFields({ config, setField, validations }: MobileMoney
             className="mt-1 w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground"
             disabled={!config.gainsEnabled}
           >
-            <option value="airtel">Airtel</option>
-            <option value="mtn">MTN</option>
-            <option value="moov">Moov</option>
-            <option value="orange">Orange</option>
+            <option value="airtel">Airtel Money</option>
+            <option value="moov">Moov Money</option>
+            {/* Only Airtel Money and Moov Money can be paid out in Gabon (PVit). A value saved
+                earlier stays visible so it can be noticed and changed, but can't be picked anew. */}
+            {(config.mobileMoneyProvider === "mtn" || config.mobileMoneyProvider === "orange") && (
+              <option value={config.mobileMoneyProvider} disabled>
+                {config.mobileMoneyProvider === "mtn" ? "MTN" : "Orange"} (non disponible au Gabon)
+              </option>
+            )}
           </select>
         </div>
         <div>
