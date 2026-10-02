@@ -18,13 +18,8 @@ export interface UpdateConfigInput {
   // Only meaningful when maintenanceMode is being turned on; the end timestamp is
   // always computed server-side from this so a client can't set an arbitrary date.
   maintenanceDurationHours?: number;
-  autoTriage?: boolean;
-  enterpriseValidation?: boolean;
   triageLimitHours?: number;
-  aiSensitivity?: number;
   require2FA?: boolean;
-  ipWhitelisting?: boolean;
-  sessionTimeout?: number;
   passwordComplexity?: PasswordComplexity;
   globalNotificationsEnabled?: boolean;
 }

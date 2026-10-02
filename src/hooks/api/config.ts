@@ -13,13 +13,8 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   supportUrl: "https://support.bugbounty.ga",
   maintenanceMode: false,
   maintenanceUntil: null,
-  autoTriage: true,
-  enterpriseValidation: true,
   triageLimitHours: 48,
-  aiSensitivity: 75,
   require2FA: false,
-  ipWhitelisting: false,
-  sessionTimeout: 60,
   passwordComplexity: "standard",
   globalNotificationsEnabled: true,
 };

@@ -58,13 +58,8 @@ const updateConfigSchema = z.object({
   // Only meaningful when maintenanceMode is being turned on; the end timestamp is
   // always computed server-side from this so a client can't set an arbitrary date.
   maintenanceDurationHours: z.number().min(1).max(24).optional(),
-  autoTriage: z.boolean().optional(),
-  enterpriseValidation: z.boolean().optional(),
   triageLimitHours: z.number().int().nonnegative().optional(),
-  aiSensitivity: z.number().int().min(0).max(100).optional(),
   require2FA: z.boolean().optional(),
-  ipWhitelisting: z.boolean().optional(),
-  sessionTimeout: z.number().int().min(5).max(1440).optional(),
   passwordComplexity: z.nativeEnum(PasswordComplexity).optional(),
   globalNotificationsEnabled: z.boolean().optional(),
 });

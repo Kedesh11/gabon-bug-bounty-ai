@@ -19,8 +19,7 @@ import {
   Database,
   Save,
   Globe,
-  Bell,
-  Cpu
+  Bell
 } from "lucide-react";
 import { CrowdStream } from "@/components/CrowdStream";
 import { TriageQueueWidget } from "@/pages/admin/TriageQueueWidget";
@@ -67,7 +66,6 @@ export default function AdminDashboard() {
 
   // Local temporary state for the form
   const [tempPlatformName, setTempPlatformName] = useState(config.platformName);
-  const [tempAiSensitivity, setTempAiSensitivity] = useState(config.aiSensitivity);
   const [tempGlobalNotificationsEnabled, setTempGlobalNotificationsEnabled] = useState(config.globalNotificationsEnabled);
 
   // Maintenance mode is applied immediately (not batched with the form above) since
@@ -128,7 +126,6 @@ export default function AdminDashboard() {
     updateConfig.mutate(
       {
         platformName: tempPlatformName,
-        aiSensitivity: tempAiSensitivity,
         globalNotificationsEnabled: tempGlobalNotificationsEnabled,
       },
       {
@@ -194,7 +191,6 @@ export default function AdminDashboard() {
             <Dialog open={isConfigOpen} onOpenChange={(open) => {
               if (open) {
                 setTempPlatformName(config.platformName);
-                setTempAiSensitivity(config.aiSensitivity);
                 setTempGlobalNotificationsEnabled(config.globalNotificationsEnabled);
               }
               setIsConfigOpen(open);
@@ -241,23 +237,6 @@ export default function AdminDashboard() {
                       checked={config.maintenanceMode}
                       onCheckedChange={handleMaintenanceToggle}
                       disabled={updateConfig.isPending}
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-sm font-bold flex items-center gap-2">
-                        <Cpu className="w-4 h-4 text-primary" /> Sensibilité de l'IA (Triage)
-                      </Label>
-                      <span className="text-xs font-black text-primary">{tempAiSensitivity}%</span>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="100" 
-                      value={tempAiSensitivity} 
-                      onChange={(e) => setTempAiSensitivity(parseInt(e.target.value))}
-                      className="w-full accent-primary h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
 

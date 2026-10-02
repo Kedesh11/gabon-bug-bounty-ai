@@ -274,13 +274,8 @@ export interface SystemConfig {
   supportUrl: string;
   maintenanceMode: boolean;
   maintenanceUntil?: string | null;
-  autoTriage: boolean;
-  enterpriseValidation: boolean;
   triageLimitHours: number;
-  aiSensitivity: number;
   require2FA: boolean;
-  ipWhitelisting: boolean;
-  sessionTimeout: number;
   passwordComplexity: "standard" | "elevated" | "military";
   globalNotificationsEnabled: boolean;
 }

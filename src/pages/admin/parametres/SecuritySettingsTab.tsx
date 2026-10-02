@@ -1,6 +1,5 @@
 import { Save, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
@@ -9,8 +8,6 @@ import { useContent } from "@/hooks/api/content";
 
 interface SecuritySettings {
   require2FA: boolean;
-  ipWhitelisting: boolean;
-  sessionTimeout: number;
   passwordComplexity: "standard" | "elevated" | "military";
 }
 
@@ -26,8 +23,7 @@ export function SecuritySettingsTab({
   onSave,
 }: SecuritySettingsTabProps) {
   const heading = useContent("admin.parametres.security.heading", "Politiques de Sécurité Globale");
-  const twoFaHelp = useContent("admin.parametres.security.2fa-help", "Pour tous les comptes administrateurs et entreprises.");
-  const ipWhitelistHelp = useContent("admin.parametres.security.ip-whitelist-help", "Restreindre l'accès à certaines adresses IP.");
+  const twoFaHelp = useContent("admin.parametres.security.2fa-help", "Invite les comptes administrateurs et entreprises sans 2FA à l'activer (rappel affiché, connexion non bloquée).");
   return (
     <TabsContent value="security" className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="glass-card rounded-2xl border border-border p-8 space-y-8">
@@ -48,28 +44,9 @@ export function SecuritySettingsTab({
                 onCheckedChange={(val) => setSecuritySettings({ ...securitySettings, require2FA: val })}
               />
             </div>
-            <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/20 border border-border">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-bold">Whitelisting IP (Admin)</Label>
-                <p className="text-[10px] text-muted-foreground">{ipWhitelistHelp}</p>
-              </div>
-              <Switch
-                checked={securitySettings.ipWhitelisting}
-                onCheckedChange={(val) => setSecuritySettings({ ...securitySettings, ipWhitelisting: val })}
-              />
-            </div>
           </div>
 
           <div className="space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Expiration de Session (minutes)</Label>
-              <Input
-                type="number"
-                value={securitySettings.sessionTimeout}
-                onChange={(e) => setSecuritySettings({ ...securitySettings, sessionTimeout: parseInt(e.target.value) })}
-                className="h-12 bg-secondary/50"
-              />
-            </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Complexité de Mot de Passe</Label>
               <Select

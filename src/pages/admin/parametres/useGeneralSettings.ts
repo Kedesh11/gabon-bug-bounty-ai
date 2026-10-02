@@ -13,8 +13,6 @@ export function useGeneralSettings() {
     platformName: config.platformName,
     contactEmail: config.contactEmail,
     supportUrl: config.supportUrl,
-    autoTriage: config.autoTriage,
-    enterpriseValidation: config.enterpriseValidation,
     triageLimitHours: config.triageLimitHours,
   });
 
@@ -23,9 +21,7 @@ export function useGeneralSettings() {
       platformName: config.platformName,
       contactEmail: config.contactEmail,
       supportUrl: config.supportUrl,
-      autoTriage: config.autoTriage,
-      enterpriseValidation: config.enterpriseValidation,
-      triageLimitHours: config.triageLimitHours,
+          triageLimitHours: config.triageLimitHours,
     });
   }, [config]);
 

@@ -465,13 +465,8 @@ async function main() {
       contactEmail: "admin@bugbounty.ga",
       supportUrl: "https://support.bugbounty.ga",
       maintenanceMode: false,
-      autoTriage: true,
-      enterpriseValidation: true,
       triageLimitHours: 48,
-      aiSensitivity: 75,
       require2FA: false,
-      ipWhitelisting: false,
-      sessionTimeout: 60,
       passwordComplexity: "standard",
     },
   });

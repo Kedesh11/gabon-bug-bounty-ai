@@ -654,6 +654,9 @@ model SystemConfig {
   supportUrl            String             @default("https://support.bugbounty.ga")
   maintenanceMode       Boolean            @default(false)
   maintenanceUntil      DateTime?
+  // DEPRECATED, not read or written by the API: autoTriage, enterpriseValidation, aiSensitivity,
+  // ipWhitelisting and sessionTimeout were admin toggles with no behaviour behind them, removed
+  // from the UI. Columns kept to avoid a destructive migration; drop them in a later one.
   autoTriage            Boolean            @default(true)
   enterpriseValidation  Boolean            @default(true)
   triageLimitHours      Int                @default(48)
