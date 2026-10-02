@@ -30,9 +30,31 @@ function bearerToken(req: Request): string | null {
   return header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
 }
 
+// Authenticity was already established by getUser (GoTrue verified the signature), so the
+// payload is only read here, never trusted on its own. Supabase marks a session "aal1"
+// (password only) or "aal2" (password + second factor).
+function jwtAssuranceLevel(token: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8"));
+    return typeof payload.aal === "string" ? payload.aal : null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveUser(token: string): Promise<AuthResult> {
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) return { ok: false, status: 401, error: "Token invalide ou expiré" };
+
+  // /login hands back an aal1 token to a user who still owes the TOTP code (the step-up
+  // second call is /api/auth/mfa/login-verify). That token is a perfectly valid Supabase
+  // token — without this check it would work as a Bearer on every route and make the second
+  // factor optional for anyone who knows the password. An account with a verified TOTP
+  // factor is only ever served on an aal2 session.
+  const hasVerifiedTotp = data.user.factors?.some((f) => f.factor_type === "totp" && f.status === "verified");
+  if (hasVerifiedTotp && jwtAssuranceLevel(token) !== "aal2") {
+    return { ok: false, status: 401, error: "Vérification en deux étapes requise" };
+  }
 
   const profile = await prisma.profile.findUnique({
     where: { id: data.user.id },

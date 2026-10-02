@@ -228,3 +228,31 @@ describe("GET /api/auth/me — MFA fields", () => {
     await setRequire2FA(false);
   });
 });
+
+describe("Second factor cannot be skipped with the aal1 token from /login", () => {
+  const fakeJwt = (aal: string) =>
+    `${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from(JSON.stringify({ aal })).toString("base64url")}.sig`;
+
+  async function callMeWith(aal: string, factors: unknown[]) {
+    const hacker = await createTestUser("hacker");
+    vi.mocked(supabaseAdmin.auth.getUser).mockResolvedValueOnce({ data: { user: { id: hacker.id, factors } }, error: null } as never);
+    return request(app).get("/api/auth/me").set("Authorization", `Bearer ${fakeJwt(aal)}`);
+  }
+
+  const verifiedTotp = [{ id: "f1", factor_type: "totp", status: "verified" }];
+
+  it("refuses an aal1 token for an account with a verified TOTP factor", async () => {
+    const res = await callMeWith("aal1", verifiedTotp);
+    expect(res.status).toBe(401);
+    expect(res.body.error).toContain("deux étapes");
+  });
+
+  it("accepts the aal2 token of that same account", async () => {
+    expect((await callMeWith("aal2", verifiedTotp)).status).toBe(200);
+  });
+
+  it("does not demand aal2 from an account with no verified factor, nor one mid-enrollment", async () => {
+    expect((await callMeWith("aal1", [])).status).toBe(200);
+    expect((await callMeWith("aal1", [{ id: "f2", factor_type: "totp", status: "unverified" }])).status).toBe(200);
+  });
+});
