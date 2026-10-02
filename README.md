@@ -4,14 +4,12 @@ Plateforme nationale de bug bounty pour le Gabon : met en relation des chercheur
 
 ## État actuel du projet
 
-Le dépôt contient **deux services séparés, pas encore branchés l'un à l'autre** :
+Deux services indépendants qui communiquent uniquement en HTTP :
 
-| Service | État | Détail |
-|---|---|---|
-| **Frontend** (`/`) | POC fonctionnel | Toutes les interfaces sont construites et navigables, mais l'authentification est simulée et toutes les données vivent dans `localStorage` du navigateur (voir [État du frontend](#état-du-frontend)) |
-| **Backend** (`api/`) | Fondations posées | API réelle (auth, base de données, RBAC serveur, paiements) fonctionnelle et testée, mais le frontend ne l'appelle pas encore |
-
-Le prochain chantier structurant est le branchement du frontend sur `api/` (remplacement de `localStorage`/l'auth simulée par de vrais appels API).
+| Service | Rôle |
+|---|---|
+| **Frontend** (`/`) | SPA React : espaces hacker, entreprise et staff, branchée sur l'API (auth réelle, plus aucune donnée simulée) |
+| **Backend** (`api/`) | API Express : auth, RBAC par permissions, programmes (avec validation staff), rapports, paiements, KYC, détection de fraude, agents d'analyse IA, CMS, journaux d'audit |
 
 ## Architecture
 
@@ -34,8 +32,9 @@ Les deux services ne partagent aucun code ni build : ils ne communiqueront que v
 
 **Backend** (`api/`) — détails complets dans [api/README.md](api/README.md) :
 - Express + TypeScript, Prisma ORM, PostgreSQL
-- Supabase (hébergement Postgres + authentification — hash mdp, JWT, MFA natif)
-- Stripe (paiement carte) et CinetPay (paiement mobile money : Airtel/Moov/MTN)
+- Supabase (Postgres, authentification, Storage privé pour les pièces jointes et le KYC)
+- Stripe (carte, Connect) et CinetPay (mobile money : Airtel/Moov/MTN)
+- Resend (emails transactionnels), OpenRouter (agents d'analyse de rapports)
 - Vitest + Supertest
 
 ## Structure du frontend
@@ -43,27 +42,24 @@ Les deux services ne partagent aucun code ni build : ils ne communiqueront que v
 ```
 src/
 ├── pages/
-│   ├── admin/        Tableaux de bord admin, triage, finance, support
-│   ├── entreprise/    Espace entreprise (programmes, rapports, paramètres)
-│   ├── hacker/         Espace hacker (programmes, rapports, profil, paramètres)
-│   └── *.tsx            Pages publiques (accueil, programmes, connexion, inscription...)
+│   ├── admin/        Tableaux de bord staff (admin, triage, finance, support), rôles, fraude, CMS...
+│   ├── entreprise/   Espace entreprise (programmes, rapports, paramètres)
+│   ├── hacker/       Espace hacker (programmes, rapports, profil, paramètres)
+│   └── *.tsx         Pages publiques (accueil, programmes, connexion, inscription...)
 ├── components/
-│   ├── ui/               Composants shadcn/ui (générés, ne pas modifier à la main)
-│   └── *.tsx              Composants applicatifs (Navbar, DashboardLayout, ProtectedRoute...)
-├── contexts/            AuthContext (auth simulée), DataContext (données mockées)
-├── stores/dataStore.ts   Modèle de données complet + CRUD en mémoire/localStorage
-├── lib/paymentValidation.ts   Validations paiement (Luhn, IBAN, adresses crypto, téléphone Gabon) — testées unitairement
-└── test/                 Setup Vitest
+│   ├── ui/           Composants shadcn/ui (générés, ne pas modifier à la main)
+│   └── *.tsx         Composants applicatifs (Navbar, DashboardLayout, ProtectedRoute, MfaSection, KycSection...)
+├── contexts/         AuthContext (session réelle via l'API)
+├── hooks/api/        Un hook TanStack Query par ressource de l'API
+├── lib/              apiClient (session + refresh), mappers API → domaine, validations paiement
+└── test/             Setup Vitest
 ```
 
-### État du frontend
+### Points à connaître
 
-Points à connaître avant de construire dessus :
-
-- **Authentification simulée** (`src/contexts/AuthContext.tsx`) : n'importe quel mot de passe est accepté pour un email connu ; un email inconnu crée un compte hacker à la volée. Attendu pour un POC, à remplacer par de vrais appels à `api/` (`POST /api/auth/login`).
-- **Toutes les données sont en `localStorage`** (`src/stores/dataStore.ts`), réinitialisables via le bouton de reset plateforme dans les paramètres admin.
-- **RBAC côté client uniquement** (`src/components/ProtectedRoute.tsx`) — contournable via les DevTools ; le vrai RBAC vit désormais côté serveur dans `api/` et devra faire autorité une fois le branchement fait.
-- Rôles gérés : `hacker`, `entreprise`, `admin`, `triage`, `finance`, `support` (`src/types/auth.ts`).
+- **Authentification réelle** : le frontend appelle `api/` (`/api/auth/*`). La session (access + refresh token) est conservée dans le `localStorage` par [src/lib/apiClient.ts](src/lib/apiClient.ts) et rafraîchie automatiquement. Connexion en deux temps si un facteur TOTP est enrôlé.
+- **RBAC** : `ProtectedRoute` ne fait que masquer des pages. Le serveur fait autorité : chaque route de l'API vérifie une *permission* (`requirePermission`), jamais un nom de rôle codé en dur.
+- **Rôles** : `hacker` et `entreprise` s'inscrivent eux-mêmes ; tous les autres comptes (admin, triage, finance, support, rôles personnalisés) sont créés par un admin, qui envoie un lien d'activation à usage unique (aucun mot de passe n'est transmis par email).
 
 ## Démarrage rapide
 
@@ -94,6 +90,8 @@ npm run dev             # http://localhost:4000
 ## Tests & CI
 
 Chaque service a sa propre suite de tests et son propre job dans `.github/workflows/ci.yml` (lint + typecheck + tests + build), avec un conteneur PostgreSQL de service pour le job `api`. Les deux jobs doivent être verts avant fusion.
+
+Les tests de l'API tournent contre une vraie base : lancez `supabase start` **depuis `api/`** (pas depuis la racine : c'est `api/supabase/config.toml` qui fixe les ports 55321-55329 attendus par `api/.env`).
 
 ## Documentation complémentaire
 

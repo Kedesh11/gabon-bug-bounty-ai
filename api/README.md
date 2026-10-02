@@ -1,6 +1,6 @@
 # Bug Bounty Gabon — API
 
-Backend Express + Prisma + PostgreSQL de la plateforme Bug Bounty Gabon, **séparé du frontend** (`../src`, POC React/Vite qui tourne encore sur `localStorage` — le branchement est un chantier à part). Base de données et authentification hébergées sur **Supabase**. Paiements via **Stripe** (carte) et **CinetPay** (mobile money).
+Backend Express + Prisma + PostgreSQL de la plateforme Bug Bounty Gabon, **séparé du frontend** (`../src`, SPA React/Vite qui l'appelle en HTTP). Base de données et authentification hébergées sur **Supabase**. Paiements via **Stripe** (carte) et **CinetPay** (mobile money).
 
 ## Sommaire
 
@@ -28,13 +28,15 @@ api/
 │   │   ├── supabaseAdmin.ts        Client Supabase (clé service_role — jamais exposée au frontend)
 │   │   └── asyncHandler.ts         Wrapper pour propager les erreurs async vers errorHandler
 │   ├── middleware/
-│   │   ├── auth.ts                 Vérifie le token Supabase (Bearer) → req.user
-│   │   ├── requireRole.ts          Garde RBAC — mêmes rôles que src/components/ProtectedRoute.tsx côté frontend
+│   │   ├── auth.ts                 requireAuth / optionalAuth : vérifie le token Supabase (Bearer) → req.user
+│   │   ├── requirePermission.ts    Garde RBAC par permission (données, pas de rôle codé en dur)
+│   │   ├── rateLimit.ts            Limiteurs des endpoints sensibles (login, reset, vérification, MFA)
 │   │   └── errorHandler.ts         Traduit HttpError / ZodError en réponses JSON propres
-│   ├── routes/                     auth, programmes, reports, hackers, entreprises, config, payments, payouts, webhooks
+│   ├── routes/                     auth, mfa, programmes, reports, hackers, entreprises, roles, config, taxonomy, content, logs,
+│   │                               tickets, kyc, compliance, kb, fraud, mcpAgents, payments, payouts, webhooks...
 │   └── services/payments/          Voir "Service de paiement" plus bas
 ├── prisma/
-│   ├── schema.prisma                Schéma complet (15+ modèles, migrations versionnées)
+│   ├── schema.prisma                Schéma complet (40 modèles, migrations versionnées)
 │   ├── migrations/
 │   └── seed.ts                      Recrée les données de démo du frontend avec de vrais comptes Supabase Auth
 ├── supabase/                        Config de la stack Supabase locale (générée par `supabase init`)
@@ -97,6 +99,10 @@ Voir `.env.example` pour la liste complète et à jour. Résumé :
 | `PORT` | non (défaut 4000) | Port d'écoute de l'API |
 | `API_BASE_URL` | non (défaut `http://localhost:4000`) | Base URL publique de l'API, utilisée pour construire les callbacks `notify_url` (CinetPay) |
 | `CORS_ORIGIN` | non (défaut `http://localhost:8080`) | Origine autorisée en CORS (le frontend) |
+| `FRONTEND_URL` | non (défaut `http://localhost:8080`) | Base des liens envoyés par email (reset, vérification, activation staff) |
+| `TRUST_PROXY_HOPS` | non (défaut `0`) | Nombre de reverse proxies devant l'API (1 derrière nginx/un load balancer) |
+| `OPENROUTER_API_KEY` | non* | Agents d'analyse de rapports (timeout 60 s par appel) |
+| `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | non* | Emails transactionnels |
 | `DATABASE_URL` | **oui** | Connection string Postgres (Prisma) |
 | `SUPABASE_URL` | **oui** | URL du projet Supabase (local ou cloud) |
 | `SUPABASE_SERVICE_ROLE_KEY` | **oui** | Clé service_role — jamais côté client |
@@ -121,12 +127,12 @@ Voir `.env.example` pour la liste complète et à jour. Résumé :
 
 ## Modèle de données
 
-`prisma/schema.prisma` traduit fidèlement les interfaces déjà définies côté frontend (`../src/stores/dataStore.ts`, `../src/types/auth.ts`) :
+`prisma/schema.prisma` est la source de vérité du modèle de données. Principaux modèles :
 
 - **`Profile`** — mirroir applicatif de `auth.users` (géré par Supabase Auth) : `id` identique, porte `role`/`name`/`avatar`.
 - **`HackerProfile`** / **`EntrepriseProfile`** — 1:1 avec `Profile`.
-- **`Programme`** — tous les champs de l'interface `Programme`, plus relations `RewardTier[]`, `TargetGroup[]`, `Announcement[]`, `Activity[]`.
-- **`Report`** — relation `aiAnalysis` 1:1 (placeholder déterministe pour l'instant, pas une vraie IA — voir le commentaire dans `routes/reports.routes.ts`).
+- **`Programme`** — relations `RewardTier[]`, `TargetGroup[]`, `Announcement[]`, `Activity[]`. Deux états distincts : `status` (actif/pause/ferme, piloté par l'entreprise) et `validationStatus` (en_attente/valide/refuse, décidé par le staff). Seul un programme `valide` est public ; un programme validé dont l'entreprise réécrit les termes repart en validation.
+- **`Report`** — un rapport ne peut cibler qu'un programme validé et actif. `aiAnalysis` est un placeholder déterministe ; l'analyse réelle vient des 7 agents (`services/mcpAgents`, via OpenRouter) qui ne font que *suggérer* au triage.
 - **`Payment`** / **`Payout`** — voir section paiement.
 - **`SystemConfig`** — ligne singleton (`id` fixe).
 
@@ -136,10 +142,17 @@ Voir `.env.example` pour la liste complète et à jour. Résumé :
 
 L'auth est déléguée à **Supabase Auth** (hash de mot de passe, émission JWT, MFA/TOTP natif) plutôt que réimplémentée à la main :
 
-1. `POST /api/auth/register` / `POST /api/auth/login` — le serveur appelle le SDK admin Supabase et renvoie `{ profile, session }`. Le frontend doit conserver `session.access_token`.
-2. Chaque requête protégée envoie `Authorization: Bearer <access_token>`.
-3. `middleware/auth.ts` vérifie le token auprès de Supabase (`supabase.auth.getUser`), charge le `Profile` correspondant, l'attache à `req.user`.
-4. `middleware/requireRole(...roles)` bloque avec 403 si le rôle de `req.user` n'est pas autorisé — **c'est la seule barrière d'autorisation** (voir note RLS plus haut). Rôles : `hacker`, `entreprise`, `admin`, `triage`, `finance`, `support` (identiques à `UserRole` côté frontend).
+1. `POST /api/auth/register` crée un compte `hacker` ou `entreprise` **non confirmé** : aucune session tant que l'email n'est pas vérifié (`/verify-email`, lien à usage unique de 24 h).
+2. `POST /api/auth/login` renvoie `{ profile, session }`, ou `{ mfaRequired, factorId, aal1AccessToken }` si un facteur TOTP est enrôlé (second temps : `POST /api/auth/mfa/login-verify`).
+3. Chaque requête protégée envoie `Authorization: Bearer <access_token>`. `middleware/auth.ts` vérifie le token auprès de Supabase, charge le `Profile` et ses permissions, les attache à `req.user`. `optionalAuth` fait de même sans jamais rejeter (routes publiques dont la réponse dépend de l'appelant).
+4. `requirePermission(...keys)` bloque avec 403 si le rôle de l'appelant n'a aucune de ces permissions — **c'est la seule barrière d'autorisation** (voir note RLS plus haut). Les permissions sont des données (`services/roles/permissionCatalog.ts`), éditables par un admin.
+5. Réinitialisation de mot de passe et vérification d'email : jetons aléatoires de 32 octets, seul le hash SHA-256 est stocké, usage unique garanti par une mise à jour conditionnelle (deux requêtes simultanées ne passent pas toutes les deux). Une réinitialisation ferme toutes les sessions du compte.
+6. Les comptes staff (admin, triage, finance, support, rôles personnalisés) sont créés par un admin avec un mot de passe aléatoire inconnu ; la personne reçoit un lien d'activation (72 h). Si l'email n'a pas pu partir, l'API renvoie ce lien à l'admin pour qu'il le transmette. Garde-fou : on ne peut ni retirer `roles.manage` au dernier rôle qui le détient, ni supprimer le dernier compte qui l'a.
+7. `SystemConfig.require2FA` n'est qu'une **incitation** (bandeau pour les comptes admin/entreprise sans 2FA), pas un blocage de connexion.
+
+**Durcissement HTTP** : `helmet` (en-têtes de sécurité) et rate limiting en mémoire sur login, mot de passe oublié, renvoi de vérification et vérification MFA. Derrière un reverse proxy, renseigner `TRUST_PROXY_HOPS` (sinon toutes les IP se confondent). Le rate limiting est par instance : à plusieurs instances, il faudra un store partagé (voir `middleware/rateLimit.ts`).
+
+**KYC** : les pièces sont envoyées dans un bucket Storage privé (`kyc-documents`, PDF/JPEG/PNG, 5 Mo, type vérifié sur les octets), consultables via un lien signé de 5 minutes par le staff ou le titulaire. Un document sans fichier ne peut pas être validé.
 
 ## Service de paiement
 
@@ -151,10 +164,12 @@ L'auth est déléguée à **Supabase Auth** (hash de mot de passe, émission JWT
 Flux :
 - `POST /api/payments/programmes/:id/fund` (`entreprise` propriétaire ou `admin`) — crée un `Payment` et renvoie une URL de paiement hébergée (Stripe ou CinetPay selon `method`).
 - `POST /api/payments/onboarding/stripe` (`hacker`) — crée/lie un compte Stripe Connect et renvoie un lien d'onboarding hébergé.
-- `POST /api/payouts/reports/:id` (`admin`/`finance`) — déclenche le reversement de `Report.reward` au hacker : Stripe s'il a un compte Connect actif, sinon CinetPay s'il a du mobile money configuré (`HackerPaymentConfig`), sinon erreur explicite.
-- Webhooks : `POST /api/webhooks/stripe` (signature vérifiée, monté **avant** `express.json()` car Stripe a besoin du corps brut) et `POST /api/webhooks/cinetpay`.
+- `POST /api/payouts/reports/:id` (permission `payouts.create`) — déclenche le reversement de `Report.reward`, dans la devise du programme : Stripe si le compte Connect du hacker a réellement la capacité de transfert active, sinon CinetPay s'il a du mobile money (XAF uniquement), sinon `422` explicite *sans créer de versement*. Un versement `failed` se relance sur la même ligne (même clé d'idempotence Stripe : pas de double paiement) ; `pending`/`succeeded` renvoient `409`.
+- Webhooks : `POST /api/webhooks/stripe` (signature vérifiée, monté **avant** `express.json()` car Stripe a besoin du corps brut) et `POST /api/webhooks/cinetpay`. Stripe : un paiement ne passe à `succeeded` que si la session est payée **et** que montant/devise correspondent à ceux enregistrés ; `expired`/`async_payment_failed` le passent à `failed` ; un paiement déjà réglé n'est jamais rétrogradé.
 
 **État des intégrations** : Stripe est vérifié avec de vraies clés sandbox (Checkout Session réelle créée, webhook signé réellement vérifié). **CinetPay n'a pas encore de clés de test réelles** — la logique est couverte par des tests avec les appels HTTP mockés ; les noms exacts de champs de réponse de leur API sont à confirmer contre un vrai compte sandbox avant mise en production.
+
+**Limites connues** : un versement CinetPay est marqué `succeeded` dès que la requête est acceptée (pas de suivi asynchrone, `notify_url` vide) — à compléter une fois un compte sandbox disponible pour confirmer les champs de leur API.
 
 **Explicitement hors scope pour l'instant** (pas un oubli) : logique de marge/frais plateforme, remboursements/litiges, réconciliation d'un solde de financement par programme, autres agrégateurs mobile money.
 
