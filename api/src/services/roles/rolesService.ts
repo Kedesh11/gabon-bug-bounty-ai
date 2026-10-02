@@ -3,7 +3,10 @@ import { HttpError } from "../../middleware/errorHandler.js";
 import { PERMISSIONS } from "./permissionCatalog.js";
 import { supabaseAdmin } from "../../lib/supabaseAdmin.js";
 import { serializeProfile, profileRoleInclude } from "../../lib/serializeProfile.js";
-import { sendStaffCredentialsEmail } from "../../lib/mailer.js";
+import { randomBytes } from "node:crypto";
+import { env } from "../../env.js";
+import { sendStaffInvitationEmail } from "../../lib/mailer.js";
+import { createPasswordResetToken } from "../../lib/resetTokens.js";
 import { createPlatformLog } from "../platformLogs/logsService.js";
 import { getSystemPasswordComplexity, validatePasswordComplexity } from "../../lib/passwordPolicy.js";
 
@@ -48,10 +51,15 @@ function slugifyKey(label: string) {
     .replace(/^_+|_+$/g, "");
 }
 
+const INVITATION_TTL_MS = 72 * 60 * 60 * 1000;
+
 export interface ProvisionStaffAccountInput {
   name: string;
   email: string;
-  password: string;
+  // Optional and normally omitted: the account then gets a random password nobody knows and
+  // the person sets their own through the emailed one-time link. Still honoured when given
+  // (and still checked against the configured complexity policy).
+  password?: string;
   message?: string;
 }
 
@@ -62,13 +70,15 @@ export interface ProvisionStaffAccountInput {
 // role has 0 profiles and is safe to roll back, while an existing role may already
 // have other accounts on it.
 async function provisionStaffAccount(roleId: string, roleLabel: string, input: ProvisionStaffAccountInput) {
-  const complexity = await getSystemPasswordComplexity();
-  const complexityError = validatePasswordComplexity(input.password, complexity);
-  if (complexityError) throw new HttpError(400, complexityError);
+  if (input.password !== undefined) {
+    const complexity = await getSystemPasswordComplexity();
+    const complexityError = validatePasswordComplexity(input.password, complexity);
+    if (complexityError) throw new HttpError(400, complexityError);
+  }
 
   const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email: input.email,
-    password: input.password,
+    password: input.password ?? randomBytes(32).toString("base64url"),
     email_confirm: true,
   });
   if (createError || !created.user) {
@@ -86,11 +96,12 @@ async function provisionStaffAccount(roleId: string, roleLabel: string, input: P
     throw err;
   }
 
-  const { sent: emailSent, error: emailError } = await sendStaffCredentialsEmail({
+  const rawToken = await createPasswordResetToken(profile.id, INVITATION_TTL_MS);
+  const setPasswordUrl = `${env.FRONTEND_URL}/reinitialiser-mot-de-passe?token=${rawToken}`;
+  const { sent: emailSent, error: emailError } = await sendStaffInvitationEmail({
     to: input.email,
     roleLabel,
-    email: input.email,
-    password: input.password,
+    setPasswordUrl,
     message: input.message,
   });
 
@@ -102,7 +113,10 @@ async function provisionStaffAccount(roleId: string, roleLabel: string, input: P
     userId: profile.id,
   });
 
-  return { profile: serializeProfile(profile), emailSent, emailError };
+  // Only handed back when the email did not go out, so the admin (who holds roles.manage)
+  // can pass the link on manually — exactly the fallback the old "send credentials by hand"
+  // flow offered, minus the plaintext password.
+  return { profile: serializeProfile(profile), emailSent, emailError, ...(emailSent ? {} : { setPasswordUrl }) };
 }
 
 export interface CreateRoleInput extends ProvisionStaffAccountInput {
@@ -138,8 +152,8 @@ export async function createRole(input: CreateRoleInput) {
   });
 
   try {
-    const { profile, emailSent, emailError } = await provisionStaffAccount(role.id, input.label, input);
-    return { role: serializeRole(role), profile, emailSent, emailError };
+    const { profile, emailSent, emailError, setPasswordUrl } = await provisionStaffAccount(role.id, input.label, input);
+    return { role: serializeRole(role), profile, emailSent, emailError, setPasswordUrl };
   } catch (err) {
     await prisma.role.delete({ where: { id: role.id } });
     throw err;
@@ -185,6 +199,26 @@ export async function listStaffAccounts() {
   }));
 }
 
+const LOCKOUT_PERMISSION = "roles.manage";
+
+// Without at least one account holding roles.manage nobody can ever fix permissions or
+// provision staff again — a lockout only a direct database edit could undo. Counts the
+// accounts that would still hold it once `excludingRoleId` / `excludingProfileId` are out.
+async function assertAnotherRolesManager(opts: { excludingRoleId?: string; excludingProfileId?: string }) {
+  const remaining = await prisma.profile.count({
+    where: {
+      ...(opts.excludingProfileId ? { id: { not: opts.excludingProfileId } } : {}),
+      role: {
+        ...(opts.excludingRoleId ? { id: { not: opts.excludingRoleId } } : {}),
+        permissions: { some: { permission: { key: LOCKOUT_PERMISSION } } },
+      },
+    },
+  });
+  if (remaining === 0) {
+    throw new HttpError(409, `Action refusée : plus aucun compte ne pourrait gérer les rôles (permission "${LOCKOUT_PERMISSION}")`);
+  }
+}
+
 export async function deleteStaffAccount(profileId: string, actorId: string) {
   if (profileId === actorId) throw new HttpError(400, "Vous ne pouvez pas supprimer votre propre compte");
 
@@ -193,6 +227,10 @@ export async function deleteStaffAccount(profileId: string, actorId: string) {
   if (profile.role.key === "hacker" || profile.role.key === "entreprise") {
     throw new HttpError(400, "Utilisez /api/hackers ou /api/entreprises pour ce type de compte");
   }
+  const holdsLockoutPermission = await prisma.rolePermission.count({
+    where: { roleId: profile.roleId, permission: { key: LOCKOUT_PERMISSION } },
+  });
+  if (holdsLockoutPermission > 0) await assertAnotherRolesManager({ excludingProfileId: profileId });
 
   await prisma.profile.delete({ where: { id: profileId } });
   await supabaseAdmin.auth.admin.deleteUser(profileId);
@@ -211,6 +249,11 @@ export async function updateRolePermissions(roleId: string, permissionKeys: stri
 
   const role = await prisma.role.findUnique({ where: { id: roleId } });
   if (!role) throw new HttpError(404, "Rôle introuvable");
+
+  if (!permissionKeys.includes(LOCKOUT_PERMISSION)) {
+    const currentlyHolds = await prisma.rolePermission.count({ where: { roleId, permission: { key: LOCKOUT_PERMISSION } } });
+    if (currentlyHolds > 0) await assertAnotherRolesManager({ excludingRoleId: roleId });
+  }
 
   const permissions = await prisma.permission.findMany({ where: { key: { in: permissionKeys } } });
 

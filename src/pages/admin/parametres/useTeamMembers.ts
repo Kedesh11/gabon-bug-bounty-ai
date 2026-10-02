@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { notifyStaffInvitation } from "@/lib/inviteLink";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useStaffAccounts, useAddStaffAccountToRole, useDeleteStaffAccount, useRoles } from "@/hooks/api/roles";
 
@@ -14,18 +15,16 @@ export function useTeamMembers() {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
-  const [newMemberPassword, setNewMemberPassword] = useState("");
   const [newMemberRoleId, setNewMemberRoleId] = useState("");
 
   const resetForm = () => {
     setNewMemberName("");
     setNewMemberEmail("");
-    setNewMemberPassword("");
     setNewMemberRoleId("");
   };
 
   const handleAddMember = () => {
-    if (!newMemberName.trim() || !newMemberEmail.trim() || !newMemberPassword.trim()) {
+    if (!newMemberName.trim() || !newMemberEmail.trim()) {
       toast.error("Veuillez remplir tous les champs");
       return;
     }
@@ -37,24 +36,16 @@ export function useTeamMembers() {
       toast.error("Format d'email invalide");
       return;
     }
-    if (newMemberPassword.length < 8) {
-      toast.error("Le mot de passe doit contenir au moins 8 caractères");
-      return;
-    }
     if (!newMemberRoleId) {
       toast.error("Sélectionnez un rôle");
       return;
     }
 
     addAccount.mutate(
-      { roleId: newMemberRoleId, name: newMemberName.trim(), email: newMemberEmail.trim(), password: newMemberPassword },
+      { roleId: newMemberRoleId, name: newMemberName.trim(), email: newMemberEmail.trim() },
       {
         onSuccess: (result) => {
-          toast.success(
-            result.emailSent
-              ? `${newMemberName} a été ajouté à l'équipe, email envoyé`
-              : `${newMemberName} a été ajouté à l'équipe, mais l'email n'a pas pu être envoyé — transmettez les identifiants manuellement`,
-          );
+          notifyStaffInvitation(newMemberName, result, "ajouté à l'équipe");
           setIsAddMemberOpen(false);
           resetForm();
         },
@@ -79,8 +70,6 @@ export function useTeamMembers() {
     setNewMemberName,
     newMemberEmail,
     setNewMemberEmail,
-    newMemberPassword,
-    setNewMemberPassword,
     newMemberRoleId,
     setNewMemberRoleId,
     handleAddMember,

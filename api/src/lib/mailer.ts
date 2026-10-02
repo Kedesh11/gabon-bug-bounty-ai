@@ -1,11 +1,12 @@
 import { Resend } from "resend";
 import { env } from "../env.js";
 
-export interface StaffCredentialsEmailInput {
+export interface StaffInvitationEmailInput {
   to: string;
   roleLabel: string;
-  email: string;
-  password: string;
+  // One-time link to choose a password. The account is created with a random password
+  // nobody knows, so no credential ever travels by email.
+  setPasswordUrl: string;
   message?: string;
 }
 
@@ -16,8 +17,8 @@ export interface SendResult {
 
 // Never throws — a failed email must never block role/account provisioning, which
 // already succeeded by the time this is called. The caller surfaces `sent`/`error`
-// to the admin so credentials can be transmitted manually if delivery failed.
-export async function sendStaffCredentialsEmail(input: StaffCredentialsEmailInput): Promise<SendResult> {
+// to the admin so the invitation link can be transmitted manually if delivery failed.
+export async function sendStaffInvitationEmail(input: StaffInvitationEmailInput): Promise<SendResult> {
   if (!env.RESEND_API_KEY) {
     return { sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" };
   }
@@ -28,7 +29,7 @@ export async function sendStaffCredentialsEmail(input: StaffCredentialsEmailInpu
       from: env.RESEND_FROM_EMAIL,
       to: input.to,
       subject: "Votre accès à la plateforme Gabon Bug Bounty",
-      html: renderEmailHtml(input),
+      html: renderStaffInvitationHtml(input),
     });
     if (error) return { sent: false, error: error.message };
     return { sent: true };
@@ -42,7 +43,7 @@ export interface PasswordResetEmailInput {
   resetUrl: string;
 }
 
-// Same never-throws contract as sendStaffCredentialsEmail: a delivery failure must
+// Same never-throws contract as sendStaffInvitationEmail: a delivery failure must
 // never surface as a 500 to the caller, since /forgot-password always returns 200
 // regardless of whether the account exists, let alone whether the email sent.
 export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Promise<SendResult> {
@@ -114,7 +115,7 @@ function renderVerificationEmailHtml(input: VerificationEmailInput): string {
   `;
 }
 
-function renderEmailHtml(input: StaffCredentialsEmailInput): string {
+function renderStaffInvitationHtml(input: StaffInvitationEmailInput): string {
   const messageBlock = input.message
     ? `<p><strong>Message de l'administrateur :</strong></p><p>${escapeHtml(input.message)}</p>`
     : "";
@@ -123,10 +124,9 @@ function renderEmailHtml(input: StaffCredentialsEmailInput): string {
     <div style="font-family: sans-serif; max-width: 480px;">
       <h2>Bienvenue sur Gabon Bug Bounty</h2>
       <p>Un compte vous a été créé avec le rôle <strong>${escapeHtml(input.roleLabel)}</strong>.</p>
-      <p><strong>Email de connexion :</strong> ${escapeHtml(input.email)}</p>
-      <p><strong>Mot de passe temporaire :</strong> ${escapeHtml(input.password)}</p>
+      <p><a href="${escapeHtml(input.setPasswordUrl)}">Cliquez ici pour choisir votre mot de passe</a> et activer votre accès.</p>
       ${messageBlock}
-      <p>Connectez-vous sur la plateforme avec ces identifiants.</p>
+      <p>Ce lien est à usage unique et expire dans 72 heures. Passé ce délai, utilisez « Mot de passe oublié » sur la page de connexion.</p>
     </div>
   `;
 }

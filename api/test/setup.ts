@@ -164,13 +164,13 @@ export function jsonResponse(body: unknown, ok = true) {
 // (forgot-password) can inspect what was about to be sent, e.g. the reset link/token,
 // which is never returned by the API itself.
 export const mailerMocks = {
-  sendStaffCredentialsEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
+  sendStaffInvitationEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
   sendPasswordResetEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
   sendVerificationEmail: vi.fn().mockResolvedValue({ sent: false, error: "Resend non configuré (RESEND_API_KEY manquant) — voir api/.env.example" }),
 };
 
 vi.mock("../src/lib/mailer.js", () => ({
-  sendStaffCredentialsEmail: mailerMocks.sendStaffCredentialsEmail,
+  sendStaffInvitationEmail: mailerMocks.sendStaffInvitationEmail,
   sendPasswordResetEmail: mailerMocks.sendPasswordResetEmail,
   sendVerificationEmail: mailerMocks.sendVerificationEmail,
 }));

@@ -4,6 +4,7 @@ import request from "supertest";
 import { app } from "../src/index.js";
 import { createTestUser } from "./helpers.js";
 import { prisma } from "../src/prisma.js";
+import { mailerMocks } from "./setup.js";
 import { supabaseAdmin } from "../src/lib/supabaseAdmin.js";
 
 function newRoleProvisioningBody(overrides: Record<string, unknown> = {}) {
@@ -333,5 +334,79 @@ describe("Staff account provisioning — password complexity", () => {
       .send(newRoleProvisioningBody({ password: "MotDePasse123!" })); // 14 chars — below military's 16 minimum
 
     expect(res.status).toBe(400);
+  });
+});
+
+
+describe("Lockout protection on roles.manage", () => {
+  // The suite shares one database with many other admin accounts, so "the last holder"
+  // can't be produced for real without deleting everyone — simulate it by making the
+  // "who else still holds roles.manage" count come back empty.
+  it("refuses to strip roles.manage from the last role holding it", async () => {
+    const admin = await createTestUser("admin");
+    const adminRole = await prisma.role.findUniqueOrThrow({ where: { key: "admin" } });
+    const countSpy = vi.spyOn(prisma.profile, "count").mockResolvedValueOnce(0);
+
+    const res = await request(app)
+      .patch(`/api/roles/${adminRole.id}/permissions`)
+      .set("Authorization", admin.authHeader)
+      .send({ permissionKeys: ["dashboard.admin.view"] });
+
+    countSpy.mockRestore();
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain("roles.manage");
+    const stillThere = await prisma.rolePermission.count({ where: { roleId: adminRole.id, permission: { key: "roles.manage" } } });
+    expect(stillThere).toBe(1);
+  });
+
+  it("refuses to delete the last account holding roles.manage", async () => {
+    const admin = await createTestUser("admin");
+    const other = await createTestUser("admin");
+    const countSpy = vi.spyOn(prisma.profile, "count").mockResolvedValueOnce(0);
+
+    const res = await request(app).delete(`/api/roles/accounts/${other.id}`).set("Authorization", admin.authHeader);
+
+    countSpy.mockRestore();
+    expect(res.status).toBe(409);
+    expect(await prisma.profile.findUnique({ where: { id: other.id } })).not.toBeNull();
+  });
+});
+
+
+describe("Staff invitation — no password ever travels by email", () => {
+  it("creates the account with a random password and emails a one-time set-password link", async () => {
+    const admin = await createTestUser("admin");
+    mailerMocks.sendStaffInvitationEmail.mockClear();
+    mailerMocks.sendStaffInvitationEmail.mockResolvedValueOnce({ sent: true });
+
+    const body = newRoleProvisioningBody({ permissionKeys: [] });
+    delete (body as Record<string, unknown>).password;
+    const res = await request(app).post("/api/roles").set("Authorization", admin.authHeader).send(body);
+
+    expect(res.status).toBe(201);
+    expect(res.body.emailSent).toBe(true);
+    expect(res.body.setPasswordUrl).toBeUndefined();
+
+    const sent = mailerMocks.sendStaffInvitationEmail.mock.calls[0][0];
+    expect(JSON.stringify(sent)).not.toMatch(/password"\s*:/);
+    const token = new URL(sent.setPasswordUrl).searchParams.get("token") as string;
+
+    const createdPassword = vi.mocked(supabaseAdmin.auth.admin.createUser).mock.calls.at(-1)![0].password as string;
+    expect(createdPassword.length).toBeGreaterThanOrEqual(32);
+
+    const reset = await request(app).post("/api/auth/reset-password").send({ token, password: "MonNouveauMotDePasse123!" });
+    expect(reset.status).toBe(200);
+  });
+
+  it("hands the link back to the admin when the email could not be sent", async () => {
+    const admin = await createTestUser("admin");
+    const body = newRoleProvisioningBody({ permissionKeys: [] });
+    delete (body as Record<string, unknown>).password;
+
+    const res = await request(app).post("/api/roles").set("Authorization", admin.authHeader).send(body);
+
+    expect(res.status).toBe(201);
+    expect(res.body.emailSent).toBe(false);
+    expect(res.body.setPasswordUrl).toContain("/reinitialiser-mot-de-passe?token=");
   });
 });

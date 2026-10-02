@@ -48,7 +48,7 @@ const createRoleSchema = z.object({
   permissionKeys: z.array(z.string()).default([]),
   name: z.string().min(2, "Le nom complet doit contenir au moins 2 caractères"),
   email: z.string().email(),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").optional(),
   message: z.string().optional(),
 });
 
@@ -56,7 +56,7 @@ rolesRouter.post(
   "/",
   asyncHandler(async (req, res) => {
     const body = createRoleSchema.parse(req.body);
-    const { role, profile, emailSent, emailError } = await createRole(body);
+    const { role, profile, emailSent, emailError, setPasswordUrl } = await createRole(body);
     await createPlatformLog({
       type: "security",
       level: "info",
@@ -64,14 +64,14 @@ rolesRouter.post(
       source: "roles.routes",
       userId: req.user!.id,
     });
-    res.status(201).json({ role, profile, emailSent, emailError });
+    res.status(201).json({ role, profile, emailSent, emailError, setPasswordUrl });
   }),
 );
 
 const provisionAccountSchema = z.object({
   name: z.string().min(2, "Le nom complet doit contenir au moins 2 caractères"),
   email: z.string().email(),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").optional(),
   message: z.string().optional(),
 });
 
@@ -79,8 +79,8 @@ rolesRouter.post(
   "/:id/accounts",
   asyncHandler(async (req, res) => {
     const body = provisionAccountSchema.parse(req.body);
-    const { profile, emailSent, emailError } = await addStaffAccountToRole(req.params.id, body);
-    res.status(201).json({ profile, emailSent, emailError });
+    const { profile, emailSent, emailError, setPasswordUrl } = await addStaffAccountToRole(req.params.id, body);
+    res.status(201).json({ profile, emailSent, emailError, setPasswordUrl });
   }),
 );
 

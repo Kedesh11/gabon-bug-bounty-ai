@@ -11,7 +11,7 @@ const INTEGRATION_DEFS = [
   { key: "cinetpayCheckout" as const, title: "CinetPay Checkout", desc: "Mobile Money pour le financement des programmes.", icon: Smartphone, envVars: "CINETPAY_API_KEY / CINETPAY_SITE_ID" },
   { key: "cinetpayTransfer" as const, title: "CinetPay Transfer", desc: "Versements Mobile Money aux hackers.", icon: Send, envVars: "CINETPAY_TRANSFER_LOGIN / CINETPAY_TRANSFER_PASSWORD" },
   { key: "openrouter" as const, title: "OpenRouter (agents MCP)", desc: "Analyse automatique des rapports soumis.", icon: Bot, envVars: "OPENROUTER_API_KEY" },
-  { key: "resend" as const, title: "Resend", desc: "Envoi des identifiants aux nouveaux comptes staff.", icon: Mail, envVars: "RESEND_API_KEY" },
+  { key: "resend" as const, title: "Resend", desc: "Invitations des comptes staff, confirmation d'email et réinitialisation de mot de passe.", icon: Mail, envVars: "RESEND_API_KEY" },
 ];
 
 export function IntegrationsTab({ data: status, isLoading }: IntegrationsState) {

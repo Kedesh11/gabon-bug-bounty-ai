@@ -25,8 +25,6 @@ export function TeamTab({
   setNewMemberName,
   newMemberEmail,
   setNewMemberEmail,
-  newMemberPassword,
-  setNewMemberPassword,
   newMemberRoleId,
   setNewMemberRoleId,
   handleAddMember,
@@ -82,15 +80,6 @@ export function TeamTab({
                       className="pl-10 h-12 bg-secondary/50 border-border"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Mot de passe par défaut</Label>
-                  <Input
-                    placeholder="Min. 8 caractères"
-                    value={newMemberPassword}
-                    onChange={(e) => setNewMemberPassword(e.target.value)}
-                    className="h-12 bg-secondary/50 border-border"
-                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Rôle & Permissions</Label>

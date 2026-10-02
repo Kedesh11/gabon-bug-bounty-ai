@@ -1,3 +1,4 @@
+import { notifyStaffInvitation } from "@/lib/inviteLink";
 import { useState } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -16,7 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Shield, Plus, Trash2, Pencil, Lock, Dices } from "lucide-react";
+import { Shield, Plus, Trash2, Pencil, Lock } from "lucide-react";
 import { usePermissionCatalog, useRoles, useCreateRole, useUpdateRolePermissions, useDeleteRole, type RoleDef } from "@/hooks/api/roles";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useContent } from "@/hooks/api/content";
@@ -47,16 +48,11 @@ function PermissionChecklist({
   );
 }
 
-function generateStrongPassword() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  return Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-}
-
 function CreateRoleDialog() {
   const dialogTitle = useContent("admin.roles.create-dialog.title", "Créer un rôle");
   const dialogDescription = useContent(
     "admin.roles.create-dialog.description",
-    "Créer un rôle provisionne aussitôt son premier compte : la personne reçoit ses identifiants par email.",
+    "Créer un rôle provisionne aussitôt son premier compte : la personne reçoit par email un lien pour choisir son mot de passe.",
   );
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
@@ -64,7 +60,6 @@ function CreateRoleDialog() {
   const [permissionKeys, setPermissionKeys] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const createRole = useCreateRole();
 
@@ -78,7 +73,6 @@ function CreateRoleDialog() {
     setPermissionKeys([]);
     setName("");
     setEmail("");
-    setPassword("");
     setMessage("");
   };
 
@@ -86,7 +80,6 @@ function CreateRoleDialog() {
     label.trim().length >= 2 &&
     name.trim().length >= 2 &&
     /\S+@\S+\.\S+/.test(email) &&
-    password.length >= 8 &&
     !createRole.isPending;
 
   return (
@@ -123,15 +116,6 @@ function CreateRoleDialog() {
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jean@bugbounty.ga" className="bg-secondary/50" />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs font-black uppercase tracking-widest">Mot de passe par défaut</Label>
-            <div className="flex gap-2">
-              <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 caractères" className="bg-secondary/50" />
-              <Button type="button" variant="outline" className="shrink-0 gap-1" onClick={() => setPassword(generateStrongPassword())}>
-                <Dices className="w-4 h-4" /> Générer
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-2">
             <Label className="text-xs font-black uppercase tracking-widest">Message (optionnel)</Label>
             <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message inclus dans l'email envoyé à la personne" className="bg-secondary/50" rows={3} />
           </div>
@@ -152,16 +136,11 @@ function CreateRoleDialog() {
                   permissionKeys,
                   name: name.trim(),
                   email: email.trim(),
-                  password,
                   message: message.trim() || undefined,
                 },
                 {
                   onSuccess: (result) => {
-                    toast.success(
-                      result.emailSent
-                        ? "Rôle et compte créés, email envoyé"
-                        : "Rôle et compte créés, mais l'email n'a pas pu être envoyé — transmettez les identifiants manuellement",
-                    );
+                    notifyStaffInvitation(name.trim(), result, "créé");
                     setOpen(false);
                     reset();
                   },

@@ -45,7 +45,6 @@ export interface CreateRoleInput {
   permissionKeys: string[];
   name: string;
   email: string;
-  password: string;
   message?: string;
 }
 
@@ -54,6 +53,8 @@ export interface CreateRoleResult {
   profile: { id: string; email: string; name: string };
   emailSent: boolean;
   emailError?: string;
+  // Present only when the invitation email could not be sent.
+  setPasswordUrl?: string;
 }
 
 export function useCreateRole() {
@@ -120,7 +121,6 @@ export interface AddStaffAccountInput {
   roleId: string;
   name: string;
   email: string;
-  password: string;
   message?: string;
 }
 
@@ -128,6 +128,8 @@ export interface AddStaffAccountResult {
   profile: { id: string; email: string; name: string };
   emailSent: boolean;
   emailError?: string;
+  // Present only when the invitation email could not be sent.
+  setPasswordUrl?: string;
 }
 
 export function useAddStaffAccountToRole() {
