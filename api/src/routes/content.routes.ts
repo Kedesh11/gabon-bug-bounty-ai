@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { ContentValueType } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { linkTarget } from "../lib/safeUrl.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import {
@@ -88,7 +89,7 @@ contentRouter.delete(
 
 const navbarItemSchema = z.object({
   label: z.string().min(1).max(60),
-  url: z.string().min(1).max(300),
+  url: linkTarget,
   isExternal: z.boolean().optional(),
   visible: z.boolean().optional(),
 });
@@ -170,7 +171,7 @@ contentRouter.post(
 const footerLinkSchema = z.object({
   columnId: z.string().uuid(),
   label: z.string().min(1).max(60),
-  url: z.string().min(1).max(300),
+  url: linkTarget,
 });
 
 contentRouter.post(
@@ -184,7 +185,7 @@ contentRouter.post(
 
 const updateFooterLinkSchema = z.object({
   label: z.string().min(1).max(60).optional(),
-  url: z.string().min(1).max(300).optional(),
+  url: linkTarget.optional(),
 });
 
 contentRouter.patch(

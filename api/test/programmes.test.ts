@@ -305,3 +305,37 @@ describe("Programmes — public exposure & re-validation", () => {
     expect(edit.body.programme.validationStatus).toBe("en_attente");
   });
 });
+
+describe("Programme website is stored only as a safe http(s) URL", () => {
+  const base = { name: "Programme lien", description: "desc", minReward: 1000, maxReward: 5000 };
+
+  it("rejects javascript:, data: and other non-http(s) schemes", async () => {
+    const entreprise = await createTestUser("entreprise");
+    for (const website of ["javascript:alert(document.cookie)", "data:text/html,<script>alert(1)</script>", "ftp://example.ga", "vbscript:x"]) {
+      const res = await request(app).post("/api/programmes").set("Authorization", entreprise.authHeader).send({ ...base, website });
+      expect(res.status, website).toBe(400);
+    }
+  });
+
+  it("accepts an https URL as is, promotes a bare domain to https, and treats empty as none", async () => {
+    const entreprise = await createTestUser("entreprise");
+    const create = (website: string) =>
+      request(app).post("/api/programmes").set("Authorization", entreprise.authHeader).send({ ...base, website });
+
+    expect((await create("https://example.ga/page")).body.programme.website).toBe("https://example.ga/page");
+    expect((await create("example.ga")).body.programme.website).toBe("https://example.ga");
+    const empty = await create("  ");
+    expect(empty.status).toBe(201);
+    expect(empty.body.programme.website).toBeNull();
+  });
+
+  it("applies the same rule on update", async () => {
+    const entreprise = await createTestUser("entreprise");
+    const created = await request(app).post("/api/programmes").set("Authorization", entreprise.authHeader).send(base);
+    const res = await request(app)
+      .patch(`/api/programmes/${created.body.programme.id}`)
+      .set("Authorization", entreprise.authHeader)
+      .send({ website: "javascript:alert(1)" });
+    expect(res.status).toBe(400);
+  });
+});

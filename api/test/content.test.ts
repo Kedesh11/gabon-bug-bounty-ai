@@ -182,3 +182,37 @@ describe("Footer columns and links CRUD", () => {
     expect(listRes.body.columns.some((c: { id: string }) => c.id === columnId)).toBe(false);
   });
 });
+
+describe("CMS links accept only safe targets", () => {
+  it("rejects script-bearing and protocol-relative targets on navbar and footer links", async () => {
+    const admin = await createTestUser("admin");
+    for (const url of ["javascript:alert(1)", "data:text/html,x", "//evil.example/x", "vbscript:x"]) {
+      const nav = await request(app).post("/api/content/navbar-items").set("Authorization", admin.authHeader).send({ label: "Piège", url });
+      expect(nav.status, url).toBe(400);
+    }
+
+    const column = await request(app).post("/api/content/footer-columns").set("Authorization", admin.authHeader).send({ title: "Col sécurité" });
+    const link = await request(app)
+      .post("/api/content/footer-links")
+      .set("Authorization", admin.authHeader)
+      .send({ columnId: column.body.column.id, label: "Piège", url: "javascript:alert(1)" });
+    expect(link.status).toBe(400);
+    const patch = await request(app)
+      .post("/api/content/footer-links")
+      .set("Authorization", admin.authHeader)
+      .send({ columnId: column.body.column.id, label: "Ok", url: "/contact" });
+    const patched = await request(app)
+      .patch(`/api/content/footer-links/${patch.body.link.id}`)
+      .set("Authorization", admin.authHeader)
+      .send({ url: "javascript:alert(1)" });
+    expect(patched.status).toBe(400);
+  });
+
+  it("accepts internal paths and http(s)/mailto/tel URLs", async () => {
+    const admin = await createTestUser("admin");
+    for (const url of ["/programmes", "https://example.ga/a?b=1", "mailto:contact@example.ga", "tel:+24101020304"]) {
+      const res = await request(app).post("/api/content/navbar-items").set("Authorization", admin.authHeader).send({ label: "Ok", url });
+      expect(res.status, url).toBe(201);
+    }
+  });
+});

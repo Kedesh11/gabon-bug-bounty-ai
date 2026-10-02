@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { ProgrammeStatus, ProgrammeType, ProgrammeValidationStatus, RewardCurrency, SafeHarbor, Severity, TestingPeriod } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { websiteUrl } from "../lib/safeUrl.js";
 import { requireAuth, optionalAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import {
@@ -35,7 +36,7 @@ const programmeSchema = z.object({
   methodology: z.string().optional(),
   tags: z.array(z.string()).default([]),
   sector: z.string().optional(),
-  website: z.string().optional(),
+  website: websiteUrl,
   safeHarbor: z.nativeEnum(SafeHarbor).optional(),
   testingPeriod: z.nativeEnum(TestingPeriod).optional(),
   programType: z.nativeEnum(ProgrammeType).default("public"),
