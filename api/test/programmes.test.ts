@@ -232,3 +232,76 @@ describe("Programme slugs", () => {
     expect(res.status).toBe(404);
   });
 });
+
+
+describe("Programmes — public exposure & re-validation", () => {
+  async function createProgrammeFor(entrepriseUser: { id: string }, overrides: Record<string, unknown> = {}) {
+    const profile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entrepriseUser.id } });
+    return prisma.programme.create({
+      data: {
+        name: "Programme exposé",
+        slug: `programme-expose-${randomUUID()}`,
+        description: "desc",
+        entrepriseId: profile.id,
+        minReward: 1000,
+        maxReward: 5000,
+        validationStatus: "valide",
+        ...overrides,
+      },
+    });
+  }
+
+  it("never exposes the entreprise's email or review internals on the public list and detail", async () => {
+    const entreprise = await createTestUser("entreprise");
+    const programme = await createProgrammeFor(entreprise, { rejectionReason: "interne" });
+
+    const list = await request(app).get("/api/programmes");
+    const listed = list.body.programmes.find((p: { id: string }) => p.id === programme.id);
+    expect(listed.entreprise.profile.name).toBeTruthy();
+    expect(JSON.stringify(list.body)).not.toContain(entreprise.email);
+
+    const detail = await request(app).get(`/api/programmes/${programme.id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.programme.entreprise.profile.name).toBeTruthy();
+    expect(JSON.stringify(detail.body)).not.toContain(entreprise.email);
+    expect(detail.body.programme.rejectionReason).toBeUndefined();
+    expect(detail.body.programme.validatedById).toBeUndefined();
+  });
+
+  it("hides a pending programme from anonymous callers and other users, but not from its owner or reviewers", async () => {
+    const owner = await createTestUser("entreprise");
+    const other = await createTestUser("hacker");
+    const pending = await createProgrammeFor(owner, { validationStatus: "en_attente" });
+    const validator = await createValidatorUser();
+
+    expect((await request(app).get(`/api/programmes/${pending.id}`)).status).toBe(404);
+    expect((await request(app).get(`/api/programmes/${pending.slug}`)).status).toBe(404);
+    expect((await request(app).get(`/api/programmes/${pending.id}`).set("Authorization", other.authHeader)).status).toBe(404);
+    expect((await request(app).get(`/api/programmes/${pending.id}`).set("Authorization", owner.authHeader)).status).toBe(200);
+    expect((await request(app).get(`/api/programmes/${pending.id}`).set("Authorization", validator.authHeader)).status).toBe(200);
+  });
+
+  it("sends a validated programme back to review when its owner rewrites the terms, but not for a pause", async () => {
+    const owner = await createTestUser("entreprise");
+    const programme = await createProgrammeFor(owner);
+
+    const pause = await request(app)
+      .patch(`/api/programmes/${programme.id}`)
+      .set("Authorization", owner.authHeader)
+      .send({ status: "pause" });
+    expect(pause.body.programme.validationStatus).toBe("valide");
+
+    const same = await request(app)
+      .patch(`/api/programmes/${programme.id}`)
+      .set("Authorization", owner.authHeader)
+      .send({ description: "desc", maxReward: 5000 });
+    expect(same.body.programme.validationStatus).toBe("valide");
+
+    const edit = await request(app)
+      .patch(`/api/programmes/${programme.id}`)
+      .set("Authorization", owner.authHeader)
+      .send({ maxReward: 9000000 });
+    expect(edit.status).toBe(200);
+    expect(edit.body.programme.validationStatus).toBe("en_attente");
+  });
+});

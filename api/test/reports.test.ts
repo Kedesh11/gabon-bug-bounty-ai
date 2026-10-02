@@ -260,3 +260,40 @@ describe("First-to-report duplicate detection", () => {
     expect(firstReloaded.body.report.aiAnalysis.isDuplicate).toBe(false);
   });
 });
+
+
+describe("Report submission targets only open, validated programmes", () => {
+  const body = (programmeId: string) => ({
+    title: "XSS réfléchi",
+    description: "desc",
+    severity: "haute",
+    programmeId,
+    vulnerability: "XSS",
+    proof: "poc",
+  });
+
+  async function programmeWith(overrides: Record<string, unknown>) {
+    const entreprise = await createTestUser("entreprise");
+    const profile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
+    const programme = await createTestProgramme(profile.id);
+    return prisma.programme.update({ where: { id: programme.id }, data: overrides });
+  }
+
+  it("rejects a report on a pending or refused programme as if it did not exist", async () => {
+    const hacker = await createTestUser("hacker");
+    for (const validationStatus of ["en_attente", "refuse"] as const) {
+      const programme = await programmeWith({ validationStatus });
+      const res = await request(app).post("/api/reports").set("Authorization", hacker.authHeader).send(body(programme.id));
+      expect(res.status).toBe(404);
+    }
+  });
+
+  it("rejects a report on a paused or closed programme with a 409", async () => {
+    const hacker = await createTestUser("hacker");
+    for (const status of ["pause", "ferme"] as const) {
+      const programme = await programmeWith({ status });
+      const res = await request(app).post("/api/reports").set("Authorization", hacker.authHeader).send(body(programme.id));
+      expect(res.status).toBe(409);
+    }
+  });
+});

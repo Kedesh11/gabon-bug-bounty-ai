@@ -22,6 +22,7 @@ const baseReport: Report = {
 
 const baseProgramme: Programme = {
   id: "p1",
+  slug: "api-gouv",
   name: "API Gouv",
   entrepriseId: "e1",
   entrepriseName: "Ministère",
@@ -30,6 +31,7 @@ const baseProgramme: Programme = {
   minReward: 1000,
   maxReward: 5000,
   status: "actif",
+  validationStatus: "valide",
   createdAt: "2024-07-01T00:00:00.000Z",
   reportsCount: 1,
 };

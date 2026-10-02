@@ -116,6 +116,11 @@ export async function createReport(userId: string, input: CreateReportInput) {
   const programme = await prisma.programme.findUnique({ where: { id: input.programmeId } });
   if (!programme) throw new HttpError(404, "Programme introuvable");
 
+  // Same 404 as an unknown id for anything not publicly listed, so a pending/refused
+  // programme can't be probed; a validated-but-paused/closed one is a real, explainable 409.
+  if (programme.validationStatus !== "valide") throw new HttpError(404, "Programme introuvable");
+  if (programme.status !== "actif") throw new HttpError(409, "Ce programme n'accepte pas de nouveaux rapports pour le moment");
+
   if (input.vulnerabilityCategoryId) {
     const category = await prisma.vulnerabilityCategory.findUnique({ where: { id: input.vulnerabilityCategoryId } });
     if (!category) throw new HttpError(400, "Catégorie de vulnérabilité inconnue");

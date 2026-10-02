@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { ProgrammeStatus, ProgrammeType, ProgrammeValidationStatus, RewardCurrency, SafeHarbor, Severity, TestingPeriod } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, optionalAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import {
   listProgrammes,
@@ -86,8 +86,9 @@ programmesRouter.get(
 
 programmesRouter.get(
   "/:id",
+  optionalAuth,
   asyncHandler(async (req, res) => {
-    const programme = await getProgrammeById(req.params.id);
+    const programme = await getProgrammeById(req.params.id, req.user);
     res.json({ programme });
   }),
 );

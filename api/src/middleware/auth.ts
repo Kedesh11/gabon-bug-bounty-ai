@@ -21,35 +21,74 @@ declare global {
   }
 }
 
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+type AuthResult =
+  | { ok: true; user: AuthenticatedUser }
+  | { ok: false; status: number; error: string };
+
+function bearerToken(req: Request): string | null {
   const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
+  return header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
+}
 
-  if (!token) {
-    res.status(401).json({ error: "Authentification requise" });
-    return;
-  }
-
+async function resolveUser(token: string): Promise<AuthResult> {
   const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) {
-    res.status(401).json({ error: "Token invalide ou expiré" });
-    return;
-  }
+  if (error || !data.user) return { ok: false, status: 401, error: "Token invalide ou expiré" };
 
   const profile = await prisma.profile.findUnique({
     where: { id: data.user.id },
     include: { role: { include: { permissions: { include: { permission: true } } } } },
   });
-  if (!profile) {
-    res.status(401).json({ error: "Profil introuvable pour cet utilisateur" });
+  if (!profile) return { ok: false, status: 401, error: "Profil introuvable pour cet utilisateur" };
+
+  return {
+    ok: true,
+    user: {
+      id: profile.id,
+      email: profile.email,
+      role: profile.role.key,
+      permissions: profile.role.permissions.map((rp) => rp.permission.key),
+    },
+  };
+}
+
+// Express 4 does not catch rejections from async middleware: without the try/catch, a
+// Supabase/Prisma outage here would be an unhandled rejection (hung request or crashed
+// process) instead of a clean error response. Errors go through next() to errorHandler.
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const token = bearerToken(req);
+  if (!token) {
+    res.status(401).json({ error: "Authentification requise" });
     return;
   }
 
-  req.user = {
-    id: profile.id,
-    email: profile.email,
-    role: profile.role.key,
-    permissions: profile.role.permissions.map((rp) => rp.permission.key),
-  };
-  next();
+  try {
+    const result = await resolveUser(token);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    req.user = result.user;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// For public routes whose response depends on who is asking (e.g. a programme that is
+// only visible to its owner while pending validation). Never rejects the request: no
+// token, or a bad one, simply means "anonymous". Real outages still go to errorHandler.
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const token = bearerToken(req);
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    const result = await resolveUser(token);
+    if (result.ok) req.user = result.user;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }

@@ -34,6 +34,10 @@ export async function createTestProgramme(entrepriseProfileId: string) {
       entrepriseId: entrepriseProfileId,
       minReward: 10000,
       maxReward: 100000,
+      // Open for reports by default — the tests that need a pending/refused/closed
+      // programme override these explicitly.
+      validationStatus: "valide",
+      status: "actif",
     },
   });
 }
