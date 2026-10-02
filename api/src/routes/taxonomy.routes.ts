@@ -4,6 +4,7 @@ import { Severity } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import { categoryProposalRateLimit } from "../middleware/rateLimit.js";
 import {
   listVulnerabilityCategories,
   proposeVulnerabilityCategory,
@@ -33,6 +34,7 @@ taxonomyRouter.post(
   "/vulnerability-categories",
   requireAuth,
   requirePermission("reports.create"),
+  categoryProposalRateLimit,
   asyncHandler(async (req, res) => {
     const body = proposeSchema.parse(req.body);
     const result = await proposeVulnerabilityCategory(body.name);

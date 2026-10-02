@@ -6,6 +6,7 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import { reportSubmitRateLimit, uploadRateLimit } from "../middleware/rateLimit.js";
 import {
   listReportsForUser,
   getReportById,
@@ -77,6 +78,7 @@ reportsRouter.get(
 reportsRouter.post(
   "/",
   requirePermission("reports.create"),
+  reportSubmitRateLimit,
   asyncHandler(async (req, res) => {
     const body = createReportSchema.parse(req.body);
     const report = await createReport(req.user!.id, body);
@@ -122,6 +124,7 @@ reportsRouter.delete(
 reportsRouter.post(
   "/:id/pdf",
   requirePermission("reports.create"),
+  uploadRateLimit,
   pdfUpload.single("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new HttpError(400, "Fichier PDF manquant ou invalide (10MB max, application/pdf uniquement)");

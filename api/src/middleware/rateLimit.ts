@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 // Both limiters below use express-rate-limit's default MemoryStore — counters live in
 // this process's memory. Correct for the single-instance deployment this app has today
@@ -54,3 +54,25 @@ export const mfaVerifyRateLimit = rateLimit({
   skip: skipInTests,
   message: { error: "Trop de tentatives. Réessayez dans quelques minutes." },
 });
+
+// For authenticated endpoints that are cheap to call and expensive (or noisy) to serve —
+// each report submission can start 7 LLM calls, each category proposal pollutes a shared
+// catalogue. Keyed by account rather than IP so one user can't spread the load over
+// addresses, and so offices/NATs sharing an IP don't throttle each other. Must be placed
+// AFTER requireAuth in the route chain (falls back to the IP if there is no user).
+function perUserLimit(limit: number, message: string, windowMs = 60 * 60 * 1000) {
+  return rateLimit({
+    windowMs,
+    limit,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: skipInTests,
+    keyGenerator: (req) => req.user?.id ?? ipKeyGenerator(req.ip ?? ""),
+    message: { error: message },
+  });
+}
+
+export const reportSubmitRateLimit = perUserLimit(20, "Trop de rapports soumis en peu de temps. Réessayez dans une heure.");
+export const uploadRateLimit = perUserLimit(30, "Trop d'envois de fichiers. Réessayez dans une heure.");
+export const categoryProposalRateLimit = perUserLimit(20, "Trop de catégories proposées. Réessayez dans une heure.");
+export const ticketCreateRateLimit = perUserLimit(10, "Trop de tickets ouverts en peu de temps. Réessayez dans une heure.");

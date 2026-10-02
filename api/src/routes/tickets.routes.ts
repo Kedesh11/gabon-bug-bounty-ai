@@ -4,6 +4,7 @@ import { TicketPriority, TicketStatus } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import { ticketCreateRateLimit } from "../middleware/rateLimit.js";
 import {
   listTickets,
   getTicketById,
@@ -38,6 +39,7 @@ const createTicketSchema = z.object({
 // Any authenticated user can open a ticket — it's their own support request.
 ticketsRouter.post(
   "/",
+  ticketCreateRateLimit,
   asyncHandler(async (req, res) => {
     const body = createTicketSchema.parse(req.body);
     const ticket = await createTicket(req.user!.id, body);

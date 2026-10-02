@@ -4,6 +4,7 @@ import { KycDocumentStatus, KycDocumentType } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
+import { uploadRateLimit } from "../middleware/rateLimit.js";
 import multer from "multer";
 import { HttpError } from "../middleware/errorHandler.js";
 import { KYC_MAX_BYTES } from "../services/kyc/kycStorage.js";
@@ -51,6 +52,7 @@ const kycUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 
 // metadata; a document submitted that way has no file and can't be approved.
 kycRouter.post(
   "/documents/upload",
+  uploadRateLimit,
   kycUpload.single("file"),
   asyncHandler(async (req, res) => {
     const { type } = z.object({ type: z.nativeEnum(KycDocumentType) }).parse(req.body);

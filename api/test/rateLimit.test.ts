@@ -45,4 +45,43 @@ describe("Rate limiting on sensitive auth endpoints", () => {
     expect(statuses.slice(0, 5)).toEqual(Array(5).fill(200));
     expect(statuses[5]).toBe(429);
   });
+
+  it("limits report submissions per account, not per address", async () => {
+    const spammer = await createTestUser("hacker");
+    const bystander = await createTestUser("hacker");
+    process.env.NODE_ENV = "production";
+
+    // An invalid body still passes through the limiter first (400, not 429) — enough to
+    // count requests without creating 21 real reports.
+    const statuses: number[] = [];
+    for (let i = 0; i < 21; i++) {
+      const res = await request(app).post("/api/reports").set("Authorization", spammer.authHeader).send({});
+      statuses.push(res.status);
+    }
+    expect(statuses.slice(0, 20)).toEqual(Array(20).fill(400));
+    expect(statuses[20]).toBe(429);
+
+    // Same IP, different account: unaffected.
+    const other = await request(app).post("/api/reports").set("Authorization", bystander.authHeader).send({});
+    expect(other.status).toBe(400);
+  });
+
+  it("limits ticket creation and category proposals per account", async () => {
+    const user = await createTestUser("hacker");
+    process.env.NODE_ENV = "production";
+
+    const tickets: number[] = [];
+    for (let i = 0; i < 11; i++) {
+      tickets.push((await request(app).post("/api/tickets").set("Authorization", user.authHeader).send({})).status);
+    }
+    expect(tickets[9]).toBe(400);
+    expect(tickets[10]).toBe(429);
+
+    const categories: number[] = [];
+    for (let i = 0; i < 21; i++) {
+      categories.push((await request(app).post("/api/taxonomy/vulnerability-categories").set("Authorization", user.authHeader).send({})).status);
+    }
+    expect(categories[19]).toBe(400);
+    expect(categories[20]).toBe(429);
+  });
 });
