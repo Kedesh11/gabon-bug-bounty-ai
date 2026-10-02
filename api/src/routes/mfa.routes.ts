@@ -5,7 +5,8 @@ import { prisma } from "../prisma.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, getRequestToken } from "../middleware/auth.js";
+import { setSessionCookies } from "../lib/sessionCookies.js";
 import { serializeProfile } from "../lib/serializeProfile.js";
 import { profileInclude } from "./auth.routes.js";
 import { enrollTotpFactor, challengeFactor, verifyFactor, unenrollFactor } from "../lib/gotrueMfa.js";
@@ -17,7 +18,7 @@ export const mfaRouter = Router();
 // Same one-liner as /logout — requireAuth verifies the token but doesn't keep the raw
 // string around, and every call here needs to forward it to GoTrue as the acting user.
 function bearerToken(req: Request): string {
-  return req.headers.authorization!.slice("Bearer ".length);
+  return getRequestToken(req)!;
 }
 
 // Shared by /enroll/confirm and /login-verify — both are "challenge then verify a
@@ -92,14 +93,8 @@ mfaRouter.post(
     // Verifying the factor promotes the session to aal2 and (per Supabase's own
     // behavior) signs out every other session on the account — the caller must adopt
     // this new session, their previous access token is no longer the current one.
-    res.status(200).json({
-      message: "2FA activé avec succès",
-      session: {
-        access_token: verified.access_token,
-        refresh_token: verified.refresh_token,
-        expires_at: Math.floor(Date.now() / 1000) + verified.expires_in,
-      },
-    });
+    setSessionCookies(res, verified);
+    res.status(200).json({ message: "2FA activé avec succès" });
   }),
 );
 
@@ -153,13 +148,7 @@ mfaRouter.post(
       userId: profile.id,
     });
 
-    res.json({
-      profile: serializeProfile(profile),
-      session: {
-        access_token: verified.access_token,
-        refresh_token: verified.refresh_token,
-        expires_at: Math.floor(Date.now() / 1000) + verified.expires_in,
-      },
-    });
+    setSessionCookies(res, verified);
+    res.json({ profile: serializeProfile(profile) });
   }),
 );

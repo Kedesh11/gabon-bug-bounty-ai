@@ -57,7 +57,7 @@ src/
 
 ### Points à connaître
 
-- **Authentification réelle** : le frontend appelle `api/` (`/api/auth/*`). La session (access + refresh token) est conservée dans le `localStorage` par [src/lib/apiClient.ts](src/lib/apiClient.ts) et rafraîchie automatiquement. Connexion en deux temps si un facteur TOTP est enrôlé.
+- **Authentification réelle** : le frontend appelle `api/` (`/api/auth/*`). La session (access + refresh token) vit uniquement dans des **cookies httpOnly** posés par l'API : le JavaScript de la page ne peut pas les lire, donc un XSS ne peut pas les voler. [src/lib/apiClient.ts](src/lib/apiClient.ts) envoie les requêtes avec `credentials: "include"` et l'en-tête anti-CSRF, et rafraîchit la session sur un 401. Seul un indice non sensible (`bugbounty_session_hint`) reste dans le `localStorage`. Connexion en deux temps si un facteur TOTP est enrôlé.
 - **RBAC** : `ProtectedRoute` ne fait que masquer des pages. Le serveur fait autorité : chaque route de l'API vérifie une *permission* (`requirePermission`), jamais un nom de rôle codé en dur.
 - **Rôles** : `hacker` et `entreprise` s'inscrivent eux-mêmes ; tous les autres comptes (admin, triage, finance, support, rôles personnalisés) sont créés par un admin, qui envoie un lien d'activation à usage unique (aucun mot de passe n'est transmis par email).
 

@@ -14,6 +14,13 @@ const envSchema = z.object({
   // nginx). Express's req.ip — and therefore every rate limiter — reads the proxy's address
   // instead of the caller's unless this is set. 0 (default) = API is exposed directly.
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+  // Session cookies (see lib/sessionCookies.ts). SameSite "lax" fits a frontend and an API on the
+  // same site (same registrable domain, e.g. app.example.ga + api.example.ga, or localhost on
+  // two ports); use "none" — which REQUIRES Secure — only if they are on different sites.
+  COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  // Defaults to true in production, false otherwise (plain http on localhost).
+  COOKIE_SECURE: z.enum(["true", "false"]).optional(),
+  COOKIE_DOMAIN: z.string().optional().default(""),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:8080"),
   // Frontend's own base URL, used to build the password-reset link emailed to a user
   // (see routes/auth.routes.ts) — distinct from CORS_ORIGIN, which is about the API's
@@ -60,4 +67,10 @@ if (!parsed.success) {
   throw new Error("Invalid environment variables");
 }
 
-export const env = parsed.data;
+const secureDefault = process.env.NODE_ENV === "production";
+const COOKIE_SECURE = parsed.data.COOKIE_SECURE ? parsed.data.COOKIE_SECURE === "true" : secureDefault;
+if (parsed.data.COOKIE_SAMESITE === "none" && !COOKIE_SECURE) {
+  throw new Error("COOKIE_SAMESITE=none requires COOKIE_SECURE=true (browsers reject SameSite=None cookies that aren't Secure)");
+}
+
+export const env = { ...parsed.data, COOKIE_SECURE };

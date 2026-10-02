@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { ACCESS_COOKIE, readCookie } from "../lib/sessionCookies.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { prisma } from "../prisma.js";
 
@@ -25,9 +26,12 @@ type AuthResult =
   | { ok: true; user: AuthenticatedUser }
   | { ok: false; status: number; error: string };
 
-function bearerToken(req: Request): string | null {
+// The web app authenticates with the httpOnly access-token cookie; an explicit Bearer header
+// (tests, scripts, the transient aal1 token) takes precedence when present.
+export function getRequestToken(req: Request): string | null {
   const header = req.headers.authorization;
-  return header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
+  if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
+  return readCookie(req, ACCESS_COOKIE);
 }
 
 // Authenticity was already established by getUser (GoTrue verified the signature), so the
@@ -77,7 +81,7 @@ async function resolveUser(token: string): Promise<AuthResult> {
 // Supabase/Prisma outage here would be an unhandled rejection (hung request or crashed
 // process) instead of a clean error response. Errors go through next() to errorHandler.
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const token = bearerToken(req);
+  const token = getRequestToken(req);
   if (!token) {
     res.status(401).json({ error: "Authentification requise" });
     return;
@@ -100,7 +104,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 // only visible to its owner while pending validation). Never rejects the request: no
 // token, or a bad one, simply means "anonymous". Real outages still go to errorHandler.
 export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
-  const token = bearerToken(req);
+  const token = getRequestToken(req);
   if (!token) {
     next();
     return;

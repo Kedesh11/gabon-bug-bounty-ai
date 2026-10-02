@@ -6,12 +6,13 @@ import { env } from "../env.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { HttpError } from "../middleware/errorHandler.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, getRequestToken } from "../middleware/auth.js";
 import { serializeProfile, profileRoleInclude } from "../lib/serializeProfile.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../lib/mailer.js";
 import { loginRateLimit, forgotPasswordRateLimit, resendVerificationRateLimit } from "../middleware/rateLimit.js";
 import { getSystemPasswordComplexity, validatePasswordComplexity } from "../lib/passwordPolicy.js";
+import { setSessionCookies, clearSessionCookies, readCookie, REFRESH_COOKIE } from "../lib/sessionCookies.js";
 import { hashToken, createPasswordResetToken } from "../lib/resetTokens.js";
 import { isMfaEnrollmentRequired } from "../lib/mfaPolicy.js";
 
@@ -144,25 +145,33 @@ authRouter.post(
 
     const mfaEnrollmentRequired = await isMfaEnrollmentRequired(profile.role.key, false);
 
-    res.json({ profile: serializeProfile(profile), session: data.session, mfaEnrollmentRequired });
+    // The tokens go into httpOnly cookies and are deliberately NOT echoed in the body.
+    setSessionCookies(res, data.session);
+    res.json({ profile: serializeProfile(profile), mfaEnrollmentRequired });
   }),
 );
 
+// The refresh token normally comes from its own httpOnly cookie; the body field remains for
+// non-browser clients.
 const refreshSchema = z.object({
-  refresh_token: z.string().min(1),
+  refresh_token: z.string().min(1).optional(),
 });
 
 authRouter.post(
   "/refresh",
   asyncHandler(async (req, res) => {
-    const body = refreshSchema.parse(req.body);
+    const body = refreshSchema.parse(req.body ?? {});
+    const refreshToken = readCookie(req, REFRESH_COOKIE) ?? body.refresh_token;
+    if (!refreshToken) throw new HttpError(401, "Session expirée, veuillez vous reconnecter");
 
-    const { data, error } = await supabaseAdmin.auth.refreshSession({ refresh_token: body.refresh_token });
+    const { data, error } = await supabaseAdmin.auth.refreshSession({ refresh_token: refreshToken });
     if (error || !data.session) {
+      clearSessionCookies(res);
       throw new HttpError(401, "Session expirée, veuillez vous reconnecter");
     }
 
-    res.json({ session: data.session });
+    setSessionCookies(res, data.session);
+    res.json({ refreshed: true });
   }),
 );
 
@@ -170,9 +179,8 @@ authRouter.post(
   "/logout",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const header = req.headers.authorization!;
-    const token = header.slice("Bearer ".length);
-    await supabaseAdmin.auth.admin.signOut(token, "global");
+    await supabaseAdmin.auth.admin.signOut(getRequestToken(req)!, "global");
+    clearSessionCookies(res);
     res.status(204).send();
   }),
 );

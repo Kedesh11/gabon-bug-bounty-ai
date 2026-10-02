@@ -82,6 +82,7 @@ vi.mock("../src/lib/supabaseAdmin.js", () => ({
       // so the caller's later `prisma.profile.findUnique({ where: { id: data.user.id } })`
       // finds a real row instead of 401ing on a random id. Tests exercising invalid
       // credentials override this with mockResolvedValueOnce (see rateLimit.test.ts).
+      refreshSession: vi.fn(),
       signInWithPassword: vi.fn(async ({ email }: { email: string }) => {
         const profile = await prisma.profile.findUnique({ where: { email } });
         return {

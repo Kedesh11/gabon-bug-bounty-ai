@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { env } from "./env.js";
+import { csrfGuard } from "./middleware/csrf.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { mfaRouter } from "./routes/mfa.routes.js";
@@ -33,12 +34,15 @@ if (env.TRUST_PROXY_HOPS > 0) app.set("trust proxy", env.TRUST_PROXY_HOPS);
 // Pure JSON API: helmet's defaults (nosniff, frameguard, HSTS, no-referrer-ish headers) apply as-is.
 // The report PDF endpoint is the only non-JSON response and is fine under them too.
 app.use(helmet());
-app.use(cors({ origin: env.CORS_ORIGIN }));
+// credentials: the session now travels in httpOnly cookies, which the browser only sends on
+// cross-origin fetches when the API explicitly allows it for that single origin.
+app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 
 // Mounted before express.json(): Stripe webhook signature verification needs the
 // raw, unparsed request body (see routes/webhooks.routes.ts).
 app.use("/api/webhooks", stripeWebhookRouter);
 
+app.use(csrfGuard);
 app.use(express.json());
 
 app.get("/health", (_req, res) => {

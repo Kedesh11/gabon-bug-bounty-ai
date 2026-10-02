@@ -1,32 +1,30 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
-const SESSION_KEY = "bugbounty_session";
+// The session itself (access + refresh token) lives only in httpOnly cookies set by the API —
+// this code can't read it, and neither can an XSS payload. All that is kept client-side is a
+// non-sensitive hint that a session probably exists, so a signed-out visitor doesn't trigger
+// a pointless /me + refresh round trip on every page load.
+const HINT_KEY = "bugbounty_session_hint";
 
-export interface Session {
-  access_token: string;
-  refresh_token: string;
-  expires_at: number;
-}
+// Added to every request: a cross-origin page can't send a custom header without a CORS
+// preflight the API refuses, which is what makes cookie auth safe from CSRF (see
+// api/src/middleware/csrf.ts).
+const CSRF_HEADERS = { "X-Requested-With": "bb-web" };
 
-function loadSession(): Session | null {
+export function hasSessionHint(): boolean {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return localStorage.getItem(HINT_KEY) === "1";
   } catch {
-    return null;
+    return false;
   }
 }
 
-let currentSession: Session | null = loadSession();
-let refreshPromise: Promise<Session | null> | null = null;
-
-export function getSession() {
-  return currentSession;
-}
-
-export function setSession(session: Session | null) {
-  currentSession = session;
-  if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  else localStorage.removeItem(SESSION_KEY);
+export function setSessionHint(active: boolean) {
+  try {
+    if (active) localStorage.setItem(HINT_KEY, "1");
+    else localStorage.removeItem(HINT_KEY);
+  } catch {
+    // Storage blocked: the app still works, it just probes /me on each load.
+  }
 }
 
 export class ApiError extends Error {
@@ -54,43 +52,28 @@ export function apiErrorMessage(err: unknown): string {
   return "Une erreur inattendue est survenue";
 }
 
-async function refreshSession(): Promise<Session | null> {
-  if (!currentSession?.refresh_token) return null;
+let refreshPromise: Promise<boolean> | null = null;
 
+// The refresh token rides in its own httpOnly cookie; the API answers with fresh cookies.
+// Concurrent 401s share one refresh so the (rotating) refresh token is only used once.
+async function refreshSession(): Promise<boolean> {
   if (!refreshPromise) {
     refreshPromise = fetch(`${API_URL}/api/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: currentSession.refresh_token }),
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...CSRF_HEADERS },
+      body: "{}",
     })
-      .then(async (res) => {
-        if (!res.ok) {
-          setSession(null);
-          return null;
-        }
-        const body = await res.json();
-        setSession(body.session);
-        return body.session as Session;
+      .then((res) => {
+        if (!res.ok) setSessionHint(false);
+        return res.ok;
       })
-      .catch(() => {
-        setSession(null);
-        return null;
-      })
+      .catch(() => false)
       .finally(() => {
         refreshPromise = null;
       });
   }
-
   return refreshPromise;
-}
-
-// Refreshes proactively when the access token is about to expire, so a request
-// never has to eat a round-trip failure just to discover it needs a new token.
-async function ensureFreshSession() {
-  if (!currentSession) return null;
-  const expiresInMs = currentSession.expires_at * 1000 - Date.now();
-  if (expiresInMs < 60_000) return refreshSession();
-  return currentSession;
 }
 
 interface ApiFetchOptions extends Omit<RequestInit, "body"> {
@@ -98,15 +81,13 @@ interface ApiFetchOptions extends Omit<RequestInit, "body"> {
 }
 
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  await ensureFreshSession();
-
   const doFetch = () => {
-    const headers: Record<string, string> = { ...(options.headers as Record<string, string> | undefined) };
+    const headers: Record<string, string> = { ...(options.headers as Record<string, string> | undefined), ...CSRF_HEADERS };
     if (options.body !== undefined) headers["Content-Type"] = "application/json";
-    if (currentSession) headers.Authorization = `Bearer ${currentSession.access_token}`;
 
     return fetch(`${API_URL}${path}`, {
       ...options,
+      credentials: "include",
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });
@@ -114,9 +95,10 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   let res = await doFetch();
 
-  if (res.status === 401 && currentSession) {
-    const refreshed = await refreshSession();
-    if (refreshed) res = await doFetch();
+  // The access cookie is short-lived: a 401 on a signed-in client is usually just that,
+  // so refresh once and replay. Wrong credentials on /login never trigger this (no hint yet).
+  if (res.status === 401 && hasSessionHint() && (await refreshSession())) {
+    res = await doFetch();
   }
 
   if (res.status === 204) return undefined as T;
@@ -134,19 +116,12 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 // Separate from apiFetch because file uploads need a FormData body with a
 // browser-set multipart boundary — JSON.stringify-ing it would corrupt the file.
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
-  await ensureFreshSession();
-
-  const doFetch = () => {
-    const headers: Record<string, string> = {};
-    if (currentSession) headers.Authorization = `Bearer ${currentSession.access_token}`;
-    return fetch(`${API_URL}${path}`, { method: "POST", headers, body: formData });
-  };
+  const doFetch = () => fetch(`${API_URL}${path}`, { method: "POST", credentials: "include", headers: CSRF_HEADERS, body: formData });
 
   let res = await doFetch();
 
-  if (res.status === 401 && currentSession) {
-    const refreshed = await refreshSession();
-    if (refreshed) res = await doFetch();
+  if (res.status === 401 && hasSessionHint() && (await refreshSession())) {
+    res = await doFetch();
   }
 
   const contentType = res.headers.get("content-type") ?? "";

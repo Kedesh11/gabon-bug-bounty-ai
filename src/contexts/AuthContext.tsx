@@ -1,7 +1,7 @@
 import { useState, ReactNode, useCallback, useEffect } from "react";
 import { User, NotificationPreferences } from "@/types/auth";
 import { AuthContext, LoginResult } from "./AuthContextObject";
-import { apiFetch, getSession, setSession, Session } from "@/lib/apiClient";
+import { apiFetch, hasSessionHint, setSessionHint } from "@/lib/apiClient";
 
 interface ApiProfile {
   id: string;
@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false;
 
     async function bootstrap() {
-      if (!getSession()) {
+      if (!hasSessionHint()) {
         setIsLoading(false);
         return;
       }
@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }>("/api/auth/me");
         if (!cancelled) setUser(toUser(profile, { mfaEnabled, mfaEnrollmentRequired }));
       } catch {
-        setSession(null);
+        setSessionHint(false);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -75,7 +75,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     const res = await apiFetch<{
       profile?: ApiProfile;
-      session?: Session;
       mfaEnrollmentRequired?: boolean;
       mfaRequired?: boolean;
       factorId?: string;
@@ -88,18 +87,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { status: "mfa_required", factorId: res.factorId!, aal1AccessToken: res.aal1AccessToken! };
     }
 
-    setSession(res.session!);
+    setSessionHint(true);
     const loggedUser = toUser(res.profile!, { mfaEnabled: false, mfaEnrollmentRequired: res.mfaEnrollmentRequired });
     setUser(loggedUser);
     return { status: "success", user: loggedUser };
   }, []);
 
   const verifyLoginMfa = useCallback(async (factorId: string, code: string, aal1AccessToken: string) => {
-    const { profile, session } = await apiFetch<{ profile: ApiProfile; session: Session }>("/api/auth/mfa/login-verify", {
+    const { profile } = await apiFetch<{ profile: ApiProfile }>("/api/auth/mfa/login-verify", {
       method: "POST",
       body: { factorId, code, aal1AccessToken },
     });
-    setSession(session);
+    setSessionHint(true);
     // A factor was just used to authenticate, so both are necessarily true — no
     // extra round trip to /me needed just to learn what this call already proves.
     const loggedUser = toUser(profile, { mfaEnabled: true, mfaEnrollmentRequired: false });
@@ -132,12 +131,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const logout = useCallback(() => {
-    if (getSession()) {
-      // Fire while the session is still attached so the Bearer token actually reaches the
-      // server for revocation; client-side state is cleared immediately after regardless.
-      apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-    }
-    setSession(null);
+    // The server revokes the session and clears the httpOnly cookies; local state is cleared
+    // immediately regardless of whether that call succeeds.
+    if (hasSessionHint()) apiFetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    setSessionHint(false);
     setUser(null);
   }, []);
 
@@ -158,11 +155,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const confirmMfaEnrollment = useCallback(async (factorId: string, code: string) => {
-    const { session } = await apiFetch<{ session: Session }>("/api/auth/mfa/enroll/confirm", {
-      method: "POST",
-      body: { factorId, code },
-    });
-    setSession(session);
+    // The API swaps the cookies for the promoted aal2 session itself.
+    await apiFetch("/api/auth/mfa/enroll/confirm", { method: "POST", body: { factorId, code } });
     setUser((prev) => (prev ? { ...prev, mfaEnabled: true, mfaEnrollmentRequired: false } : prev));
   }, []);
 

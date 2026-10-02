@@ -94,8 +94,10 @@ describe("POST /api/auth/mfa/enroll/confirm", () => {
       .send({ factorId: "factor-1", code: "123456" });
 
     expect(res.status).toBe(200);
-    expect(res.body.session.access_token).toBe("new-aal2-token");
-    expect(res.body.session.refresh_token).toBe("new-refresh");
+    expect(res.body.session).toBeUndefined();
+    const cookies = (res.headers["set-cookie"] as unknown as string[]).join(";");
+    expect(cookies).toContain("bb_at=new-aal2-token");
+    expect(cookies).toContain("bb_rt=new-refresh");
     expect(cinetpayFetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -169,7 +171,8 @@ describe("POST /api/auth/mfa/login-verify", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.profile.id).toBe(hacker.id);
-    expect(res.body.session.access_token).toBe(hacker.token);
+    expect(res.body.session).toBeUndefined();
+    expect((res.headers["set-cookie"] as unknown as string[]).join(";")).toContain(`bb_at=${hacker.token}`);
   });
 
   it("rejects a wrong code", async () => {
