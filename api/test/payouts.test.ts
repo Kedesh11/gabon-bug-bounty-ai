@@ -69,15 +69,53 @@ describe("POST /api/payouts/reports/:id", () => {
     expect(res.status).toBe(400);
   });
 
-  it("errors clearly when the hacker has no payment method configured", async () => {
+  it("errors clearly, without creating a payout row, when the hacker has no payment method", async () => {
     const admin = await createTestUser("admin");
     const { report } = await createAcceptedReport();
 
     const res = await request(app).post(`/api/payouts/reports/${report.id}`).set("Authorization", admin.authHeader);
 
-    expect(res.status).toBe(500);
-    const payout = await prisma.payout.findUnique({ where: { reportId: report.id } });
-    expect(payout?.status).toBe("failed");
+    expect(res.status).toBe(422);
+    expect(await prisma.payout.findUnique({ where: { reportId: report.id } })).toBeNull();
+  });
+
+  it("does not pick Stripe for an account that hasn't finished onboarding", async () => {
+    const admin = await createTestUser("admin");
+    const { hackerProfile, report } = await createAcceptedReport();
+    await prisma.hackerProfile.update({ where: { id: hackerProfile.id }, data: { stripeAccountId: "acct_pending" } });
+    stripeMocks.accountsRetrieve.mockResolvedValue({
+      configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: "pending" } } } } },
+    });
+
+    const res = await request(app).post(`/api/payouts/reports/${report.id}`).set("Authorization", admin.authHeader);
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toContain("onboarding");
+    expect(stripeMocks.transfersCreate).not.toHaveBeenCalled();
+    expect(await prisma.payout.findUnique({ where: { reportId: report.id } })).toBeNull();
+  });
+
+  it("lets a failed payout be retried on the same row, and reuses the Stripe idempotency key", async () => {
+    const finance = await createTestUser("finance");
+    const { hackerProfile, report } = await createAcceptedReport(200000);
+    await prisma.hackerProfile.update({ where: { id: hackerProfile.id }, data: { stripeAccountId: "acct_retry" } });
+    stripeMocks.accountsRetrieve.mockResolvedValue({
+      configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: "active" } } } } },
+    });
+    stripeMocks.transfersCreate.mockRejectedValueOnce(new Error("Stripe indisponible"));
+
+    const first = await request(app).post(`/api/payouts/reports/${report.id}`).set("Authorization", finance.authHeader);
+    expect(first.status).toBe(500);
+    const failed = await prisma.payout.findUniqueOrThrow({ where: { reportId: report.id } });
+    expect(failed.status).toBe("failed");
+
+    stripeMocks.transfersCreate.mockResolvedValueOnce({ id: "tr_retry" });
+    const second = await request(app).post(`/api/payouts/reports/${report.id}`).set("Authorization", finance.authHeader);
+    expect(second.status).toBe(201);
+    expect(second.body.payout.id).toBe(failed.id);
+    expect(second.body.payout.status).toBe("succeeded");
+    const keys = stripeMocks.transfersCreate.mock.calls.map((c) => c[1]?.idempotencyKey);
+    expect(keys).toEqual([`payout-${failed.id}`, `payout-${failed.id}`]);
   });
 
   it("pays out via Stripe transfer when the hacker has an onboarded Connect account", async () => {
@@ -96,6 +134,31 @@ describe("POST /api/payouts/reports/:id", () => {
     expect(res.body.payout.status).toBe("succeeded");
     expect(res.body.payout.provider).toBe("stripe");
     expect(res.body.payout.providerRef).toBe("tr_test_123");
+  });
+
+  it("pays a USD reward in USD via Stripe, and refuses to settle it through XAF-only mobile money", async () => {
+    const admin = await createTestUser("admin");
+    const stripeCase = await createAcceptedReport(500);
+    await prisma.programme.update({ where: { id: stripeCase.report.programmeId }, data: { rewardCurrency: "USD" } });
+    await prisma.hackerProfile.update({ where: { id: stripeCase.hackerProfile.id }, data: { stripeAccountId: "acct_usd" } });
+    stripeMocks.accountsRetrieve.mockResolvedValue({
+      configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: "active" } } } } },
+    });
+    stripeMocks.transfersCreate.mockResolvedValue({ id: "tr_usd" });
+
+    const ok = await request(app).post(`/api/payouts/reports/${stripeCase.report.id}`).set("Authorization", admin.authHeader);
+    expect(ok.status).toBe(201);
+    expect(ok.body.payout.currency).toBe("USD");
+    expect(stripeMocks.transfersCreate.mock.calls[0][0]).toMatchObject({ amount: 50000, currency: "usd" });
+
+    const momoCase = await createAcceptedReport(500);
+    await prisma.programme.update({ where: { id: momoCase.report.programmeId }, data: { rewardCurrency: "EUR" } });
+    await prisma.hackerPaymentConfig.create({
+      data: { hackerId: momoCase.hackerProfile.id, gainsEnabled: true, paymentMethods: ["mobile_money"], mobileMoneyProvider: "airtel", phoneNumber: "+24177123456" },
+    });
+    const refused = await request(app).post(`/api/payouts/reports/${momoCase.report.id}`).set("Authorization", admin.authHeader);
+    expect(refused.status).toBe(422);
+    expect(await prisma.payout.findUnique({ where: { reportId: momoCase.report.id } })).toBeNull();
   });
 
   it("pays out via CinetPay when the hacker only has mobile money configured", async () => {

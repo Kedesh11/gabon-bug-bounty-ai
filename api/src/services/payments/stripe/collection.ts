@@ -36,6 +36,6 @@ export async function createStripeCollection(input: CreateCollectionInput): Prom
 // smallest unit (e.g. cents). See https://docs.stripe.com/currencies#zero-decimal.
 const ZERO_DECIMAL_CURRENCIES = new Set(["xaf", "xof", "jpy", "krw", "vnd"]);
 
-function toStripeAmount(amount: number, currency: string): number {
+export function toStripeAmount(amount: number, currency: string): number {
   return ZERO_DECIMAL_CURRENCIES.has(currency.toLowerCase()) ? amount : amount * 100;
 }
