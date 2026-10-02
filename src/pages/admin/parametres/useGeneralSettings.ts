@@ -14,6 +14,7 @@ export function useGeneralSettings() {
     contactEmail: config.contactEmail,
     supportUrl: config.supportUrl,
     triageLimitHours: config.triageLimitHours,
+    aiAnalysisEnabled: config.aiAnalysisEnabled,
   });
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export function useGeneralSettings() {
       contactEmail: config.contactEmail,
       supportUrl: config.supportUrl,
           triageLimitHours: config.triageLimitHours,
+      aiAnalysisEnabled: config.aiAnalysisEnabled,
     });
   }, [config]);
 

@@ -32,6 +32,8 @@ export interface CreateReportInput {
   vrtType?: string;
   proof: string;
   pdfFileName?: string;
+  // The author's explicit consent to third-party LLM processing of this report.
+  aiAnalysisConsent?: boolean;
   vulnerabilityCategoryId?: string;
   affectedAsset?: string;
   stepsToReproduce?: string;

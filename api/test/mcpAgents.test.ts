@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 import { app } from "../src/index.js";
 import { createTestUser, createTestProgramme } from "./helpers.js";
@@ -73,6 +73,7 @@ async function makeReport() {
       programmeId: programme.id,
       vulnerability: "XSS",
       proof: "poc",
+      aiAnalysisConsent: true,
       vulnerabilityCategoryId: category.id,
       affectedAsset: "app.example.com",
       stepsToReproduce: "1. Aller sur /profil 2. Injecter <script>alert(1)</script> dans la bio",
@@ -98,6 +99,7 @@ async function makeReportDirect() {
       description: "Injection XSS stockée via le champ bio du profil",
       severity: "moyenne",
       status: "soumis",
+      aiAnalysisConsent: true,
       hackerId: hackerProfile.id,
       programmeId: programme.id,
       entrepriseId: entrepriseProfile.id,
@@ -284,6 +286,7 @@ describe("MCP agents — fire-and-forget trigger on report submission", () => {
       .set("Authorization", hacker.authHeader)
       .send({
         title: "Rapport de test non-bloquant",
+        aiAnalysisConsent: true,
         description: "Description de test",
         severity: "faible",
         programmeId: programme.id,
@@ -310,5 +313,63 @@ describe("MCP agents — public stats endpoint", () => {
     expect(res.body.totalRuns).toBeGreaterThan(0);
     expect(res.body.totalOutputs).toBeGreaterThanOrEqual(7);
     expect(res.body.completionRate).toBeGreaterThan(0);
+  });
+});
+
+
+describe("MCP agents — privacy gate (admin switch + author consent)", () => {
+  async function setEnabled(enabled: boolean) {
+    await prisma.systemConfig.upsert({ where: { id: 1 }, update: { aiAnalysisEnabled: enabled }, create: { id: 1, aiAnalysisEnabled: enabled } });
+  }
+  afterEach(() => setEnabled(true));
+
+  it("never calls a model for a report whose author did not consent", async () => {
+    const { report } = await makeReportDirect();
+    await prisma.report.update({ where: { id: report.id }, data: { aiAnalysisConsent: false } });
+
+    await runMcpPipeline(report.id);
+
+    expect(openRouterMocks.callOpenRouter).not.toHaveBeenCalled();
+    expect(await prisma.mcpAgentRun.count({ where: { reportId: report.id } })).toBe(0);
+    const { analysisStatus } = await prisma.report.findUniqueOrThrow({ where: { id: report.id } });
+    expect(["en_cours", "terminee"]).not.toContain(analysisStatus);
+  });
+
+  it("never calls a model while the admin switch is off, even with the author's consent", async () => {
+    const { report } = await makeReportDirect();
+    await setEnabled(false);
+
+    await runMcpPipeline(report.id);
+
+    expect(openRouterMocks.callOpenRouter).not.toHaveBeenCalled();
+    expect(await prisma.mcpAgentRun.count({ where: { reportId: report.id } })).toBe(0);
+  });
+
+  it("stores the consent given at submission, and defaults to no consent", async () => {
+    const hacker = await createTestUser("hacker");
+    const entreprise = await createTestUser("entreprise");
+    const profile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
+    const programme = await createTestProgramme(profile.id);
+    const body = { title: "Consentement", description: "desc", severity: "faible", programmeId: programme.id, vulnerability: "XSS", proof: "poc" };
+
+    const without = await request(app).post("/api/reports").set("Authorization", hacker.authHeader).send(body);
+    expect(without.body.report.aiAnalysisConsent).toBe(false);
+    const withConsent = await request(app).post("/api/reports").set("Authorization", hacker.authHeader).send({ ...body, aiAnalysisConsent: true });
+    expect(withConsent.body.report.aiAnalysisConsent).toBe(true);
+  });
+
+  it("explains with a 409 why the manual re-run is refused", async () => {
+    const triage = await createTestUser("triage");
+    const { report } = await makeReportDirect();
+    await prisma.report.update({ where: { id: report.id }, data: { aiAnalysisConsent: false } });
+    const noConsent = await request(app).post(`/api/reports/${report.id}/mcp-analysis`).set("Authorization", triage.authHeader);
+    expect(noConsent.status).toBe(409);
+    expect(noConsent.body.error).toContain("consenti");
+
+    await prisma.report.update({ where: { id: report.id }, data: { aiAnalysisConsent: true } });
+    await setEnabled(false);
+    const disabled = await request(app).post(`/api/reports/${report.id}/mcp-analysis`).set("Authorization", triage.authHeader);
+    expect(disabled.status).toBe(409);
+    expect(disabled.body.error).toContain("désactivée");
   });
 });

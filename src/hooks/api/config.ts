@@ -17,6 +17,7 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   require2FA: false,
   passwordComplexity: "standard",
   globalNotificationsEnabled: true,
+  aiAnalysisEnabled: false,
 };
 
 export function useConfig() {

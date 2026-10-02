@@ -16,6 +16,9 @@ process.env.NODE_ENV = "test";
 // safe to run once per test file even though setupFiles re-executes per isolated module.
 await seedSystemRolesAndPermissions(prisma);
 await seedVulnerabilityTaxonomy(prisma);
+// The AI analysis is off by default (privacy): the pipeline tests need it on. The tests of
+// the privacy gate itself switch it off for their own duration and restore it.
+await prisma.systemConfig.upsert({ where: { id: 1 }, update: { aiAnalysisEnabled: true }, create: { id: 1, aiAnalysisEnabled: true } });
 
 // CinetPay isn't configured with real credentials yet (see api/.env.example) — the
 // HTTP layer is fully mocked below, but requireCheckoutCredentials()/

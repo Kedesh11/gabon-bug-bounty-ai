@@ -2,6 +2,7 @@ import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { useContent } from "@/hooks/api/content";
 
@@ -10,6 +11,7 @@ interface GeneralSettings {
   contactEmail: string;
   supportUrl: string;
   triageLimitHours: number;
+  aiAnalysisEnabled: boolean;
 }
 
 interface GeneralSettingsTabProps {
@@ -57,7 +59,19 @@ export function GeneralSettingsTab({ generalSettings, setGeneralSettings, onSave
         <div className="glass-card rounded-2xl border border-border p-8 space-y-6">
           <h3 className="text-lg font-black tracking-tight">{triageHeading}</h3>
           <div className="space-y-6">
-            <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold">Analyse IA des rapports</Label>
+                <p className="text-[10px] text-muted-foreground">
+                  Envoie le contenu des rapports à des fournisseurs d'IA tiers (OpenRouter). Désactivée par défaut ; même activée, seuls les rapports dont l'auteur a donné son consentement sont analysés.
+                </p>
+              </div>
+              <Switch
+                checked={generalSettings.aiAnalysisEnabled}
+                onCheckedChange={(val) => setGeneralSettings({ ...generalSettings, aiAnalysisEnabled: val })}
+              />
+            </div>
+            <div className="space-y-2 pt-2 border-t border-border">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Délai Max de Triage (Heures)</Label>
               <Input
                 type="number"

@@ -1,5 +1,6 @@
 import type { McpAgentType, Prisma } from "@prisma/client";
 import { prisma } from "../../prisma.js";
+import { getAiAnalysisBlock } from "../../lib/aiAnalysisPolicy.js";
 import { buildReportContext } from "./reportContext.js";
 import { upsertSignal } from "../fraud/fraudService.js";
 import type { AgentOutcome } from "./agents/shared.js";
@@ -78,6 +79,17 @@ async function runStage<T>(
 // POST /:id/mcp-analysis route. Never throws: any unexpected failure is caught and
 // recorded so Report.analysisStatus doesn't get stuck at "en_cours" forever.
 export async function runMcpPipeline(reportId: string): Promise<void> {
+  // Privacy gate, checked here rather than only at the call sites so no path can skip it:
+  // the report leaves this server for third-party LLMs only if the admin enabled the
+  // analysis AND the author consented. Otherwise nothing is recorded — the report simply
+  // stays "en_attente" for human triage.
+  try {
+    if (await getAiAnalysisBlock(reportId)) return;
+  } catch (err) {
+    console.error(`[mcpAgents] could not evaluate the AI privacy gate for report ${reportId}, skipping:`, err);
+    return;
+  }
+
   // The whole body — including creating the run row itself — is wrapped in one
   // try/catch: a report that vanishes mid-flight (deleted concurrently) must never
   // produce an unhandled rejection, only a logged, absorbed failure.

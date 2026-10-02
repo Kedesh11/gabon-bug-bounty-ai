@@ -100,6 +100,7 @@ export interface CreateReportInput {
   vrtType?: string;
   proof: string;
   pdfFileName?: string;
+  aiAnalysisConsent?: boolean;
   vulnerabilityCategoryId?: string;
   affectedAsset?: string;
   stepsToReproduce?: string;

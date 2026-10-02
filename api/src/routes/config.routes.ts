@@ -62,6 +62,7 @@ const updateConfigSchema = z.object({
   require2FA: z.boolean().optional(),
   passwordComplexity: z.nativeEnum(PasswordComplexity).optional(),
   globalNotificationsEnabled: z.boolean().optional(),
+  aiAnalysisEnabled: z.boolean().optional(),
 });
 
 configRouter.patch(

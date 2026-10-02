@@ -527,6 +527,10 @@ enum AnalysisStatus {
 
 model Report {
   id          String       @id @default(uuid()) @db.Uuid
+  // The hacker's explicit consent to have this report's content processed by third-party
+  // LLM providers (see SystemConfig.aiAnalysisEnabled). Without it the report is never
+  // sent to any model and is triaged by humans only.
+  aiAnalysisConsent Boolean @default(false)
   title       String
   description String
   severity    Severity
@@ -666,6 +670,10 @@ model SystemConfig {
   sessionTimeout        Int                @default(60)
   passwordComplexity    PasswordComplexity @default(standard)
   globalNotificationsEnabled Boolean       @default(true)
+  // Master switch for the multi-agent analysis (services/mcpAgents): when on, a report's full
+  // content is sent to third-party LLM providers through OpenRouter. Off by default — privacy
+  // first — and even when on, only reports whose author consented (Report.aiAnalysisConsent).
+  aiAnalysisEnabled          Boolean       @default(false)
 
   @@map("system_config")
 }

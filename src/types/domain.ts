@@ -278,6 +278,8 @@ export interface SystemConfig {
   require2FA: boolean;
   passwordComplexity: "standard" | "elevated" | "military";
   globalNotificationsEnabled: boolean;
+  // Master switch: reports may be sent to third-party LLM providers (only with the author's consent).
+  aiAnalysisEnabled: boolean;
 }
 
 export interface PlatformLog {

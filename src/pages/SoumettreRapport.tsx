@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useProgrammes } from "@/hooks/api/programmes";
 import { useCreateReport, useUploadReportPdf } from "@/hooks/api/reports";
+import { useConfig } from "@/hooks/api/config";
 import { useVulnerabilityCategories, useProposeVulnerabilityCategory } from "@/hooks/api/taxonomy";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { broadcastGlobalNotification } from "@/lib/globalNotifications";
@@ -93,6 +94,10 @@ const SoumettreRapport = () => {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [acceptAnalysis, setAcceptAnalysis] = useState(false);
+  // The analysis only exists when the platform admin switched it on; the consent below is
+  // meaningless (and not offered) otherwise.
+  const { data: platformConfig } = useConfig();
+  const aiAnalysisAvailable = platformConfig?.aiAnalysisEnabled ?? false;
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -179,10 +184,6 @@ const SoumettreRapport = () => {
       toast.error("Veuillez joindre le rapport PDF d'excellence");
       return;
     }
-    if (!acceptAnalysis) {
-      toast.error("Veuillez accepter l'analyse IA Smart-Triage™");
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -197,6 +198,7 @@ const SoumettreRapport = () => {
         vrtType: form.vulnerability.trim(),
         proof: `Logs HTTP:\n${form.httpLogs.trim() || "Aucun log fourni"}\n\nCaptures d'écran: ${screenshots.length} fichiers`,
         pdfFileName: pdfFile.name,
+        aiAnalysisConsent: aiAnalysisAvailable && acceptAnalysis,
         vulnerabilityCategoryId: form.vulnerabilityCategoryId || undefined,
         affectedAsset: form.impactedAsset.trim(),
         stepsToReproduce: form.steps.trim(),
@@ -593,19 +595,25 @@ const SoumettreRapport = () => {
                         <div className="p-6 rounded-2xl bg-primary/5 border border-primary/20 space-y-4">
                           <div className="flex items-center gap-3">
                             <Zap className="w-5 h-5 text-primary" />
-                            <p className="text-xs font-black uppercase">Analyse IA Smart-Triage™</p>
+                            <p className="text-xs font-black uppercase">Analyse IA (facultative)</p>
                           </div>
-                          <label className="flex items-start gap-3 cursor-pointer group">
-                            <input 
-                              type="checkbox" 
-                              checked={acceptAnalysis}
-                              onChange={e => setAcceptAnalysis(e.target.checked)}
-                              className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-primary/20" 
-                            />
-                            <span className="text-[10px] text-muted-foreground font-medium group-hover:text-foreground transition-colors">
-                              J'accepte que mon rapport soit traité par l'IA pour générer un résumé exécutif destiné à l'entreprise.
-                            </span>
-                          </label>
+                          {aiAnalysisAvailable ? (
+                            <label className="flex items-start gap-3 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={acceptAnalysis}
+                                onChange={e => setAcceptAnalysis(e.target.checked)}
+                                className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-primary/20"
+                              />
+                              <span className="text-[10px] text-muted-foreground font-medium group-hover:text-foreground transition-colors">
+                                J'autorise le traitement du contenu de mon rapport (description, étapes, preuve) par des fournisseurs d'IA tiers, via OpenRouter, pour aider l'équipe de triage. Ces données quittent la plateforme. Sans cette autorisation, mon rapport est examiné uniquement par l'équipe de triage.
+                              </span>
+                            </label>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground font-medium">
+                              L'analyse IA est désactivée sur cette plateforme : votre rapport sera examiné uniquement par l'équipe de triage.
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>

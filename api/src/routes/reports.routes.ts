@@ -16,6 +16,7 @@ import {
   toReportPdfData,
 } from "../services/reports/reportsService.js";
 import { renderReportPdf } from "../services/reports/reportPdf.js";
+import { getAiAnalysisBlock, AI_BLOCK_MESSAGES } from "../lib/aiAnalysisPolicy.js";
 import { runMcpPipeline } from "../services/mcpAgents/orchestrator.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 
@@ -40,6 +41,7 @@ const createReportSchema = z.object({
   vrtType: z.string().optional(),
   proof: z.string().min(1),
   pdfFileName: z.string().optional(),
+  aiAnalysisConsent: z.boolean().default(false),
   vulnerabilityCategoryId: z.string().uuid().optional(),
   affectedAsset: z.string().min(1).optional(),
   stepsToReproduce: z.string().min(1).optional(),
@@ -138,6 +140,8 @@ reportsRouter.post(
   requirePermission("reports.triage"),
   asyncHandler(async (req, res) => {
     await getReportById(req.params.id, req.user!);
+    const block = await getAiAnalysisBlock(req.params.id);
+    if (block) throw new HttpError(409, AI_BLOCK_MESSAGES[block]);
     runMcpPipeline(req.params.id).catch((err) => console.error(`[mcpAgents] manual trigger failed for report ${req.params.id}:`, err));
     res.status(202).json({ started: true });
   }),

@@ -22,6 +22,7 @@ export interface UpdateConfigInput {
   require2FA?: boolean;
   passwordComplexity?: PasswordComplexity;
   globalNotificationsEnabled?: boolean;
+  aiAnalysisEnabled?: boolean;
 }
 
 export async function updateConfig(input: UpdateConfigInput) {
