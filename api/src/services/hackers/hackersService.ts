@@ -1,6 +1,7 @@
 import type { CardBrand, CryptoType, HackerStatus, MobileMoneyProvider, PaymentMethod, PreferredCurrency } from "@prisma/client";
 import { prisma } from "../../prisma.js";
 import { HttpError } from "../../middleware/errorHandler.js";
+import { supabaseAdmin } from "../../lib/supabaseAdmin.js";
 
 const hackerDetailInclude = { profile: true, badges: true };
 
@@ -174,8 +175,18 @@ export async function updateHacker(id: string, input: UpdateHackerInput) {
   return prisma.hackerProfile.update({ where: { id }, data: input, include: hackerDetailInclude });
 }
 
+// Removes the whole account (profile + login), not just the hacker row — see
+// deleteEntreprise. Refused once the hacker has been paid: payouts cascade with the hacker
+// and a payout is a financial record; ban the account instead.
 export async function deleteHacker(id: string) {
   const existing = await prisma.hackerProfile.findUnique({ where: { id } });
   if (!existing) throw new HttpError(404, "Hacker introuvable");
-  await prisma.hackerProfile.delete({ where: { id } });
+
+  const payouts = await prisma.payout.count({ where: { hackerId: id } });
+  if (payouts > 0) {
+    throw new HttpError(409, `Suppression impossible : ${payouts} versement(s) sont liés à ce hacker. Bannissez le compte plutôt que de l'effacer.`);
+  }
+
+  await prisma.profile.delete({ where: { id: existing.profileId } });
+  await supabaseAdmin.auth.admin.deleteUser(existing.profileId);
 }

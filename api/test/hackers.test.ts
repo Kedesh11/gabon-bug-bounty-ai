@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import request from "supertest";
 import { app } from "../src/index.js";
-import { createTestUser } from "./helpers.js";
+import { createTestUser, createTestProgramme } from "./helpers.js";
+import { supabaseAdmin } from "../src/lib/supabaseAdmin.js";
 import { prisma } from "../src/prisma.js";
 
 // listHackers()/listHackerLeaderboard() rank against the WHOLE table, so — like
@@ -134,5 +135,85 @@ describe("PATCH /api/hackers/me — bio/social fields", () => {
     expect(res.body.hacker.bio).toBe("Chercheur en sécurité web.");
     expect(res.body.hacker.githubHandle).toBe("jdupont");
     expect(res.body.hacker.twitterHandle).toBe("jdupont_sec");
+  });
+});
+
+describe("Hacker records expose emails to staff only", () => {
+  it("gives a hacker only their own record, an entreprise nothing, and staff everyone", async () => {
+    const hacker = await createTestUser("hacker");
+    const other = await createTestUser("hacker");
+    const entreprise = await createTestUser("entreprise");
+    const support = await createTestUser("support");
+
+    const own = await request(app).get("/api/hackers").set("Authorization", hacker.authHeader);
+    expect(own.body.hackers.map((h: { profile: { id: string } }) => h.profile.id)).toEqual([hacker.id]);
+    expect(JSON.stringify(own.body)).not.toContain(other.email);
+
+    const none = await request(app).get("/api/hackers").set("Authorization", entreprise.authHeader);
+    expect(none.body.hackers).toEqual([]);
+
+    const all = await request(app).get("/api/hackers").set("Authorization", support.authHeader);
+    const ids = all.body.hackers.map((h: { profile: { id: string } }) => h.profile.id);
+    expect(ids).toEqual(expect.arrayContaining([hacker.id, other.id]));
+  });
+
+  it("keeps a hacker's rank correct when only their own record is returned", async () => {
+    const top = await createTestUser("hacker");
+    const me = await createTestUser("hacker");
+    await setReputation(top.id, 9000);
+    await setReputation(me.id, 10);
+
+    const res = await request(app).get("/api/hackers").set("Authorization", me.authHeader);
+    expect(res.body.hackers).toHaveLength(1);
+    expect(res.body.hackers[0].rank).toBeGreaterThan(1);
+  });
+
+  it("lets a hacker read their own record by id but 404s another hacker's", async () => {
+    const hacker = await createTestUser("hacker");
+    const other = await createTestUser("hacker");
+    const support = await createTestUser("support");
+    const ownProfile = await prisma.hackerProfile.findUniqueOrThrow({ where: { profileId: hacker.id } });
+    const otherProfile = await prisma.hackerProfile.findUniqueOrThrow({ where: { profileId: other.id } });
+
+    expect((await request(app).get(`/api/hackers/${ownProfile.id}`).set("Authorization", hacker.authHeader)).status).toBe(200);
+    expect((await request(app).get(`/api/hackers/${otherProfile.id}`).set("Authorization", hacker.authHeader)).status).toBe(404);
+    expect((await request(app).get(`/api/hackers/${otherProfile.id}`).set("Authorization", support.authHeader)).status).toBe(200);
+  });
+});
+
+describe("DELETE /api/hackers/:id — removes the whole account", () => {
+  it("deletes the profile and the login, not just the hacker row", async () => {
+    const admin = await createTestUser("admin");
+    const hacker = await createTestUser("hacker");
+    const hackerProfile = await prisma.hackerProfile.findUniqueOrThrow({ where: { profileId: hacker.id } });
+    vi.mocked(supabaseAdmin.auth.admin.deleteUser).mockClear();
+
+    const res = await request(app).delete(`/api/hackers/${hackerProfile.id}`).set("Authorization", admin.authHeader);
+
+    expect(res.status).toBe(204);
+    expect(await prisma.profile.findUnique({ where: { id: hacker.id } })).toBeNull();
+    expect(supabaseAdmin.auth.admin.deleteUser).toHaveBeenCalledWith(hacker.id);
+  });
+
+  it("refuses to delete a hacker who has been paid, and leaves everything in place", async () => {
+    const admin = await createTestUser("admin");
+    const hacker = await createTestUser("hacker");
+    const entreprise = await createTestUser("entreprise");
+    const hackerProfile = await prisma.hackerProfile.findUniqueOrThrow({ where: { profileId: hacker.id } });
+    const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
+    const programme = await createTestProgramme(entrepriseProfile.id);
+    const report = await prisma.report.create({
+      data: {
+        title: "XSS", description: "d", severity: "haute", status: "accepte", hackerId: hackerProfile.id, programmeId: programme.id,
+        entrepriseId: entrepriseProfile.id, reward: 1000, vulnerability: "XSS", proof: "p",
+      },
+    });
+    await prisma.payout.create({ data: { reportId: report.id, hackerId: hackerProfile.id, provider: "stripe", amount: 1000, currency: "XAF", status: "succeeded" } });
+
+    const res = await request(app).delete(`/api/hackers/${hackerProfile.id}`).set("Authorization", admin.authHeader);
+
+    expect(res.status).toBe(409);
+    expect(await prisma.profile.findUnique({ where: { id: hacker.id } })).not.toBeNull();
+    expect(await prisma.payout.count({ where: { hackerId: hackerProfile.id } })).toBe(1);
   });
 });

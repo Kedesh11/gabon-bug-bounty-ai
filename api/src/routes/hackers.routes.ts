@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { CardBrand, CryptoType, HackerStatus, MobileMoneyProvider, PaymentMethod, PreferredCurrency } from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import {
@@ -95,11 +96,19 @@ hackersRouter.patch(
   }),
 );
 
+// Full hacker records include the profile (name AND email). Staff who administer users see
+// everyone; a hacker only ever needs their own record (their dashboard/profile page picks it
+// out of this list, rank already computed against the whole table); anyone else gets nothing.
+// Public data lives on /leaderboard, which is email-free.
+function canSeeAllHackers(user: { permissions: string[] }) {
+  return user.permissions.includes("users.view") || user.permissions.includes("hackers.manage");
+}
+
 hackersRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const hackers = await listHackers();
-    res.json({ hackers });
+    res.json({ hackers: canSeeAllHackers(req.user!) ? hackers : hackers.filter((h) => h.profileId === req.user!.id) });
   }),
 );
 
@@ -107,6 +116,9 @@ hackersRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
     const hacker = await getHackerById(req.params.id);
+    if (hacker.profileId !== req.user!.id && !canSeeAllHackers(req.user!)) {
+      throw new HttpError(404, "Hacker introuvable");
+    }
     res.json({ hacker });
   }),
 );
