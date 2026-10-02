@@ -1035,6 +1035,9 @@ model KycDocument {
   subject   Profile @relation("KycDocumentSubject", fields: [subjectId], references: [id], onDelete: Cascade)
 
   fileName String?
+  // Path inside the private "kyc-documents" storage bucket. Null for a submission that only
+  // recorded metadata — such a document can never be approved (see kycService).
+  filePath String?
 
   reviewedById String?   @db.Uuid
   reviewedBy   Profile?  @relation("KycDocumentReviewedBy", fields: [reviewedById], references: [id])

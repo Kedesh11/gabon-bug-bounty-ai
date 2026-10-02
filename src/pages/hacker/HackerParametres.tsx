@@ -9,6 +9,7 @@ import { NotificationsSection } from "./parametres/NotificationsSection";
 import { PaymentSection } from "./parametres/PaymentSection";
 import { PayoutPreferences } from "./parametres/PayoutPreferences";
 import { MfaSection } from "@/components/MfaSection";
+import { KycSection } from "@/components/KycSection";
 import { useContent } from "@/hooks/api/content";
 
 export default function HackerParametres() {
@@ -43,6 +44,8 @@ export default function HackerParametres() {
             />
 
             <MfaSection />
+
+            <KycSection />
           </div>
 
           <div className="space-y-8">

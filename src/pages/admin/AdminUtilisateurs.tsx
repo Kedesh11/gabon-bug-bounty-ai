@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useContent } from "@/hooks/api/content";
-import { useKycDocuments, useReviewKycDocument, type KycDocumentType } from "@/hooks/api/kyc";
+import { useKycDocuments, useReviewKycDocument, openKycFile, type KycDocumentType } from "@/hooks/api/kyc";
 
 const KYC_TYPE_LABELS: Record<KycDocumentType, string> = {
   passeport_recto: "Passeport (Recto)",
@@ -215,7 +215,11 @@ export default function AdminUtilisateurs() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Button className="h-10 w-10 rounded-xl bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20" onClick={(e) => {
+                      <Button variant="outline" className="h-10 rounded-xl text-[10px] font-black uppercase" disabled={!doc.hasFile} onClick={(e) => {
+                        e.stopPropagation();
+                        openKycFile(doc.id);
+                      }}>{doc.hasFile ? "Voir" : "Aucun fichier"}</Button>
+                      <Button disabled={!doc.hasFile} className="h-10 w-10 rounded-xl bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20" onClick={(e) => {
                         e.stopPropagation();
                         reviewKyc.mutate({ id: doc.id, status: "valide" }, {
                           onSuccess: () => toast.success("KYC Approuvé"),

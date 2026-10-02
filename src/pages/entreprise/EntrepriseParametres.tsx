@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useContent } from "@/hooks/api/content";
 import { MfaSection } from "@/components/MfaSection";
+import { KycSection } from "@/components/KycSection";
 
 export default function EntrepriseParametres() {
   const pageTitle = useContent("entreprise.parametres.title", "Paramètres");
@@ -68,6 +69,8 @@ export default function EntrepriseParametres() {
         </div>
 
         <MfaSection />
+
+        <KycSection />
       </div>
     </DashboardLayout>
   );

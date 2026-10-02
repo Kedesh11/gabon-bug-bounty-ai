@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/apiClient";
+import { toast } from "sonner";
+import { apiFetch, apiUpload, apiErrorMessage } from "@/lib/apiClient";
 
 export type KycDocumentType = "passeport_recto" | "passeport_verso" | "justificatif_domicile" | "photo_identite";
 export type KycDocumentStatus = "en_attente" | "valide" | "rejete";
@@ -17,6 +18,8 @@ export interface KycDocument {
   subjectId: string;
   subject: KycDocumentParty;
   fileName: string | null;
+  // Whether a real file is stored. Only documents with one can be approved.
+  hasFile: boolean;
   reviewedById: string | null;
   reviewedBy: KycDocumentParty | null;
   reviewedAt: string | null;
@@ -60,6 +63,30 @@ export function useSubmitKycDocument() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
   });
+}
+
+export function useUploadKycDocument() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ type, file }: { type: KycDocumentType; file: File }) => {
+      const formData = new FormData();
+      formData.append("type", type);
+      formData.append("file", file);
+      const { document } = await apiUpload<{ document: KycDocument }>("/api/kyc/documents/upload", formData);
+      return document;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+// Signed URLs last 5 minutes, so the link is fetched on click rather than cached.
+export async function openKycFile(documentId: string) {
+  try {
+    const { url } = await apiFetch<{ url: string }>(`/api/kyc/documents/${documentId}/file`);
+    window.open(url, "_blank", "noopener,noreferrer");
+  } catch (err) {
+    toast.error(apiErrorMessage(err));
+  }
 }
 
 export function useReviewKycDocument() {

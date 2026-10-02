@@ -5,7 +5,7 @@ import { useEntreprises, useUpdateEntreprise, useDeleteEntreprise } from "@/hook
 import { useReports } from "@/hooks/api/reports";
 import { apiErrorMessage } from "@/lib/apiClient";
 import { useLogs } from "@/hooks/api/logs";
-import { useKycDocuments, useReviewKycDocument, type KycDocumentType, type KycDocumentStatus } from "@/hooks/api/kyc";
+import { useKycDocuments, useReviewKycDocument, openKycFile, type KycDocumentType, type KycDocumentStatus } from "@/hooks/api/kyc";
 
 const KYC_TYPE_LABELS: Record<KycDocumentType, string> = {
   passeport_recto: "Passeport (Recto)",
@@ -224,6 +224,8 @@ export default function AdminUserDetail() {
                              key={doc.id}
                              label={KYC_TYPE_LABELS[doc.type]}
                              status={doc.status}
+                             hasFile={doc.hasFile}
+                             onView={() => openKycFile(doc.id)}
                              onApprove={() => reviewKyc.mutate({ id: doc.id, status: "valide" }, {
                                 onSuccess: () => toast.success("Document approuvé"),
                                 onError: (err) => toast.error(apiErrorMessage(err)),
@@ -303,7 +305,7 @@ function StatWidget({ icon, label, value, color }: { icon: React.ReactNode, labe
   );
 }
 
-function KycDocCard({ label, status, onApprove, onReject }: { label: string, status: KycDocumentStatus, onApprove: () => void, onReject: () => void }) {
+function KycDocCard({ label, status, hasFile, onView, onApprove, onReject }: { label: string, status: KycDocumentStatus, hasFile: boolean, onView: () => void, onApprove: () => void, onReject: () => void }) {
   return (
     <Card className="p-6 rounded-[32px] border-border bg-secondary/10 space-y-4 group hover:border-blue-500/30 transition-all">
        <div className="flex justify-between items-start">
@@ -318,9 +320,12 @@ function KycDocCard({ label, status, onApprove, onReject }: { label: string, sta
        <div>
           <p className="text-sm font-black">{label}</p>
        </div>
+       <Button size="sm" variant="outline" className="w-full h-9 rounded-xl text-[10px] font-black uppercase" disabled={!hasFile} onClick={onView}>
+          {hasFile ? "Voir le document" : "Aucun fichier envoyé"}
+       </Button>
        {status === 'en_attente' && (
           <div className="flex gap-2">
-             <Button size="sm" className="flex-1 h-9 rounded-xl bg-green-500 hover:bg-green-600 text-white text-[10px] font-black uppercase" onClick={onApprove}>Approuver</Button>
+             <Button size="sm" disabled={!hasFile} className="flex-1 h-9 rounded-xl bg-green-500 hover:bg-green-600 text-white text-[10px] font-black uppercase" onClick={onApprove}>Approuver</Button>
              <Button size="sm" variant="outline" className="flex-1 h-9 rounded-xl text-[10px] font-black uppercase text-destructive border-border" onClick={onReject}>Rejeter</Button>
           </div>
        )}

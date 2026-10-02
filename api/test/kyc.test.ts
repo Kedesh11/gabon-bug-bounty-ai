@@ -2,6 +2,78 @@ import { describe, it, expect } from "vitest";
 import request from "supertest";
 import { app } from "../src/index.js";
 import { createTestUser } from "./helpers.js";
+import { storageMocks } from "./setup.js";
+
+const PDF_BYTES = Buffer.from("%PDF-1.4\n%fake but correctly signed\n");
+const PNG_BYTES = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from("rest")]);
+
+describe("POST /api/kyc/documents/upload — real file", () => {
+  it("stores the file privately and exposes only hasFile, never the storage path", async () => {
+    storageMocks.upload.mockClear();
+    const hacker = await createTestUser("hacker");
+    const res = await request(app)
+      .post("/api/kyc/documents/upload")
+      .set("Authorization", hacker.authHeader)
+      .field("type", "photo_identite")
+      .attach("file", PNG_BYTES, { filename: "moi.png", contentType: "image/png" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.document.hasFile).toBe(true);
+    expect(res.body.document.filePath).toBeUndefined();
+    expect(res.body.document.fileName).toBe("moi.png");
+    expect(storageMocks.upload.mock.calls[0][0]).toContain(`${hacker.id}/photo_identite/`);
+  });
+
+  it("rejects a file whose bytes don't match its declared type", async () => {
+    const hacker = await createTestUser("hacker");
+    const res = await request(app)
+      .post("/api/kyc/documents/upload")
+      .set("Authorization", hacker.authHeader)
+      .field("type", "photo_identite")
+      .attach("file", Buffer.from("<script>alert(1)</script>"), { filename: "x.png", contentType: "image/png" });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an upload without a file or with an unknown document type", async () => {
+    const hacker = await createTestUser("hacker");
+    expect((await request(app).post("/api/kyc/documents/upload").set("Authorization", hacker.authHeader).field("type", "photo_identite")).status).toBe(400);
+    const badType = await request(app)
+      .post("/api/kyc/documents/upload")
+      .set("Authorization", hacker.authHeader)
+      .field("type", "carte_bancaire")
+      .attach("file", PDF_BYTES, { filename: "a.pdf", contentType: "application/pdf" });
+    expect(badType.status).toBe(400);
+  });
+});
+
+describe("GET /api/kyc/documents/:id/file — signed URL", () => {
+  async function uploaded() {
+    const owner = await createTestUser("hacker");
+    const res = await request(app)
+      .post("/api/kyc/documents/upload")
+      .set("Authorization", owner.authHeader)
+      .field("type", "passeport_recto")
+      .attach("file", PDF_BYTES, { filename: "p.pdf", contentType: "application/pdf" });
+    return { owner, id: res.body.document.id as string };
+  }
+
+  it("lets the owner and staff fetch it, but nobody else", async () => {
+    const { owner, id } = await uploaded();
+    const support = await createTestUser("support");
+    const stranger = await createTestUser("hacker");
+
+    expect((await request(app).get(`/api/kyc/documents/${id}/file`).set("Authorization", owner.authHeader)).body.url).toContain("mock.local");
+    expect((await request(app).get(`/api/kyc/documents/${id}/file`).set("Authorization", support.authHeader)).status).toBe(200);
+    expect((await request(app).get(`/api/kyc/documents/${id}/file`).set("Authorization", stranger.authHeader)).status).toBe(403);
+  });
+
+  it("404s for a document that has no stored file", async () => {
+    const hacker = await createTestUser("hacker");
+    const created = await request(app).post("/api/kyc/documents").set("Authorization", hacker.authHeader).send({ type: "photo_identite" });
+    const res = await request(app).get(`/api/kyc/documents/${created.body.document.id}/file`).set("Authorization", hacker.authHeader);
+    expect(res.status).toBe(404);
+  });
+});
 
 describe("POST /api/kyc/documents — self-service submission", () => {
   it("lets a hacker submit their own document", async () => {
@@ -101,13 +173,15 @@ describe("PATCH /api/kyc/documents/:id — review, staff-only", () => {
     expect(res.status).toBe(403);
   });
 
-  it("lets support approve a document and records who reviewed it", async () => {
+  it("lets support approve a document that has an uploaded file, and records who reviewed it", async () => {
     const hacker = await createTestUser("hacker");
     const support = await createTestUser("support");
     const created = await request(app)
-      .post("/api/kyc/documents")
+      .post("/api/kyc/documents/upload")
       .set("Authorization", hacker.authHeader)
-      .send({ type: "passeport_verso" });
+      .field("type", "passeport_verso")
+      .attach("file", PDF_BYTES, { filename: "passeport.pdf", contentType: "application/pdf" });
+    expect(created.status).toBe(201);
 
     const res = await request(app)
       .patch(`/api/kyc/documents/${created.body.document.id}`)
@@ -118,6 +192,28 @@ describe("PATCH /api/kyc/documents/:id — review, staff-only", () => {
     expect(res.body.document.status).toBe("valide");
     expect(res.body.document.reviewedBy.id).toBe(support.id);
     expect(res.body.document.reviewedAt).toBeTruthy();
+  });
+
+  it("refuses to approve a document that has no stored file, but allows rejecting it", async () => {
+    const hacker = await createTestUser("hacker");
+    const support = await createTestUser("support");
+    const created = await request(app)
+      .post("/api/kyc/documents")
+      .set("Authorization", hacker.authHeader)
+      .send({ type: "passeport_recto", fileName: "claimed.jpg" });
+    expect(created.body.document.hasFile).toBe(false);
+
+    const approve = await request(app)
+      .patch(`/api/kyc/documents/${created.body.document.id}`)
+      .set("Authorization", support.authHeader)
+      .send({ status: "valide" });
+    expect(approve.status).toBe(409);
+
+    const reject = await request(app)
+      .patch(`/api/kyc/documents/${created.body.document.id}`)
+      .set("Authorization", support.authHeader)
+      .send({ status: "rejete", reviewNote: "Aucun fichier" });
+    expect(reject.status).toBe(200);
   });
 
   it("404s for an unknown document id", async () => {
