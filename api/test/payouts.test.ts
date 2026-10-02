@@ -11,11 +11,20 @@ beforeEach(() => {
   cinetpayFetchMock.mockReset();
 });
 
-async function createAcceptedReport(reward = 500000) {
+async function fundProgramme(programmeId: string, entrepriseId: string, amount: number, currency = "XAF") {
+  await prisma.payment.create({
+    data: { programmeId, entrepriseId, provider: "stripe", amount, currency, status: "succeeded", providerRef: `cs_test_${programmeId}_${currency}` },
+  });
+}
+
+// Programmes are funded by default (a generous XAF balance) — payouts are now refused on an
+// unfunded programme, which the dedicated tests below exercise with `funded: false`.
+async function createAcceptedReport(reward = 500000, { funded = true } = {}) {
   const hacker = await createTestUser("hacker");
   const entreprise = await createTestUser("entreprise");
   const entrepriseProfile = await prisma.entrepriseProfile.findUniqueOrThrow({ where: { profileId: entreprise.id } });
   const programme = await createTestProgramme(entrepriseProfile.id);
+  if (funded) await fundProgramme(programme.id, entrepriseProfile.id, 100_000_000);
   const hackerProfile = await prisma.hackerProfile.findUniqueOrThrow({ where: { profileId: hacker.id } });
 
   const report = await prisma.report.create({
@@ -33,7 +42,7 @@ async function createAcceptedReport(reward = 500000) {
     },
   });
 
-  return { hacker, hackerProfile, entreprise, report };
+  return { hacker, hackerProfile, entreprise, entrepriseProfile, report };
 }
 
 describe("POST /api/payouts/reports/:id", () => {
@@ -140,6 +149,7 @@ describe("POST /api/payouts/reports/:id", () => {
     const admin = await createTestUser("admin");
     const stripeCase = await createAcceptedReport(500);
     await prisma.programme.update({ where: { id: stripeCase.report.programmeId }, data: { rewardCurrency: "USD" } });
+    await fundProgramme(stripeCase.report.programmeId, stripeCase.entrepriseProfile.id, 100_000, "USD");
     await prisma.hackerProfile.update({ where: { id: stripeCase.hackerProfile.id }, data: { stripeAccountId: "acct_usd" } });
     stripeMocks.accountsRetrieve.mockResolvedValue({
       configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: "active" } } } } },
@@ -153,12 +163,87 @@ describe("POST /api/payouts/reports/:id", () => {
 
     const momoCase = await createAcceptedReport(500);
     await prisma.programme.update({ where: { id: momoCase.report.programmeId }, data: { rewardCurrency: "EUR" } });
+    await fundProgramme(momoCase.report.programmeId, momoCase.entrepriseProfile.id, 100_000, "EUR");
     await prisma.hackerPaymentConfig.create({
       data: { hackerId: momoCase.hackerProfile.id, gainsEnabled: true, paymentMethods: ["mobile_money"], mobileMoneyProvider: "airtel", phoneNumber: "+24177123456" },
     });
     const refused = await request(app).post(`/api/payouts/reports/${momoCase.report.id}`).set("Authorization", admin.authHeader);
     expect(refused.status).toBe(422);
     expect(await prisma.payout.findUnique({ where: { reportId: momoCase.report.id } })).toBeNull();
+  });
+
+  describe("funding check", () => {
+    const stripeReady = async (hackerProfileId: string, account: string) => {
+      await prisma.hackerProfile.update({ where: { id: hackerProfileId }, data: { stripeAccountId: account } });
+      stripeMocks.accountsRetrieve.mockResolvedValue({
+        configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: "active" } } } } },
+      });
+      stripeMocks.transfersCreate.mockResolvedValue({ id: `tr_${account}` });
+    };
+
+    it("refuses a payout on a programme that has not been funded, without creating a payout row", async () => {
+      const finance = await createTestUser("finance");
+      const { hackerProfile, report } = await createAcceptedReport(300000, { funded: false });
+      await stripeReady(hackerProfile.id, "acct_unfunded");
+
+      const res = await request(app).post(`/api/payouts/reports/${report.id}`).set("Authorization", finance.authHeader);
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toContain("insuffisamment financé");
+      expect(stripeMocks.transfersCreate).not.toHaveBeenCalled();
+      expect(await prisma.payout.findUnique({ where: { reportId: report.id } })).toBeNull();
+    });
+
+    it("ignores pending/failed payments and funding in another currency", async () => {
+      const finance = await createTestUser("finance");
+      const { hackerProfile, entrepriseProfile, report } = await createAcceptedReport(300000, { funded: false });
+      await stripeReady(hackerProfile.id, "acct_noise");
+      await prisma.payment.createMany({
+        data: [
+          { programmeId: report.programmeId, entrepriseId: entrepriseProfile.id, provider: "stripe", amount: 900000, currency: "XAF", status: "pending", providerRef: "a" },
+          { programmeId: report.programmeId, entrepriseId: entrepriseProfile.id, provider: "stripe", amount: 900000, currency: "XAF", status: "failed", providerRef: "b" },
+          { programmeId: report.programmeId, entrepriseId: entrepriseProfile.id, provider: "stripe", amount: 900000, currency: "USD", status: "succeeded", providerRef: "c" },
+        ],
+      });
+
+      const res = await request(app).post(`/api/payouts/reports/${report.id}`).set("Authorization", finance.authHeader);
+      expect(res.status).toBe(409);
+    });
+
+    it("counts rewards already paid, so a programme cannot be overspent", async () => {
+      const finance = await createTestUser("finance");
+      const first = await createAcceptedReport(300000, { funded: false });
+      await fundProgramme(first.report.programmeId, first.entrepriseProfile.id, 400000);
+      await stripeReady(first.hackerProfile.id, "acct_first");
+
+      const second = await createAcceptedReport(300000, { funded: false });
+      // Same programme for both reports: move the second report onto the first one's programme.
+      await prisma.report.update({ where: { id: second.report.id }, data: { programmeId: first.report.programmeId, entrepriseId: first.entrepriseProfile.id } });
+      await stripeReady(second.hackerProfile.id, "acct_second");
+
+      const ok = await request(app).post(`/api/payouts/reports/${first.report.id}`).set("Authorization", finance.authHeader);
+      expect(ok.status).toBe(201);
+      const refused = await request(app).post(`/api/payouts/reports/${second.report.id}`).set("Authorization", finance.authHeader);
+      expect(refused.status).toBe(409);
+      expect(refused.body.error).toContain("100000 XAF disponibles");
+    });
+
+    it("lets only one of two simultaneous payouts through when the balance covers just one", async () => {
+      const finance = await createTestUser("finance");
+      const first = await createAcceptedReport(300000, { funded: false });
+      await fundProgramme(first.report.programmeId, first.entrepriseProfile.id, 400000);
+      await stripeReady(first.hackerProfile.id, "acct_race_1");
+      const second = await createAcceptedReport(300000, { funded: false });
+      await prisma.report.update({ where: { id: second.report.id }, data: { programmeId: first.report.programmeId, entrepriseId: first.entrepriseProfile.id } });
+      await stripeReady(second.hackerProfile.id, "acct_race_2");
+
+      const results = await Promise.all([
+        request(app).post(`/api/payouts/reports/${first.report.id}`).set("Authorization", finance.authHeader),
+        request(app).post(`/api/payouts/reports/${second.report.id}`).set("Authorization", finance.authHeader),
+      ]);
+
+      expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    });
   });
 
   it("pays out via CinetPay when the hacker only has mobile money configured", async () => {

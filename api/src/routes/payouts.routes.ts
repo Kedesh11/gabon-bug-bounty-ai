@@ -6,6 +6,7 @@ import { HttpError } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { isRecipientTransfersActive } from "../services/payments/stripe/connect.js";
+import { getProgrammeBalance } from "../services/payments/programmeBalance.js";
 import { createPayout } from "../services/payments/paymentService.js";
 import { createPlatformLog } from "../services/platformLogs/logsService.js";
 import { listPayouts } from "../services/payments/paymentsQueryService.js";
@@ -74,30 +75,46 @@ payoutsRouter.post(
 
     const provider = stripeAccountId ? "stripe" : "cinetpay";
 
+    // Funding check + claim in ONE transaction, serialised per programme by an advisory lock:
+    // without it two simultaneous payouts could each see enough balance and together overspend.
+    // The pending row created/claimed here is what the next caller's balance already counts.
+    //
     // A previous attempt that failed is retried on the SAME row (and so the same Stripe
     // idempotency key): if that attempt actually moved money before failing to record it,
     // Stripe returns the original transfer instead of paying twice. The conditional
     // updateMany claims the retry atomically — two concurrent retries can't both win.
     let payoutId: string;
-    if (report.payout) {
-      const claimed = await prisma.payout.updateMany({
-        where: { id: report.payout.id, status: "failed" },
-        data: { status: "pending", provider, amount: report.reward, currency },
-      });
-      if (claimed.count === 0) throw new HttpError(409, "Un versement est déjà en cours pour ce rapport");
-      payoutId = report.payout.id;
-    } else {
-      try {
-        const created = await prisma.payout.create({
+    try {
+      payoutId = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${report.programmeId}))`;
+
+        const balance = await getProgrammeBalance(tx, report.programmeId, currency);
+        if (balance.available < report.reward) {
+          throw new HttpError(
+            409,
+            `Programme insuffisamment financé : ${balance.available} ${currency} disponibles (${balance.funded} reçus, ${balance.committed} déjà versés ou en cours), ${report.reward} ${currency} requis. L'entreprise doit d'abord financer le programme.`,
+          );
+        }
+
+        if (report.payout) {
+          const claimed = await tx.payout.updateMany({
+            where: { id: report.payout.id, status: "failed" },
+            data: { status: "pending", provider, amount: report.reward, currency },
+          });
+          if (claimed.count === 0) throw new HttpError(409, "Un versement est déjà en cours pour ce rapport");
+          return report.payout.id;
+        }
+
+        const created = await tx.payout.create({
           data: { reportId: report.id, hackerId: report.hackerId, provider, amount: report.reward, currency },
         });
-        payoutId = created.id;
-      } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-          throw new HttpError(409, "Un versement est déjà en cours pour ce rapport");
-        }
-        throw err;
+        return created.id;
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new HttpError(409, "Un versement est déjà en cours pour ce rapport");
       }
+      throw err;
     }
 
     try {
