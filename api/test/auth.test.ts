@@ -287,6 +287,18 @@ describe("POST /api/auth/reset-password", () => {
     expect(reuseRes.status).toBe(400);
   });
 
+  it("lets only one of two simultaneous requests with the same link through", async () => {
+    const hacker = await createTestUser("hacker");
+    const rawToken = await issuePasswordResetToken({ id: hacker.id, email: hacker.email });
+
+    const results = await Promise.all([
+      request(app).post("/api/auth/reset-password").send({ token: rawToken, password: "newpassword123" }),
+      request(app).post("/api/auth/reset-password").send({ token: rawToken, password: "otherpassword123" }),
+    ]);
+
+    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+  });
+
   it("rejects an expired token", async () => {
     const hacker = await createTestUser("hacker");
     const rawToken = await issuePasswordResetToken({ id: hacker.id, email: hacker.email });

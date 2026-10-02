@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
@@ -12,6 +12,7 @@ import { createPlatformLog } from "../services/platformLogs/logsService.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../lib/mailer.js";
 import { loginRateLimit, forgotPasswordRateLimit, resendVerificationRateLimit } from "../middleware/rateLimit.js";
 import { getSystemPasswordComplexity, validatePasswordComplexity } from "../lib/passwordPolicy.js";
+import { hashToken, createPasswordResetToken } from "../lib/resetTokens.js";
 import { isMfaEnrollmentRequired } from "../lib/mfaPolicy.js";
 
 export const authRouter = Router();
@@ -226,10 +227,38 @@ authRouter.patch(
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-// Shared by both self-issued token flows below (reset and email verification) —
-// SHA-256 hashing has nothing flow-specific about it.
-function hashToken(rawToken: string) {
-  return createHash("sha256").update(rawToken).digest("hex");
+// Single-use enforcement for both token flows: the claim is one conditional UPDATE, so two
+// simultaneous requests carrying the same link can't both pass a read-then-write check.
+// Returns the token's profileId when this call won the claim, null if the token is unknown,
+// already used or expired.
+async function claimToken(
+  model: "passwordResetToken" | "emailVerificationToken",
+  tokenHash: string,
+): Promise<string | null> {
+  const delegate = prisma[model] as unknown as {
+    findUnique(args: { where: { tokenHash: string } }): Promise<{ id: string; profileId: string } | null>;
+    updateMany(args: { where: object; data: object }): Promise<{ count: number }>;
+  };
+  const row = await delegate.findUnique({ where: { tokenHash } });
+  if (!row) return null;
+  const claimed = await delegate.updateMany({
+    where: { id: row.id, usedAt: null, expiresAt: { gt: new Date() } },
+    data: { usedAt: new Date() },
+  });
+  return claimed.count === 1 ? row.profileId : null;
+}
+
+// Best-effort: a password reset must end every session opened with the old password
+// (the usual reason for resetting is "someone else may have it"). GoTrue keeps sessions
+// across an admin password change, and supabase-js only exposes signOut-by-JWT, so the
+// rows are removed directly. A failure here (e.g. a plain Postgres without the auth schema)
+// must not fail the reset itself.
+async function revokeAllSessions(profileId: string) {
+  try {
+    await prisma.$executeRaw`DELETE FROM auth.sessions WHERE user_id = ${profileId}::uuid`;
+  } catch (err) {
+    console.error("[auth] could not revoke sessions after password reset:", err);
+  }
 }
 
 // The actual work of issuing a reset token/email, split out of the route handler and
@@ -239,16 +268,7 @@ function hashToken(rawToken: string) {
 // time, both so an old email link can never coexist with a newer one and so this table
 // never accumulates stale rows without needing a separate cleanup job.
 export async function issuePasswordResetToken(profile: { id: string; email: string }) {
-  await prisma.passwordResetToken.deleteMany({ where: { profileId: profile.id } });
-
-  const rawToken = randomBytes(32).toString("hex");
-  await prisma.passwordResetToken.create({
-    data: {
-      profileId: profile.id,
-      tokenHash: hashToken(rawToken),
-      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
-    },
-  });
+  const rawToken = await createPasswordResetToken(profile.id, RESET_TOKEN_TTL_MS);
 
   const resetUrl = `${env.FRONTEND_URL}/reinitialiser-mot-de-passe?token=${rawToken}`;
   const { sent, error } = await sendPasswordResetEmail({ to: profile.email, resetUrl });
@@ -309,29 +329,28 @@ authRouter.post(
     const complexityError = validatePasswordComplexity(body.password, complexity);
     if (complexityError) throw new HttpError(400, complexityError);
 
-    const tokenHash = hashToken(body.token);
+    // Claimed BEFORE changing the password: a concurrent second request with the same link
+    // loses the claim and never reaches updateUserById.
+    const profileId = await claimToken("passwordResetToken", hashToken(body.token));
+    if (!profileId) throw new HttpError(400, "Lien de réinitialisation invalide ou expiré");
 
-    const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
-    if (!resetToken || resetToken.usedAt || resetToken.expiresAt.getTime() < Date.now()) {
-      throw new HttpError(400, "Lien de réinitialisation invalide ou expiré");
-    }
-
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(resetToken.profileId, {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(profileId, {
       password: body.password,
     });
-    if (error) throw new HttpError(500, "Impossible de réinitialiser le mot de passe");
+    if (error) {
+      // The link wasn't actually consumed by a successful reset — let the user retry it.
+      await prisma.passwordResetToken.updateMany({ where: { profileId }, data: { usedAt: null } });
+      throw new HttpError(500, "Impossible de réinitialiser le mot de passe");
+    }
 
-    // issuePasswordResetToken deletes any prior row for this profile before creating a
-    // new one, so this is always the only row for the account — marking it used is
-    // enough, no sibling rows to invalidate alongside it.
-    await prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } });
+    await revokeAllSessions(profileId);
 
     await createPlatformLog({
       type: "security",
       level: "info",
       message: "Mot de passe réinitialisé via lien email",
       source: "auth.routes",
-      userId: resetToken.profileId,
+      userId: profileId,
     });
 
     res.status(200).json({ message: "Mot de passe réinitialisé avec succès" });
@@ -365,26 +384,23 @@ authRouter.post(
   "/verify-email",
   asyncHandler(async (req, res) => {
     const body = verifyEmailSchema.parse(req.body);
-    const tokenHash = hashToken(body.token);
+    const profileId = await claimToken("emailVerificationToken", hashToken(body.token));
+    if (!profileId) throw new HttpError(400, "Lien de confirmation invalide ou expiré");
 
-    const verificationToken = await prisma.emailVerificationToken.findUnique({ where: { tokenHash } });
-    if (!verificationToken || verificationToken.usedAt || verificationToken.expiresAt.getTime() < Date.now()) {
-      throw new HttpError(400, "Lien de confirmation invalide ou expiré");
-    }
-
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(verificationToken.profileId, {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(profileId, {
       email_confirm: true,
     });
-    if (error) throw new HttpError(500, "Impossible de confirmer l'email");
-
-    await prisma.emailVerificationToken.update({ where: { id: verificationToken.id }, data: { usedAt: new Date() } });
+    if (error) {
+      await prisma.emailVerificationToken.updateMany({ where: { profileId }, data: { usedAt: null } });
+      throw new HttpError(500, "Impossible de confirmer l'email");
+    }
 
     await createPlatformLog({
       type: "security",
       level: "info",
       message: "Email confirmé via lien",
       source: "auth.routes",
-      userId: verificationToken.profileId,
+      userId: profileId,
     });
 
     res.status(200).json({ message: "Email confirmé avec succès" });

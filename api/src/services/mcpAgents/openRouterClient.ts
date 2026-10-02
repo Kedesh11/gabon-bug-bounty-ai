@@ -28,12 +28,17 @@ interface OpenRouterChatResponse {
   error?: { message?: string };
 }
 
+// Without a ceiling a stalled upstream leaves the report's analysisStatus at "en_cours"
+// forever (runMcpPipeline awaits every stage). Aborting surfaces as a normal agent failure.
+const OPENROUTER_TIMEOUT_MS = 60_000;
+
 export async function callOpenRouter(model: string, messages: ChatMessage[]): Promise<OpenRouterResult> {
   const apiKey = requireOpenRouterCredentials();
   const startedAt = Date.now();
 
   const res = await fetch(env.OPENROUTER_BASE_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",

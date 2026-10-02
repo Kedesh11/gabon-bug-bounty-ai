@@ -10,6 +10,10 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
+  // Number of reverse-proxy hops in front of the API (1 behind a single load balancer /
+  // nginx). Express's req.ip — and therefore every rate limiter — reads the proxy's address
+  // instead of the caller's unless this is set. 0 (default) = API is exposed directly.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:8080"),
   // Frontend's own base URL, used to build the password-reset link emailed to a user
   // (see routes/auth.routes.ts) — distinct from CORS_ORIGIN, which is about the API's

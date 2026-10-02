@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import { env } from "./env.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./routes/auth.routes.js";
@@ -27,6 +28,11 @@ import { stripeWebhookRouter, cinetpayWebhookRouter } from "./routes/webhooks.ro
 
 export const app = express();
 
+if (env.TRUST_PROXY_HOPS > 0) app.set("trust proxy", env.TRUST_PROXY_HOPS);
+
+// Pure JSON API: helmet's defaults (nosniff, frameguard, HSTS, no-referrer-ish headers) apply as-is.
+// The report PDF endpoint is the only non-JSON response and is fine under them too.
+app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN }));
 
 // Mounted before express.json(): Stripe webhook signature verification needs the
